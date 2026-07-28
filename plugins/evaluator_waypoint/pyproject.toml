@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-evaluator-waypoint"
+version = "0.1.0.dev0"
+description = "A dependency-free closed-loop world for Gantry, with milestones and outcomes"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+# Tests exercise this plugin against others. Declared so it still
+# works when installed on its own, which is how CI installs it.
+dev = ["pytest>=7.4", "gantry-feedback-core"]
+
+[project.entry-points."gantry.evaluators"]
+waypoint = "gantry_evaluator_waypoint:WaypointWorld"
+
+[project.entry-points."gantry.policies"]
+waypoint_greedy = "gantry_evaluator_waypoint:GreedyPolicy"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

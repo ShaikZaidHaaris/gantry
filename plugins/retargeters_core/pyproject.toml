@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-retargeters-core"
+version = "0.1.0.dev0"
+description = "Structural retargeters for Gantry: dropping dimensions and reducing a pose"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+# Only the retargeters that are meaningful with no configuration are declared
+# here. DropDimensions needs to be told *which* dimensions to drop — that is a
+# judgement, not a default — so it is constructed by whoever knows the answer
+# and handed to the resolver directly.
+[project.entry-points."gantry.retargeters"]
+pose_to_position = "gantry_retargeters_core:PoseToPosition"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-connector-robomimic"
+version = "0.1.0.dev0"
+description = "Gantry connector for RoboMimic HDF5 demonstration files"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = [
+  "gantry-core",
+  "numpy>=1.24",
+  "h5py>=3.8",
+  # This connector reports meanings from robosuite's vocabulary, so it depends
+  # on the package that defines them. Using a vocabulary without declaring the
+  # dependency is how a tag ends up unregistered at the far end.
+  "gantry-semantics-manipulation",
+]
+
+[project.optional-dependencies]
+# Tests exercise this plugin against others. Declared so it still
+# works when installed on its own, which is how CI installs it.
+dev = ["pytest>=7.4", "gantry-adapters-rotation"]
+
+[project.entry-points."gantry.connectors"]
+robomimic = "gantry_connector_robomimic:RoboMimicConnector"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

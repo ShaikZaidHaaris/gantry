@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-connector-lerobot"
+version = "0.1.0.dev0"
+description = "Gantry connector for LeRobot v2.x datasets"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["gantry-core", "numpy>=1.24", "pyarrow>=14"]
+
+[project.optional-dependencies]
+# Reading joint angles should not require ffmpeg bindings, and most datasets
+# people screen are read for their numbers. So the decoder is an extra, and the
+# connector says out loud when it is missing rather than declaring channels it
+# cannot deliver.
+video = ["av>=10"]
+# The video tests need a decoder to write a fixture and read it back. Declared,
+# because a test that imports something the package does not name is how a
+# plugin quietly acquires a dependency.
+dev = ["pytest>=7.4", "av>=10"]
+
+[project.entry-points."gantry.connectors"]
+lerobot = "gantry_connector_lerobot:LeRobotConnector"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

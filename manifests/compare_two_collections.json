@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "name": "compare-two-collections",
+  "cohorts": {
+    "collected_v1": {
+      "name": "csv",
+      "config": {
+        "path": "manifests/data/collected_v1.csv"
+      }
+    },
+    "collected_v2": {
+      "name": "csv",
+      "config": {
+        "path": "manifests/data/collected_v2.csv"
+      }
+    }
+  },
+  "feedback": [
+    {
+      "name": "screen",
+      "config": {
+        "mode": "comparative"
+      }
+    },
+    {
+      "name": "funnel"
+    },
+    {
+      "name": "harden"
+    }
+  ],
+  "protocol": {}
+}

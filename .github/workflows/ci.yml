@@ -1,0 +1,90 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Core is installed on its own, with no plugin present, because "core works
+  # with nothing installed" is a promise the build has to keep rather than a
+  # thing we assert in a docstring.
+  core:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: install core alone
+        run: pip install -e ".[dev]"
+      - name: it imports with no plugins
+        run: |
+          python -c "import gantry, gantry.spine, gantry.contracts, gantry.conformance,
+          gantry.resolve, gantry.fixtures, gantry.manifest, gantry.runner, gantry.store,
+          gantry.isolate, gantry.cli" 2>/dev/null ||
+          python -c "import gantry, gantry.spine, gantry.contracts, gantry.conformance, gantry.resolve, gantry.fixtures, gantry.manifest, gantry.runner, gantry.store, gantry.isolate, gantry.cli"
+      - name: core stays numpy-only and names no implementation
+        run: python -m pytest tests/test_neutrality.py -q
+      - name: the frozen surface is unbroken
+        run: python -m pytest tests/test_frozen_v1.py -q
+      - run: python -m pytest -q
+
+  # Every plugin, in its own interpreter, with only core and what it declares.
+  # This is the modularity claim made mechanical: a plugin that leans on a
+  # sibling it never mentioned fails here and nowhere else, because a shared
+  # environment satisfies undeclared imports silently.
+  plugins-alone:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin:
+          - adapters_core
+          - adapters_rotation
+          - connector_csv
+          - connector_evallog
+          - connector_lerobot
+          - connector_robomimic
+          - evaluator_gym
+          - evaluator_offline
+          - evaluator_waypoint
+          - feedback_core
+          - feedback_protocol
+          - policy_basic
+          - policy_gr00t
+          - policy_served
+          - retargeters_core
+          - semantics_manipulation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --upgrade pip
+      - name: install and test this plugin on its own
+        run: python tools/isolation_check.py ${{ matrix.plugin }}
+
+  # Everything together, which is the only configuration where the runner, the
+  # resolver and the isolation path all have something real to work on.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install core and every plugin
+        run: |
+          pip install -e ".[dev]"
+          for plugin in plugins/*/; do pip install -e "$plugin"; done
+      - run: python -m pytest -q
+      - name: every plugin passes its own conformance kit
+        run: python -m pytest plugins/*/tests -q
+      - name: the command line works
+        run: |
+          python -m gantry.cli list
+          python -m gantry.cli checks

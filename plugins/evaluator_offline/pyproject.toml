@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-evaluator-offline"
+version = "0.1.0.dev0"
+description = "Open-loop action-error evaluator for Gantry, no simulator required"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+# Tests exercise this plugin against others. Declared so it still
+# works when installed on its own, which is how CI installs it.
+dev = ["pytest>=7.4", "gantry-policy-basic"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[project.entry-points."gantry.evaluators"]
+offline = "gantry_evaluator_offline:OfflineEvaluator"

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-policy-gr00t"
+version = "0.1.0.dev0"
+description = "Evaluates a GR00T N1.7 inference server over its own wire protocol"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# The GR00T package is deliberately absent. This plugin speaks the protocol, so
+# the model keeps its torch, its CUDA build and its pinned numpy, and nothing
+# that wants to *measure* the model has to install any of it.
+dependencies = [
+    "gantry-core",
+    "numpy>=1.24",
+    "pyzmq>=25",
+    "msgpack>=1.0",
+    "msgpack-numpy>=0.4.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.policies"]
+gr00t = "gantry_policy_gr00t:Gr00tPolicy"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

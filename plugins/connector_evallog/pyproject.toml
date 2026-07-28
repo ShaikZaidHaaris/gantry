@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-connector-evallog"
+version = "0.1.0.dev0"
+description = "Read Inspect Robots evaluation logs as Gantry records"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["gantry-core"]
+
+[project.optional-dependencies]
+# Tests exercise this plugin against others. Declared so it still
+# works when installed on its own, which is how CI installs it.
+dev = ["pytest>=7.4", "gantry-feedback-core"]
+
+[project.entry-points."gantry.connectors"]
+evallog = "gantry_connector_evallog:EvalLogConnector"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

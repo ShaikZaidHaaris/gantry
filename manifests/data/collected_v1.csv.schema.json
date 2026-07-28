@@ -1,0 +1,30 @@
+{
+  "action": {
+    "dtype": "float32",
+    "kind": "vector",
+    "rate_hz": 20.0,
+    "semantics": "actuation",
+    "shape": [
+      4
+    ]
+  },
+  "engagement": {
+    "dtype": "float32",
+    "kind": "scalar",
+    "rate_hz": 20.0,
+    "semantics": "actuation",
+    "shape": [],
+    "units": "fraction"
+  },
+  "position": {
+    "dtype": "float32",
+    "frame": "world",
+    "kind": "vector",
+    "rate_hz": 20.0,
+    "semantics": "position",
+    "shape": [
+      3
+    ],
+    "units": "m"
+  }
+}
