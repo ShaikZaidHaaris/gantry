@@ -66,6 +66,20 @@
     "gripper_dof": 2,
     "gripper_class": "RethinkGripper",
     "arm_joints": 7,
-    "measured_from": "robosuite 1.4.1 Lift"
+    "measured_from": "robosuite 1.4.1 Lift",
+    "gripper": {
+      "name": "RethinkGripper",
+      "joints": 2,
+      "closed": [
+        -0.011837,
+        0.011837
+      ],
+      "open": [
+        0.011398,
+        -0.011393
+      ],
+      "measured_in": "robosuite-1.4.1",
+      "how": "commanded to each stop for 60 steps at 20 Hz and read back"
+    }
   }
 }

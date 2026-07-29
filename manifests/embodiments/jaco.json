@@ -70,6 +70,28 @@
     "gripper_dof": 6,
     "gripper_class": "JacoThreeFingerGripper",
     "arm_joints": 7,
-    "measured_from": "robosuite 1.4.1 Lift"
+    "measured_from": "robosuite 1.4.1 Lift",
+    "gripper": {
+      "name": "JacoThreeFingerGripper",
+      "joints": 6,
+      "closed": [
+        0.007874,
+        -0.768716,
+        0.008713,
+        -0.779481,
+        0.001136,
+        -0.542782
+      ],
+      "open": [
+        1.509823,
+        0.926185,
+        1.509814,
+        0.926176,
+        1.509812,
+        0.926174
+      ],
+      "measured_in": "robosuite-1.4.1",
+      "how": "commanded to each stop for 60 steps at 20 Hz and read back"
+    }
   }
 }

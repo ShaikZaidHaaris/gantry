@@ -70,6 +70,28 @@
     "gripper_dof": 6,
     "gripper_class": "Robotiq85Gripper",
     "arm_joints": 7,
-    "measured_from": "robosuite 1.4.1 Lift"
+    "measured_from": "robosuite 1.4.1 Lift",
+    "gripper": {
+      "name": "Robotiq85Gripper",
+      "joints": 6,
+      "closed": [
+        0.501677,
+        -0.253756,
+        0.268663,
+        0.502147,
+        -0.2521,
+        0.268371
+      ],
+      "open": [
+        -0.027371,
+        -0.274956,
+        -0.20152,
+        -0.02737,
+        -0.274954,
+        -0.201521
+      ],
+      "measured_in": "robosuite-1.4.1",
+      "how": "commanded to each stop for 60 steps at 20 Hz and read back"
+    }
   }
 }
