@@ -127,6 +127,14 @@ for _plane in (
         cardinality=MANY,
     ),
     Plane(
+        "curation",
+        "what to do to the data, said precisely enough to be applied and to be "
+        "found wrong",
+        contract="curation@1.0",
+        entry_point_group="gantry.curators",
+        cardinality=MANY,
+    ),
+    Plane(
         "embodiment",
         "describes a machine, and what it costs to speak to another one",
         contract="embodiment@1.0",

@@ -23,6 +23,7 @@ import pytest
 
 from gantry import contracts
 from gantry.contracts.connector import CONNECTOR_CONTRACT, Connector
+from gantry.contracts.curation import CURATION_CONTRACT
 from gantry.contracts.embodiment import EMBODIMENT_CONTRACT, Retargeter
 from gantry.contracts.evaluator import EVALUATOR_CONTRACT, Evaluator
 from gantry.contracts.feedback import FEEDBACK_CONTRACT, FeedbackModule
@@ -45,6 +46,7 @@ FROZEN_CONTRACTS = {
     "policy": (POLICY_CONTRACT, "1.0"),
     "evaluator": (EVALUATOR_CONTRACT, "1.1"),
     "feedback": (FEEDBACK_CONTRACT, "1.0"),
+    "curation": (CURATION_CONTRACT, "1.0"),
 }
 
 
@@ -72,6 +74,11 @@ def test_the_core_planes_are_frozen():
         # hardware" both unsayable. It is a plane because it is a thing you
         # author once and stage many ways.
         "task",
+        # Added deliberately: the only plane whose output is an instruction
+        # rather than a description. It is separate from feedback because a
+        # signal that scores its own effect is the Goodhart machine, and the
+        # two must not be the same component.
+        "curation",
         "embodiment",
         "policy",
         "evaluation",

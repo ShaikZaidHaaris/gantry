@@ -117,6 +117,53 @@ def cmd_run(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------
 
 
+def cmd_curate(args: argparse.Namespace) -> int:
+    """Propose a curation from installed curators, and say what it would cost.
+
+    Reads the ledger for this signal's track record, so a proposal arrives
+    alongside how often that signal has been right before rather than as a bare
+    recommendation.
+    """
+    from .ledger import Ledger
+    from .resolve import Registry
+
+    registry = Registry.from_entry_points()
+    names = registry.names("curation")
+    if args.signal not in names:
+        print(f"no curator named {args.signal!r}; installed: {list(names) or 'none'}")
+        return 1
+    print(f"curator {args.signal!r} is installed and ready")
+    ledger = Ledger(args.ledger)
+    prior = ledger.prior_for(args.signal)
+    if prior is None:
+        print(f"  no track record yet: {args.signal!r} has never been verified here")
+    else:
+        print(f"  track record: held {prior:.0%} of {ledger.tested(args.signal)} test(s)")
+    print("  build the dataset and call .plan(episodes, runs) to propose")
+    return 0
+
+
+def cmd_ledger(args: argparse.Namespace) -> int:
+    """What every curation signal has actually achieved here."""
+    from .ledger import Ledger
+
+    ledger = Ledger(args.dir)
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "tested": len(ledger),
+                    "by_signal": ledger.track_record(),
+                    "by_task": ledger.by_task(),
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(ledger.report())
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gantry",
@@ -147,6 +194,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--json", action="store_true", help="print JSON instead of a summary")
     run.set_defaults(func=cmd_run)
+
+    curate = subparsers.add_parser(
+        "curate", help="propose what to do to the data, with the signal's track record"
+    )
+    curate.add_argument("signal", help="an installed curator, e.g. labels")
+    curate.add_argument("--ledger", default="ledger", help="where outcomes are kept")
+    curate.set_defaults(func=cmd_curate)
+
+    ledger = subparsers.add_parser(
+        "ledger", help="which curation signals have actually worked, and where"
+    )
+    ledger.add_argument("dir", nargs="?", default="ledger")
+    ledger.add_argument("--json", action="store_true")
+    ledger.set_defaults(func=cmd_ledger)
 
     return parser
 

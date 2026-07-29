@@ -43,13 +43,14 @@ demonstrations succeed.** Sixteen percent.
 
 ## The idea
 
-Eight planes, each an independent axis of variation. A plugin implements one contract, declares
+Nine planes, each an independent axis of variation. A plugin implements one contract, declares
 what it needs and what it provides, and never learns anything about the others.
 
 | Plane | What it is | Shipped |
 |---|---|---|
 | `dataset` | where episodes come from | `lerobot` · `robomimic` · `csv` · `evallog` |
 | `task` | what is being attempted, and how anyone decides it was done | `declared` |
+| `curation` | what to do to the data, said precisely enough to be wrong | `labels` · `collect` |
 | `policy` | anything that turns observations into actions | `gr00t` · `served` · `replay` · `constant` · `noisy_replay` |
 | `evaluation` | running a policy and recording what happened | `robosuite` · `libero` · `gym` · `offline` · `waypoint` |
 | `feedback` | records in, findings out | `screen` · `compare` · `funnel` · `attribution` · `harden` · `protocol` |
@@ -161,6 +162,62 @@ pick_place_can   REFUSED: PickPlaceCan exposes no surface origin …
 hang_tool        REFUSED: ToolHang takes no placement at all …
 ```
 
+## Curation: telling you what to do to the data
+
+The other eight planes describe or measure. This one **prescribes** — and every
+prescription is an object that can turn out to be wrong:
+
+```
+[labels@screening] drop 1256 -> success_rate +0.042
+```
+
+That plan says which episodes, from which signal, at what claim strength, and
+**what it predicts**. Then it gets tested rather than believed:
+
+```
+20 trials  -> refused: separating +0.042 from a 35% baseline needs about 66 paired trials
+200 trials -> proceed
+
+curation.verified  observed +0.400 over 20 shared scenes (won 8, lost 0, p=0.0078)
+```
+
+Prescriptions also cover data that does not exist yet. A failed rollout is a
+seed, a seed re-stages the scene exactly, and the task's region is the same
+rectangle on a simulated table or a real one — so "collect more data" becomes a
+work order:
+
+```
+collect 5 x lift_cube, from 5 failed scene(s)
+  seeds: (3000, 3001, 3002, 3003, 3004)
+  note : failed scenes sit toward the low end of x (median +0.068, over +0.060..+0.076)
+```
+
+**Proposing and judging are different planes on purpose.** Every curation method
+in the literature reports its own wins, because evaluation is normally too
+expensive to run twice. Here a curator proposes and the feedback plane judges,
+with three gates the published methods do not have:
+
+- **Leakage** — a signal that read rollouts to choose what to drop cannot be
+  scored on those same scenes. It declares the seeds it consumed; the overlap is
+  a refusal.
+- **Power** — a plan predicting +3pp verified on 20 trials is refused *before*
+  the retrain, not discovered after it.
+- **Selection** — the tenth plan from one signal faces a corrected threshold. The
+  same result that passes at p=0.031 on its first try is refuted as the best of
+  forty.
+
+Verdicts are kept either way, in a ledger addressed by content. After enough of
+them it answers a question nobody has published: **which curation signals
+actually work, on which tasks.**
+
+```
+  labels    2/3 held, median +0.120 when it did   [132 gpu-min]
+  deminf    0/1 held
+
+  lift_cube            held: labels    refuted: deminf
+  assemble_square_nut  held: -         refuted: labels
+```
+
 ## GR00T N1.7
 
 `plugins/policy_gr00t` speaks GR00T's inference protocol — ZeroMQ, msgpack — and **never
@@ -189,11 +246,11 @@ plausible numbers.
 ```
 src/gantry/          core — depends on numpy and nothing else
   spine/               what an episode, a run, a channel and a verdict are
-  contracts/           the eight plane interfaces
+  contracts/           the nine plane interfaces
   conformance/         one kit per contract, returning verdicts, importing no test framework
   resolve/             binding, adapters, retargeters, requirements
   isolate.py           subprocess boundary for conflicting dependencies
-plugins/             21 plugins, each installable on its own
+plugins/             25 plugins, each installable on its own
 docs/                writing-a-plugin.md
 manifests/           a run described as a file, so it can be committed and diffed
 reference/           earlier implementations, kept to check this one against
@@ -205,7 +262,7 @@ ARCHITECTURE.md      the whole design, contracts first
 ```bash
 python -m pytest tests --ignore=tests/integration   # core alone, no plugins
 python -m pytest                                   # 285, plugins installed
-python -m pytest plugins/*/tests                   # 614 across 21 plugins
+python -m pytest plugins/*/tests                   # 673 across 25 plugins
 python tools/isolation_check.py       # each plugin alone, in a fresh venv
 ```
 
@@ -215,7 +272,7 @@ never mentions and nobody finds out until someone installs it alone. This builds
 interpreter per plugin and installs only core, that plugin, and what it actually declares:
 
 ```
-21/21 plugins install and pass on their own
+25/25 plugins install and pass on their own
 ```
 
 CI runs core on four Python versions with no plugin present, every plugin in isolation, and
@@ -223,7 +280,7 @@ everything together.
 
 ## Status
 
-Working: the eight planes, 21 plugins, 899 tests. Verified against real LeRobot and
+Working: the nine planes, 25 plugins, 960 tests. Verified against real LeRobot and
 RoboMimic data; against a GR00T N1.7 checkpoint fine-tuned on this data and served over its
 real protocol; and in closed loop against MuJoCo, where replaying recorded actions into the
 rebuilt world lifts the cube 3/3, which is the check that proves the wiring rather than

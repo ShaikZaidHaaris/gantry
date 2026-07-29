@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping
 
+from ..errors import GantryError
+
 
 @dataclass(frozen=True)
 class Reason:
@@ -94,8 +96,25 @@ class Verdict:
             raise IncompatibleError(prefix + self.explain(), self)
 
 
-class IncompatibleError(Exception):
-    """Raised when a refusal is escalated to an exception."""
+class IncompatibleError(GantryError):
+    """Raised when a refusal is escalated to an exception.
+
+    A ``GantryError`` because that is what it is. The runner, and every sweep
+    written against it, catches ``GantryError`` to record a component refusing
+    as a refusal — so an escalated refusal outside that hierarchy is caught by
+    nothing and reads as a crash. The distinction it used to draw, that a
+    refusal is not a failure, is carried by the verdict it holds rather than
+    by its base class.
+
+    Recoverable, and deliberately: a refusal is one component declining one
+    question it cannot answer meaningfully, and the rest of the run is
+    unaffected. A feedback module that will not analyse a single cohort should
+    fail only itself; halting there would let one module's honest "no" discard
+    every other module's finished analysis.
+    """
+
+    halts = False
+    recoverable = True
 
     def __init__(self, message: str, verdict: Verdict):
         super().__init__(message)
