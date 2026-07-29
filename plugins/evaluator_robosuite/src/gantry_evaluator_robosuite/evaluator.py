@@ -58,6 +58,7 @@ from gantry.spine import (
     Measurement,
     Provenance,
     RunRecord,
+    Verdict,
     episode_from_arrays,
     episode_from_labels,
     proportion,
@@ -206,6 +207,7 @@ class RobosuiteEvaluator(Evaluator):
         action: ChannelSpec = OSC_POSE,
         success: Callable[..., bool] = success_from_is_success,
         factory: Callable[..., Any] = build_env,
+        observe: Callable[[Mapping[str, Any]], Mapping[str, Any]] | None = None,
         use_image_obs: bool = False,
         instruction: str | None = None,
     ):
@@ -225,9 +227,11 @@ class RobosuiteEvaluator(Evaluator):
         self._action = action
         self._success = success
         self._factory = factory
+        self._observe = observe
         self._use_image_obs = use_image_obs
         self._instruction = instruction
         self._env: Any = None
+        self._checked = False
 
     # -- contract ----------------------------------------------------------
 
@@ -291,6 +295,36 @@ class RobosuiteEvaluator(Evaluator):
 
     # -- running -----------------------------------------------------------
 
+    def fits(self, policy: Any, observation: Mapping[str, Any]) -> Verdict:
+        """Can this policy read what this world emits?
+
+        Asked once, before the first trial, because the alternative is what
+        actually happened: a policy expecting a dataset's channel names got a
+        simulator's, raised on every scene, and produced twenty identical
+        errors that looked like twenty failures. A world and a recording of a
+        world do not name things the same way, and there is no reason they
+        should — but somebody has to say so out loud before the run.
+        """
+        wanted = getattr(policy, "observes", None)
+        if wanted is None:
+            return Verdict.yes()
+        missing = [
+            spec.name
+            for spec in wanted().channels
+            if not spec.optional and spec.name not in observation
+        ]
+        if not missing:
+            return Verdict.yes()
+        return Verdict.no(
+            "robosuite.observation_mismatch",
+            f"{getattr(policy, 'name', 'the policy')} reads {missing}, which this world "
+            f"does not emit; it emits {sorted(observation)}",
+            hint="pass observe= to assemble what the policy wants from what the world "
+            "gives — which channel of a simulator corresponds to which column of a "
+            "recording is knowledge that lives with the caller, not with either of them",
+            missing=missing,
+        )
+
     def run(self, policy: Any, task: TaskSpec, protocol: Protocol) -> RunRecord:
         trials = [
             (scene, epoch) for scene in task.scenes for epoch in range(protocol.epochs)
@@ -315,7 +349,16 @@ class RobosuiteEvaluator(Evaluator):
         index = int(scene.metadata["initial_state"])
         env = self.env
         env.reset()
-        observation = env.reset_to({"states": self.initial_states[index]})
+        observation = self._seen(env.reset_to({"states": self.initial_states[index]}))
+        if not self._checked:
+            # Once, on the first scene's own first observation. Outside the try
+            # below on purpose: a policy that cannot read this world should stop
+            # the run, not be recorded as twenty separate failures.
+            self._checked = True
+            self.fits(policy, observation).raise_if_refused(
+                f"{self.name} cannot show {getattr(policy, 'name', 'this policy')} "
+                "what it reads"
+            )
         policy.reset(EpisodeContext(scene.id, scene.instruction, seed=index))
 
         trial = _Trial()
@@ -334,7 +377,8 @@ class RobosuiteEvaluator(Evaluator):
                 if trial.steps >= task.horizon:
                     break
                 self._keep(trial, observation, action)
-                observation, reward, done, _info = env.step(np.asarray(action, dtype=float))
+                raw, reward, done, _info = env.step(np.asarray(action, dtype=float))
+                observation = self._seen(raw)
                 trial.rewards.append(float(reward))
                 trial.steps += 1
                 if self._success(env, observation, bool(done)):
@@ -343,6 +387,11 @@ class RobosuiteEvaluator(Evaluator):
                 if done:
                     return trial, None
         return trial, None
+
+    def _seen(self, observation: Mapping[str, Any]) -> Mapping[str, Any]:
+        """What the policy is shown: the world's own keys, or the caller's
+        assembly of them."""
+        return self._observe(observation) if self._observe else observation
 
     def _keep(self, trial: _Trial, observation: Mapping[str, Any], action) -> None:
         for key in self._observations:

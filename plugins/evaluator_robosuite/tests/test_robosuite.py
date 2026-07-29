@@ -316,3 +316,64 @@ def test_without_the_simulator_the_refusal_says_how_to_get_it():
     ev = RobosuiteEvaluator(ENV_META, STATES)
     with pytest.raises(ConfigError, match=r"evaluator-robosuite\[sim\]"):
         ev.env
+
+
+# -- showing the policy what it actually reads ------------------------------
+
+
+class Picky(Pusher):
+    """Wants a dataset's channel names, not a simulator's."""
+
+    def observes(self):
+        return requires_channels(
+            "picky", "policy",
+            ChannelSpec("observation.state", "vector", (8,), "float32"),
+        )
+
+
+def test_a_policy_that_cannot_read_this_world_stops_the_run_once():
+    """The failure this check exists for.
+
+    A GR00T policy expecting a recording's column names met a simulator's and
+    raised on every scene — twenty identical errors that read like twenty
+    failures. A world and a recording of a world do not name things the same
+    way, and that is not a fault in either; somebody has to say so before the
+    run rather than after it.
+    """
+    ev = evaluator()
+    with pytest.raises(IncompatibleError, match="observation.state"):
+        ev.evaluate(Picky(), ev.task_for(scenes=4, horizon=5), Protocol())
+    # One scene reset, not four: it halted rather than recording failures.
+    assert len(ev.built[0].restored) == 1
+
+
+def test_the_refusal_names_what_is_missing_and_what_is_available():
+    ev = evaluator()
+    verdict = ev.fits(Picky(), {"robot0_eef_pos": None, "cube_pos": None})
+    assert "robosuite.observation_mismatch" in verdict.codes()
+    assert "observation.state" in str(verdict.reasons[0])
+    assert "cube_pos" in str(verdict.reasons[0]), "says what it does have"
+    assert "observe=" in verdict.reasons[0].hint
+
+
+def test_an_assembly_supplied_by_the_caller_satisfies_it():
+    """Which simulator channel is which dataset column is the caller's to say."""
+    import numpy as np
+
+    def assemble(raw):
+        return {
+            **raw,
+            "observation.state": np.concatenate(
+                [raw["robot0_eef_pos"], raw["robot0_eef_quat"][:3], raw["robot0_gripper_qpos"]]
+            ).astype("float32"),
+        }
+
+    ev = evaluator(goal=99.0, observe=assemble)
+    record = ev.evaluate(Picky(), ev.task_for(scenes=2, horizon=4), Protocol())
+    assert len(record) == 2
+    assert all(e.labels.success is False for e in record.episodes)
+
+
+def test_a_policy_reading_nothing_is_never_blocked():
+    ev = evaluator(goal=99.0)
+    assert ev.fits(Pusher(), {"anything": 1}).ok
