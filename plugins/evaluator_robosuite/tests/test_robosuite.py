@@ -449,3 +449,36 @@ def test_seeded_scenes_are_named_by_their_seed():
     scenes = ev.task_for().scenes
     assert [s.id for s in scenes] == ["seed_7", "seed_9"]
     assert [s.seed for s in scenes] == [7, 9]
+
+
+def test_a_multi_armed_body_gets_one_setting_per_arm():
+    """robosuite configures a two-armed robot per arm.
+
+    Handed one arm's controller it fails deep inside its gripper factory with a
+    message about neither, so a body that simply cannot do a one-armed task
+    reads as a defect here. Shaped correctly, the simulator answers for itself.
+    """
+    from gantry_evaluator_robosuite.evaluator import _with_body
+
+    class TwoArmed:
+        name = "baxter"
+        metadata = {
+            "robosuite": {
+                "robots": ["Baxter"],
+                "arms": 2,
+                "controller_configs": {"type": "OSC_POSE"},
+            }
+        }
+
+    class OneArmed:
+        name = "panda"
+        metadata = {
+            "robosuite": {"robots": ["Panda"], "controller_configs": {"type": "OSC_POSE"}}
+        }
+
+    two = _with_body({"env_name": "Lift"}, TwoArmed())["env_kwargs"]
+    assert two["controller_configs"] == [{"type": "OSC_POSE"}] * 2
+    assert "arms" not in two, "arm count shapes the settings; it is not one of them"
+
+    one = _with_body({"env_name": "Lift"}, OneArmed())["env_kwargs"]
+    assert one["controller_configs"] == {"type": "OSC_POSE"}

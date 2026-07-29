@@ -1,0 +1,13 @@
+{
+  "checkpoint": "mg",
+  "arm": "baxter",
+  "task": "lift_cube",
+  "trials": 1,
+  "execute": 16,
+  "horizon": 8,
+  "smoke": "horizon cut from 300 to 8 and 1 trial(s): this cell proves the path runs, it does not measure the policy",
+  "also": "'baxter' carries no gripper calibration, so how far open its hand is cannot be read; command it to both stops and record what it reports",
+  "status": "refused",
+  "reason": "ConfigError: Lift will not host this configuration: Error: Expected one single-armed robot! Got <class 'robosuite.robots.bimanual.Bimanual'> type instead.",
+  "seconds": 0.0
+}

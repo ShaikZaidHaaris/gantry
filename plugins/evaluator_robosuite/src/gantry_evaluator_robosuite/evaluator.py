@@ -100,6 +100,9 @@ def _with_body(env_meta: Mapping[str, Any], embodiment: Any) -> dict[str, Any]:
     descriptions of a robosuite-supported arm will say anyway.
     """
     block = dict((getattr(embodiment, "metadata", {}) or {}).get(REALISATION, {}))
+    # How many arms this body has, which changes the shape of what the
+    # simulator wants rather than just its values.
+    arms = int(block.pop("arms", 1))
     robot = block.pop("robots", None) or [getattr(embodiment, "name", None)]
     if not robot or robot == [None]:
         raise ConfigError(
@@ -110,6 +113,16 @@ def _with_body(env_meta: Mapping[str, Any], embodiment: Any) -> dict[str, Any]:
     kwargs = dict(out.get("env_kwargs") or {})
     kwargs["robots"] = list(robot) if isinstance(robot, (list, tuple)) else [robot]
     kwargs.update(block)
+    if arms > 1:
+        # A multi-armed body is configured per arm here: one controller each,
+        # one gripper each. Handed a single arm's settings it does not say so —
+        # it fails inside its gripper factory with an error mentioning neither
+        # the arms nor the controller, which is how a body that simply cannot
+        # do a one-armed task ends up looking like a bug in the harness.
+        # Shaped correctly, the simulator gives its own clear answer instead.
+        for key in ("controller_configs", "gripper_types"):
+            if key in kwargs and not isinstance(kwargs[key], (list, tuple)):
+                kwargs[key] = [kwargs[key]] * arms
     out["env_kwargs"] = kwargs
     return out
 
@@ -244,8 +257,27 @@ def build_native_env(env_meta: Mapping[str, Any], *, use_image_obs: bool = False
     settings.update(kwargs)
     name = str(env_meta["env_name"])
     placements = tuple(env_meta.get("placement") or ())
+
+    def make(**extra: Any) -> Any:
+        """Build, turning this world's own objections into named refusals.
+
+        An environment here rejects a configuration it cannot host by asserting
+        — a body with the wrong number of arms, a task that insists on its own
+        gripper. That is the environment answering the question correctly, and
+        it should read as a refusal beside the cells that ran rather than as a
+        crash that stops the sweep. The original words are kept, because they
+        are the accurate reason and this layer should not paraphrase them.
+        """
+        try:
+            return robosuite.make(env_name=name, **settings, **extra)
+        except AssertionError as error:
+            raise ConfigError(
+                f"{name} will not host this configuration: "
+                f"{str(error).splitlines()[0].strip()}"
+            ) from error
+
     if not placements:
-        return _Native(robosuite.make(env_name=name, **settings))
+        return _Native(make())
 
     from robosuite.environments.base import REGISTERED_ENVS
 
@@ -260,7 +292,7 @@ def build_native_env(env_meta: Mapping[str, Any], *, use_image_obs: bool = False
     # them printable onto a real table. Where this world puts that surface is
     # measured from a world rather than written into the task, so the two
     # cannot drift apart: build once bare to read it, then build for real.
-    probe = robosuite.make(env_name=name, **settings)
+    probe = make()
     try:
         reference = surface_origin(probe)
     finally:
@@ -274,7 +306,7 @@ def build_native_env(env_meta: Mapping[str, Any], *, use_image_obs: bool = False
     for composite in sampler_shapes(placements):
         sampler = materialise(placements, reference, composite=composite)
         try:
-            env = robosuite.make(env_name=name, placement_initializer=sampler, **settings)
+            env = make(placement_initializer=sampler)
         except (AttributeError, KeyError) as error:
             refusals.append(f"{'composite' if composite else 'single'}: {error}")
             continue
@@ -367,6 +399,7 @@ class RobosuiteEvaluator(Evaluator):
         *,
         trials: int | None = None,
         embodiment: Any = None,
+        world: Mapping[str, Any] | None = None,
         **options: Any,
     ) -> "RobosuiteEvaluator":
         """Build the world a declared task describes.
@@ -382,11 +415,19 @@ class RobosuiteEvaluator(Evaluator):
         restored simulator state is one machine's joint configuration and cannot
         be given to a different body, which would make the embodiment axis
         unusable exactly where it matters most.
+
+        ``world`` is settings for the simulator itself — which cameras to
+        render, at what size, at what rate. They are kept separate from the
+        evaluator's own arguments rather than mixed into ``**options``, because
+        a typo in one silently becomes a keyword the environment ignores while
+        a typo in the other is an error here; and a task file's own staging
+        block can carry the same keys, which these override for one run without
+        editing the file.
         """
         check_staging(task).raise_if_refused(f"cannot stage {task.name!r} in {REALISATION}")
         count = task.trials if trials is None else trials
         return cls(
-            env_meta_for(task),
+            env_meta_for(task, **dict(world or {})),
             seeds=[seed_from(task.name, i) for i in range(count)],
             embodiment=embodiment,
             instruction=task.instruction,

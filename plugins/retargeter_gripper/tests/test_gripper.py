@@ -17,6 +17,7 @@ from gantry_retargeter_gripper import (
 )
 
 from gantry.conformance import check_retargeter
+from gantry.errors import ConfigError, GantryError
 from gantry.spine import ChannelSpec
 
 PANDA = GripperCalibration(
@@ -153,8 +154,10 @@ def test_an_embodiment_with_no_calibration_refuses_rather_than_defaulting():
         name = "unknown_arm"
         metadata = {}
 
-    with pytest.raises(ValueError, match="no gripper calibration"):
+    with pytest.raises(ConfigError, match="no gripper calibration"):
         calibration_from(Bare())
+    # A refusal, so a sweep across bodies records it beside the ones that ran.
+    assert issubclass(ConfigError, GantryError)
 
 
 # -- honesty about the cost ----------------------------------------------------
@@ -183,3 +186,25 @@ def test_it_passes_the_conformance_kit():
         GripperAperture(ROBOTIQ85, PANDA), state(ROBOTIQ85), state(PANDA)
     )
     assert verdict.ok, verdict.explain()
+
+
+def test_a_two_handed_body_is_refused_for_being_two_handed():
+    """Not for being undescribed — it is described, and fully.
+
+    A body that reports two hands cannot be read by a conversion that maps one
+    onto one, and picking a hand for the caller would be the framework making
+    the choice. Distinct from a body nobody calibrated, which is a gap that
+    measuring would close.
+    """
+
+    class Bimanual:
+        name = "baxter"
+        metadata = {
+            "grippers": {
+                "right": {"name": "RethinkGripper", "closed": [0.0, 0.0], "open": [1.0, -1.0]},
+                "left": {"name": "RethinkGripper", "closed": [0.0, 0.0], "open": [1.0, -1.0]},
+            }
+        }
+
+    with pytest.raises(ConfigError, match="reports 2 hands"):
+        calibration_from(Bimanual())

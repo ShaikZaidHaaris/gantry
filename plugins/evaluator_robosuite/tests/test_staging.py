@@ -252,3 +252,19 @@ def test_an_environment_that_takes_no_placement_is_recognised_from_its_signature
     # ToolHang is this shape: passing a placement is a TypeError from inside a
     # constructor rather than an answer, so it is asked before it is offered.
     assert not accepts_placement(TakesNone)
+
+
+def test_world_settings_reach_the_environment_and_override_the_file():
+    from gantry.contracts.task import TaskDefinition
+
+    t = task(
+        staging={"robosuite": {"env_name": "Lift", "places": {"cube": "cube"},
+                               "control_freq": 20}}
+    )
+    assert isinstance(t, TaskDefinition)
+    # The file's own setting, when nothing overrides it.
+    assert env_meta_for(t)["env_kwargs"]["control_freq"] == 20
+    # And overridden for one run, without editing the file.
+    meta = env_meta_for(t, control_freq=40, camera_names=["agentview"])
+    assert meta["env_kwargs"]["control_freq"] == 40
+    assert meta["env_kwargs"]["camera_names"] == ["agentview"]

@@ -1,16 +1,68 @@
 {
   "name": "baxter",
-  "version": "robosuite-1.4.1",
+  "version": "1.4.1",
   "control_hz": 20,
-  "state": [],
-  "action": [],
-  "kinematics": "",
-  "notes": "14-DoF bimanual arm, default gripper {'right': 'RethinkGripper', 'left': 'RethinkGripper'}. Commanded in end-effector space (OSC_POSE): the action is a pose delta, so it means the same thing on any arm here. Limits not established. Bimanual: the single-arm action above does not describe it, so no action channel is declared rather than one that would be wrong.",
-  "capabilities": [
-    "simulated",
-    "resettable",
-    "seedable"
+  "state": [
+    {
+      "name": "observation.state",
+      "kind": "vector",
+      "shape": [
+        16
+      ],
+      "dtype": "float32",
+      "semantics": "pose",
+      "dim_labels": [
+        "right.x",
+        "right.y",
+        "right.z",
+        "right.roll",
+        "right.pitch",
+        "right.yaw",
+        "left.x",
+        "left.y",
+        "left.z",
+        "left.roll",
+        "left.pitch",
+        "left.yaw",
+        "right.RethinkGripper.0",
+        "right.RethinkGripper.1",
+        "left.RethinkGripper.0",
+        "left.RethinkGripper.1"
+      ]
+    }
   ],
+  "action": [
+    {
+      "name": "action",
+      "kind": "vector",
+      "shape": [
+        14
+      ],
+      "dtype": "float32",
+      "semantics": "actuation",
+      "dim_labels": [
+        "right.dx",
+        "right.dy",
+        "right.dz",
+        "right.droll",
+        "right.dpitch",
+        "right.dyaw",
+        "right.gripper",
+        "left.dx",
+        "left.dy",
+        "left.dz",
+        "left.droll",
+        "left.dpitch",
+        "left.dyaw",
+        "left.gripper"
+      ]
+    }
+  ],
+  "kinematics": "",
+  "notes": "Bimanual: two ['right', 'left'] arms, each with a RethinkGripper. Commanded at 20 Hz through OSC_POSE per arm \u2014 14 numbers, not the 7 a single-armed task expects. robosuite's single-arm environments assert a single-armed robot and refuse this body; the two-arm environments are the ones it can host.",
+  "capabilities": {
+    "arms": 2
+  },
   "metadata": {
     "robosuite": {
       "robots": [
@@ -19,13 +71,38 @@
       "controller_configs": {
         "type": "OSC_POSE"
       },
-      "gripper_types": {
-        "right": "RethinkGripper",
-        "left": "RethinkGripper"
-      }
+      "control_freq": 20,
+      "arms": 2
     },
-    "arm_type": "bimanual",
-    "dof": 14,
-    "default_mount": "RethinkMinimalMount"
+    "grippers": {
+      "right": {
+        "name": "RethinkGripper",
+        "joints": 2,
+        "closed": [
+          -0.011842,
+          0.011831
+        ],
+        "open": [
+          0.01121,
+          -0.011581
+        ],
+        "measured_in": "robosuite-1.4.1",
+        "how": "commanded to each stop for 60 steps at 20 Hz and read back"
+      },
+      "left": {
+        "name": "RethinkGripper",
+        "joints": 2,
+        "closed": [
+          -0.011832,
+          0.011842
+        ],
+        "open": [
+          0.011583,
+          -0.011208
+        ],
+        "measured_in": "robosuite-1.4.1",
+        "how": "commanded to each stop for 60 steps at 20 Hz and read back"
+      }
+    }
   }
 }

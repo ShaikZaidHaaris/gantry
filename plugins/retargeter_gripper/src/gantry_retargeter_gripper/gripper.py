@@ -47,6 +47,7 @@ from typing import Any, Mapping
 import numpy as np
 
 from gantry.contracts.embodiment import Retargeter
+from gantry.errors import ConfigError
 from gantry.spine import ChannelSpec, Verdict
 
 VERSION = "0.1.0.dev0"
@@ -163,9 +164,23 @@ def calibration_from(embodiment: Any) -> GripperCalibration:
     block = getattr(embodiment, "metadata", None) or {}
     if not isinstance(block, Mapping):
         block = {}
+    hands = block.get("grippers")
+    if isinstance(hands, Mapping) and len(hands) > 1:
+        # Said precisely rather than as "no calibration": this body is
+        # described, and describing it better will not help. One hand's
+        # opening does not stand for two, and which of the two a one-handed
+        # policy is reading is not a detail to pick a default for.
+        raise ConfigError(
+            f"{getattr(embodiment, 'name', embodiment)!r} reports {len(hands)} hands "
+            f"({', '.join(sorted(hands))}); this conversion maps one hand onto one "
+            "hand and there is no non-arbitrary way to choose between them"
+        )
     grip = block.get("gripper")
     if not isinstance(grip, Mapping) or "open" not in grip or "closed" not in grip:
-        raise ValueError(
+        # A refusal rather than a crash: a body nobody calibrated is a gap in
+        # the description, and a sweep across bodies should record it as such
+        # next to the ones that ran, not abort on it.
+        raise ConfigError(
             f"{getattr(embodiment, 'name', embodiment)!r} carries no gripper calibration, "
             "so how far open its hand is cannot be read; command it to both stops and "
             "record what it reports"

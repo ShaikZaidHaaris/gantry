@@ -11,12 +11,12 @@
       "start": {
         "surface": "table",
         "x": [
-          -0.03,
-          0.03
+          -0.08,
+          0.08
         ],
         "y": [
-          -0.03,
-          0.03
+          -0.08,
+          0.08
         ]
       }
     },
@@ -26,12 +26,12 @@
       "start": {
         "surface": "table",
         "x": [
-          -0.03,
-          0.03
+          -0.08,
+          0.08
         ],
         "y": [
-          -0.03,
-          0.03
+          -0.08,
+          0.08
         ]
       }
     }
@@ -57,5 +57,7 @@
       }
     }
   },
-  "metadata": {}
+  "metadata": {
+    "placement": "Both cubes share one region and are kept apart by the world's own overlap rejection, which is how robosuite's Stack lays them out. Read off its sampler rather than chosen: a tighter region cannot hold two cubes."
+  }
 }
