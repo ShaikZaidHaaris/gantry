@@ -17,6 +17,7 @@ from typing import Any, Callable, Mapping
 
 from ..spine import Descriptor, entry_point_groups, known_planes
 
+
 def ENTRY_POINT_GROUPS() -> Mapping[str, str]:
     """Packaging entry-point group -> plane, derived from the plane registry.
 

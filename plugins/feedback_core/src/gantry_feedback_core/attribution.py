@@ -29,10 +29,11 @@ from __future__ import annotations
 from typing import Sequence
 
 from gantry.contracts.feedback import Cohort, FeedbackModule, Finding, Report, feedback_descriptor
-from gantry.resolve import Requirement, requires_channels
+from gantry.resolve import Requirement
 from gantry.spine import Descriptor, Measurement
 
-from . import metrics, statistics as st
+from . import metrics
+from . import statistics as st
 from .metrics import HIGHER, LOWER, get_statistic, known_statistics, tabulate
 
 VERSION = "0.1.0.dev0"

@@ -11,7 +11,6 @@ from gantry.manifest import Manifest
 from gantry.resolve import Registry
 from gantry.runner import check_manifest, run_manifest
 
-
 # -- parsing ---------------------------------------------------------------
 
 
@@ -97,8 +96,9 @@ def test_an_uninstalled_component_is_named_before_anything_is_built():
 @pytest.fixture
 def csv_manifest(tmp_path):
     """Two cohorts written to CSV, one clean and one not."""
-    from gantry.fixtures import make_clean, make_defective
     from gantry_connector_csv import write_episodes
+
+    from gantry.fixtures import make_clean, make_defective
 
     clean = write_episodes(make_clean(n=20, seed=1).episodes, tmp_path / "clean.csv")
     broken = write_episodes(
@@ -146,8 +146,9 @@ def test_the_funnel_finds_the_broken_cohort(csv_manifest):
 
 def test_a_feedback_module_that_refuses_fails_only_itself(tmp_path):
     """Harden needs two cohorts; giving it one must not sink the whole run."""
-    from gantry.fixtures import make_defective
     from gantry_connector_csv import write_episodes
+
+    from gantry.fixtures import make_defective
 
     path = write_episodes(
         make_defective("never_completes", n=12, fraction=0.5).episodes, tmp_path / "one.csv"
@@ -169,10 +170,11 @@ def test_a_feedback_module_that_refuses_fails_only_itself(tmp_path):
 
 
 def test_an_evaluating_manifest_runs_every_plane(tmp_path):
-    from gantry.fixtures import make_clean
     from gantry_connector_csv import write_episodes
     from gantry_evaluator_offline import OfflineEvaluator
     from gantry_policy_basic import NoisyReplayPolicy
+
+    from gantry.fixtures import make_clean
 
     suite = make_clean(n=10, seed=3)
     path = write_episodes(suite.episodes, tmp_path / "held_out.csv")
@@ -270,9 +272,10 @@ def test_a_module_that_does_not_fit_is_refused_and_the_rest_still_run(tmp_path):
     empty funnel with a note attached, which reads exactly like a finished
     analysis of a policy that never got anywhere.
     """
+    from gantry_connector_csv import write_episodes
+
     from gantry.fixtures import make_clean
     from gantry.spine import EpisodeLabels
-    from gantry_connector_csv import write_episodes
 
     stripped = [
         e.with_labels(EpisodeLabels(success=e.labels.success))
@@ -293,10 +296,11 @@ def test_a_module_that_does_not_fit_is_refused_and_the_rest_still_run(tmp_path):
 
 
 def test_plan_reports_the_refusal_without_running_anything(tmp_path):
+    from gantry_connector_csv import write_episodes
+
     from gantry.fixtures import make_clean
     from gantry.runner import plan_manifest
     from gantry.spine import EpisodeLabels
-    from gantry_connector_csv import write_episodes
 
     stripped = [
         e.with_labels(EpisodeLabels(success=e.labels.success))
@@ -317,11 +321,12 @@ def test_plan_reports_the_refusal_without_running_anything(tmp_path):
 
 def test_a_lossy_adapter_used_by_a_run_reaches_its_provenance(tmp_path):
     """A loss stated by an adapter has to survive all the way to the record."""
-    from gantry.contracts.feedback import Cohort, FeedbackModule, Report, feedback_descriptor
+    from gantry_connector_csv import write_episodes
+
+    from gantry.contracts.feedback import FeedbackModule, Report, feedback_descriptor
     from gantry.fixtures import make_clean
     from gantry.resolve import requires_channels
     from gantry.spine import ChannelSpec
-    from gantry_connector_csv import write_episodes
 
     slow = ChannelSpec(
         "position", "vector", (3,), "float32",
@@ -358,9 +363,10 @@ def test_a_lossy_adapter_used_by_a_run_reaches_its_provenance(tmp_path):
 
 def test_the_whole_loop_runs_from_one_manifest(tmp_path):
     """Data, policy, closed-loop world, diagnosis — no GPU, no simulator."""
-    from gantry.fixtures import make_clean
     from gantry_connector_csv import write_episodes
     from gantry_evaluator_waypoint import GreedyPolicy, WaypointWorld
+
+    from gantry.fixtures import make_clean
 
     path = write_episodes(make_clean(n=4, seed=1).episodes, tmp_path / "seed.csv")
     registry = Registry()
@@ -391,3 +397,118 @@ def test_the_whole_loop_runs_from_one_manifest(tmp_path):
 
     funnel = outcome.reports[0]
     assert "engage is the weak link" in funnel.findings[0].summary
+
+
+# -- cohorts on any plane --------------------------------------------------
+
+
+def test_cohorts_default_to_the_dataset_plane():
+    """Unchanged behaviour: a manifest that says nothing varies datasets."""
+    from gantry.manifest import Manifest
+
+    m = Manifest.from_dict({
+        "version": 1, "name": "x",
+        "cohorts": {"a": {"name": "csv", "config": {"path": "a.csv"}}},
+    })
+    assert m.varies == "dataset"
+    assert m.provides("dataset") and not m.provides("policy")
+
+
+def test_cohorts_can_vary_the_policy_instead():
+    """One world, three checkpoints — the shape the manifest could not express.
+
+    The dataset plane was hard-coded as the axis, which meant a manifest could
+    say 'three datasets, one policy' and not its mirror image. That was the
+    dataset plane getting special treatment in the one file meant to have none.
+    """
+    from gantry.manifest import Manifest
+
+    m = Manifest.from_dict({
+        "version": 1, "name": "three-checkpoints",
+        "varies": "policy",
+        "cohorts": {
+            "ph": {"name": "constant", "config": {}},
+            "mg": {"name": "replay", "config": {}},
+        },
+        "dataset": {"name": "csv", "config": {"path": "held_out.csv"}},
+        "evaluation": {"name": "offline", "config": {"action_name": "action"}},
+    })
+    assert m.varies == "policy"
+    assert m.provides("policy"), "supplied by the cohorts, not by a single component"
+    assert m.evaluates
+    assert m.spec_for("policy", "ph").name == "constant"
+    assert m.spec_for("evaluation", "ph").name == "offline"
+    assert m.spec_for("evaluation", "mg").name == "offline", "held planes are the same one"
+
+
+def test_the_explicit_form_reads_the_same():
+    from gantry.manifest import Manifest
+
+    m = Manifest.from_dict({
+        "version": 1, "name": "x",
+        "cohorts": {"plane": "evaluation", "of": {"sim": {"name": "waypoint"}}},
+        "dataset": {"name": "csv", "config": {"path": "a.csv"}},
+    })
+    assert m.varies == "evaluation"
+    assert m.spec_for("evaluation", "sim").name == "waypoint"
+
+
+def test_a_plane_cannot_both_vary_and_be_fixed():
+    from gantry.errors import ConfigError
+    from gantry.manifest import Manifest
+
+    with pytest.raises(ConfigError, match="one or the other"):
+        Manifest.from_dict({
+            "version": 1, "name": "x", "varies": "policy",
+            "cohorts": {"a": {"name": "constant"}},
+            "policy": {"name": "replay"},
+        })
+
+
+def test_varying_on_something_that_is_not_a_plane_is_refused():
+    from gantry.errors import ConfigError
+    from gantry.manifest import Manifest
+
+    with pytest.raises(ConfigError, match="not a plane"):
+        Manifest.from_dict({
+            "version": 1, "name": "x", "varies": "checkpoint",
+            "cohorts": {"a": {"name": "constant"}},
+        })
+
+
+def test_a_policy_varying_run_evaluates_each_cohort_against_one_dataset(tmp_path):
+    """End to end through the runner, with the axis moved off the dataset."""
+    from gantry_connector_csv import write_episodes
+
+    from gantry.fixtures import make_clean
+    from gantry.manifest import Manifest
+    from gantry.runner import run_manifest
+
+    suite = make_clean(n=3, seed=1)
+    path = write_episodes(suite.episodes, tmp_path / "held_out.csv")
+    action = suite.episodes[0].channel("action")
+
+    m = Manifest.from_dict({
+        "version": 1, "name": "two-policies",
+        "varies": "policy",
+        "cohorts": {
+            "zero": {"name": "constant", "config": {"action": _spec_dict(action)}},
+            "copy": {"name": "replay", "config": {"action": _spec_dict(action)}},
+        },
+        "dataset": {"name": "csv", "config": {"path": str(path)}},
+        "evaluation": {"name": "offline", "config": {"action_name": "action"}},
+        "feedback": [],
+    })
+    outcome = run_manifest(m)
+    assert not outcome.refusals, outcome.explain()
+    assert len(outcome.runs) == 2, "one run per policy, same dataset"
+    errors = [r.metrics["action_mse"].value for r in outcome.runs]
+    # Replay reproduces the recording exactly; a constant does not.
+    assert min(errors) == pytest.approx(0.0, abs=1e-9)
+    assert max(errors) > 0.0
+
+
+def _spec_dict(spec):
+    from gantry.serial import spec_to_dict
+
+    return spec_to_dict(spec)

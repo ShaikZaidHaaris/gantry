@@ -166,8 +166,11 @@ def test_a_sweep_that_also_changed_the_policy_is_refused(arms):
         ),
     ]
     verdict = ProtocolSweep().check_inputs(confounded)
-    assert "protocol.confounded" in verdict.codes()
-    with pytest.raises(IncompatibleError, match="confounded"):
+    # The refusal now comes from the contract rather than this module: it
+    # declares which planes it holds, and the base class checks provenance.
+    assert "feedback.incomparable" in verdict.codes()
+    assert ProtocolSweep().holds() == ("policy", "evaluation")
+    with pytest.raises(IncompatibleError, match="differ on"):
         ProtocolSweep().run(confounded)
 
 

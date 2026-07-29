@@ -36,7 +36,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from ..spine import ChannelSpec, ContractVersion, Descriptor, Verdict, compatible
 from .adapters import AdapterRegistry
-from .plan import ChannelBinding, Plan, ResolvedComponent, Resolution, Wiring
+from .plan import ChannelBinding, Plan, Resolution, ResolvedComponent, Wiring
 from .registry import Registry
 from .requirement import Requirement
 from .retarget import RETARGETABLE, RetargeterRegistry

@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import pytest
+from gantry_evaluator_offline import OfflineEvaluator
+from gantry_policy_basic import ConstantPolicy, NoisyReplayPolicy, ReplayPolicy
+
 from gantry.conformance import check_evaluator, evaluator_checks
 from gantry.contracts.evaluator import Protocol, Scene, TaskSpec
 from gantry.errors import ComponentError
 from gantry.fixtures import make_clean, make_defective
 from gantry.resolve import Registry, requires_channels, resolve
 from gantry.spine import IncompatibleError
-
-from gantry_evaluator_offline import OfflineEvaluator
-from gantry_policy_basic import ConstantPolicy, NoisyReplayPolicy, ReplayPolicy
 
 SUITE = make_clean(n=8, seed=5)
 ACTION = SUITE.episodes[0].channel("action")
@@ -169,9 +169,26 @@ def test_a_scene_that_is_not_held_out_is_refused_by_name():
         ev.evaluate(ReplayPolicy(ACTION), task)
 
 
-def test_an_evaluator_with_nothing_held_out_is_refused():
+def test_an_evaluator_with_nothing_held_out_is_unbound_not_broken():
+    """Constructing without data is legitimate; running without it is not.
+
+    A manifest builds every plane independently and cannot hand this one a
+    dataset at that point, so an unbound evaluator has to be a describable
+    object. It refuses at the point it would produce a number.
+    """
+    from gantry.contracts.evaluator import Protocol
+    from gantry.spine import IncompatibleError
+
+    bare = OfflineEvaluator(action_name="action")
+    assert bare.bound is False
+    assert bare.descriptor().provides["needs_dataset"] is True
+    assert bare.requires().channels[0].shape == (None,), "width is unknown until bound"
+
+    with pytest.raises(IncompatibleError, match="not been bound"):
+        bare.evaluate(ReplayPolicy(ACTION), bare.task_for(), Protocol())
+
     with pytest.raises(ValueError, match="at least one held-out episode"):
-        OfflineEvaluator([], "action")
+        bare.bind([])
 
 
 def test_truncated_episodes_still_score():

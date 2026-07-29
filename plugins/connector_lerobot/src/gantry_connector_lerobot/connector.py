@@ -64,6 +64,14 @@ VERSION = "0.1.0.dev0"
 #: construction if anything is missing) and ``False`` (parquet only).
 AUTO = "auto"
 
+#: Which flat column each ``modality.json`` section describes. The mapping is
+#: the format's own convention, not an inference: a dataset shipping the sidecar
+#: uses these names for these columns.
+MODALITY_CHANNELS: Mapping[str, str] = {
+    "state": "observation.state",
+    "action": "action",
+}
+
 #: Codebase versions this reader understands.
 SUPPORTED_VERSIONS = ("v2.0", "v2.1")
 
@@ -168,6 +176,7 @@ class LeRobotConnector(Connector):
         self._source = source or self._root.name
         self._overrides = dict(schema_overrides or {})
         self._include_bookkeeping = include_bookkeeping
+        self._modality = self._modality_labels()
         self._schema, self._media = self._build_schema()
         self._episodes = self._index_episodes()
         self._tasks = self._read_tasks()
@@ -227,6 +236,40 @@ class LeRobotConnector(Connector):
             specs.append(self._spec_for(name, feature, dtype))
         return tuple(specs), tuple(media)
 
+    def _modality_labels(self) -> dict[str, tuple[str, ...]]:
+        """Per-element names from ``meta/modality.json``, where a dataset ships one.
+
+        ``info.json`` gives a ``names`` list that is often unusable — the lift
+        conversion here writes ``gripper`` twice, and a label that does not
+        address exactly one dimension addresses nothing. ``modality.json`` gives
+        the same information as non-overlapping ``start``/``end`` spans, which
+        cannot be ambiguous.
+
+        Reading it is describing, not guessing: it is a file the dataset's own
+        author wrote to say what the columns are. It is used only when the spans
+        tile the declared width exactly, so a sidecar belonging to a different
+        version of the data is ignored rather than believed.
+        """
+        path = self._root / "meta" / "modality.json"
+        if not path.exists():
+            return {}
+        try:
+            payload = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            return {}
+
+        labels: dict[str, tuple[str, ...]] = {}
+        for modality, channel in MODALITY_CHANNELS.items():
+            spans = payload.get(modality)
+            feature = self._info.get("features", {}).get(channel)
+            if not isinstance(spans, Mapping) or not feature:
+                continue
+            width = next(iter(feature.get("shape") or ()), None)
+            names = _spans_to_labels(spans, width)
+            if names:
+                labels[channel] = names
+        return labels
+
     def _spec_for(self, name: str, feature: Mapping[str, Any], dtype: str) -> ChannelSpec:
         shape = tuple(int(value) for value in feature.get("shape", []) or ())
         # LeRobot writes a one-wide feature as a bare column, so it is a scalar
@@ -244,7 +287,12 @@ class LeRobotConnector(Connector):
             frame=override.pop("frame", None),
             rate_hz=override.pop("rate_hz", float(self._info.get("fps", 0)) or None),
             semantics=override.pop("semantics", None),
-            dim_labels=_labels(feature, () if scalar else shape),
+            # modality.json first: it is unambiguous by construction, where
+            # info.json's names are a list somebody typed.
+            dim_labels=override.pop(
+                "dim_labels",
+                self._modality.get(name) or _labels(feature, () if scalar else shape),
+            ),
             optional=override.pop("optional", False),
             metadata={**metadata, **override},
         )
@@ -420,6 +468,38 @@ class LeRobotConnector(Connector):
     @property
     def tasks(self) -> Mapping[int, str]:
         return self._tasks
+
+
+def _spans_to_labels(spans: Mapping[str, Any], width: int | None) -> tuple[str, ...] | None:
+    """``{"x": {"start": 0, "end": 1}, ...}`` to one label per element.
+
+    A span wider than one element is numbered, because a gripper occupying two
+    columns is two addressable dimensions and calling them both ``gripper``
+    is the very ambiguity this is here to remove.
+
+    Returns nothing unless the spans tile ``width`` exactly with no gap and no
+    overlap. A partial description is worse than none: it would silently
+    mislabel every dimension after the first hole.
+    """
+    try:
+        fields = sorted(
+            ((str(key), int(span["start"]), int(span["end"])) for key, span in spans.items()),
+            key=lambda field: field[1],
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not fields or fields[0][1] != 0:
+        return None
+    labels: list[str] = []
+    cursor = 0
+    for key, start, end in fields:
+        if start != cursor or end <= start:
+            return None
+        labels.extend([key] if end - start == 1 else [f"{key}.{i}" for i in range(end - start)])
+        cursor = end
+    if width is not None and cursor != int(width):
+        return None
+    return tuple(labels) if len(set(labels)) == len(labels) else None
 
 
 def _labels(feature: Mapping[str, Any], shape: tuple[int, ...]) -> tuple[str, ...] | None:

@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from gantry_adapters_core import default_registry
 
 from gantry.errors import ConfigError
 from gantry.fixtures import make_clean, make_defective
 from gantry.resolve import AdapterRegistry, adapt_episode, bind, requires_channels
-from gantry.spine import ChannelSpec, EpisodeLabels, Provenance, RunRecord, StageEvent
-from gantry.spine import episode_from_labels
+from gantry.spine import (
+    ChannelSpec,
+    EpisodeLabels,
+    Provenance,
+    RunRecord,
+    StageEvent,
+    episode_from_labels,
+)
 from gantry.store import read_run, same_run, write_run
-from gantry_adapters_core import default_registry
 
 SUITE = make_clean(n=4, seed=3)
 EPISODE = SUITE.episodes[0]
@@ -200,3 +206,130 @@ def test_a_missing_sidecar_is_refused_rather_than_half_read(tmp_path):
 def test_a_missing_record_is_refused(tmp_path):
     with pytest.raises(ConfigError, match="no record at"):
         read_run(tmp_path / "nope.json")
+
+
+# -- holding a plane fixed, and knowing when you cannot --------------------
+
+
+def _cohort(name, *, policy=None, evaluation=None, provenance=True):
+    from gantry.contracts.feedback import Cohort
+    from gantry.spine import ComponentRef
+
+    components = []
+    if policy:
+        components.append(ComponentRef("policy", policy, "1.0"))
+    if evaluation:
+        components.append(ComponentRef("evaluation", evaluation, "1.0"))
+    episodes = (episode_from_labels(id="s0", source=name, labels=EpisodeLabels(success=True)),)
+    return Cohort(
+        name,
+        episodes,
+        provenance=Provenance(components=tuple(components)) if provenance else None,
+    )
+
+
+def _holder(planes=("policy",)):
+    from gantry.contracts.feedback import FeedbackModule, Report, feedback_descriptor
+    from gantry.resolve import requires_channels
+
+    class Holding(FeedbackModule):
+        def descriptor(self):
+            return feedback_descriptor(
+                "holding", "1", min_cohorts=2, prescribes=False, holds=planes
+            )
+
+        def requirement(self):
+            return requires_channels("holding", "feedback")
+
+        def analyse(self, cohorts):
+            return Report("holding", cohorts=tuple(c.name for c in cohorts))
+
+    return Holding()
+
+
+def test_two_runs_naming_the_same_policy_agree():
+    verdict = _holder().check_comparability([_cohort("a", policy="p"), _cohort("b", policy="p")])
+    assert verdict.ok and not verdict.codes()
+
+
+def test_two_runs_naming_different_policies_are_refused():
+    """The confound the whole design exists to catch."""
+    verdict = _holder().check_comparability([_cohort("a", policy="p"), _cohort("b", policy="q")])
+    assert "feedback.incomparable" in verdict.codes()
+    assert not verdict.ok
+
+
+def test_one_side_naming_a_policy_and_the_other_not_is_unverifiable():
+    """Different from a confound: somebody may have changed it and not said so."""
+    verdict = _holder().check_comparability([_cohort("a", policy="p"), _cohort("b")])
+    assert "feedback.unverifiable" in verdict.codes()
+    assert not verdict.ok
+
+
+def test_recordings_with_no_policy_at_all_are_vacuously_held():
+    """A screen over raw datasets. Nothing downstream existed, so nothing varied.
+
+    This used to read as suspicious, because a bare boolean cannot tell "they
+    differ" from "there was never one".
+    """
+    verdict = _holder().check_comparability([_cohort("a"), _cohort("b"), _cohort("c")])
+    assert verdict.ok
+    assert "feedback.nothing_held" in verdict.codes()
+
+
+def test_a_cohort_with_no_provenance_counts_as_naming_nothing():
+    verdict = _holder().check_comparability(
+        [_cohort("a", provenance=False), _cohort("b", provenance=False)]
+    )
+    assert verdict.ok and "feedback.nothing_held" in verdict.codes()
+
+
+def test_provenance_answers_four_ways_not_two():
+    from gantry.spine import ComponentRef
+
+    p = Provenance(components=(ComponentRef("policy", "p", "1.0"),))
+    q = Provenance(components=(ComponentRef("policy", "q", "1.0"),))
+    empty = Provenance()
+    assert p.agreement(p, "policy") == "same"
+    assert p.agreement(q, "policy") == "differs"
+    assert p.agreement(empty, "policy") == "one_sided"
+    assert empty.agreement(empty, "policy") == "absent"
+    # The old bare-boolean answer collapses the last three into one.
+    assert not p.comparable_to(empty, ["policy"])
+    assert not empty.comparable_to(empty, ["policy"])
+
+
+def test_a_seed_derived_from_data_is_the_same_in_every_process():
+    """The builtin hash() is salted per process for strings.
+
+    Both reference policies seeded from it, so they were deterministic within a
+    run and not across two — while still declaring determinism, and still
+    passing a conformance check that can only look inside one interpreter. Two
+    runs of the same seeded experiment on different days simply disagreed.
+    """
+    import subprocess
+    import sys
+
+    from gantry.spine import seed_from
+
+    here = seed_from(0, "scene-1", 3)
+    elsewhere = subprocess.run(
+        [sys.executable, "-c",
+         "from gantry.spine import seed_from; print(seed_from(0, 'scene-1', 3))"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    assert str(here) == elsewhere
+
+    salted = subprocess.run(
+        [sys.executable, "-c", "print(abs(hash((0, 'scene-1', 3))) % (2**32))"],
+        capture_output=True, text=True, check=True, env={"PYTHONHASHSEED": "random", "PATH": ""},
+    ).stdout.strip()
+    assert salted != elsewhere, "the builtin would have agreed by luck; rerun"
+
+
+def test_the_seed_is_stable_and_well_spread():
+    from gantry.spine import seed_from
+
+    assert seed_from("a") == seed_from("a")
+    assert seed_from("a") != seed_from("b")
+    assert 0 <= seed_from(1, 2, 3) < 2**32

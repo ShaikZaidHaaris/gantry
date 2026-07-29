@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Sequence
 
 import numpy as np
+
 from gantry.contracts.embodiment import Retargeter
 from gantry.spine import ChannelSpec, Verdict
 

@@ -52,6 +52,7 @@ from dataclasses import dataclass
 from typing import Callable, Mapping, Sequence
 
 import numpy as np
+
 from gantry.resolve import Requirement, requires_channels
 from gantry.spine import ChannelSpec, EpisodeRecord
 

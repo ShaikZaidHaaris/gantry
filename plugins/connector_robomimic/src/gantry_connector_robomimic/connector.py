@@ -52,6 +52,7 @@ from typing import Any, Mapping, Sequence
 
 import h5py
 import numpy as np
+
 from gantry.contracts.connector import Connector, connector_descriptor
 from gantry.errors import ConfigError
 from gantry.spine import (
@@ -288,6 +289,34 @@ class RoboMimicConnector(Connector):
     def env(self) -> Mapping[str, Any]:
         """The simulator configuration the file was recorded with."""
         return self._env
+
+    def initial_states(self, episode_ids: Sequence[str] | None = None) -> tuple[np.ndarray, ...]:
+        """The simulator state each demonstration started from, in order.
+
+        Kept out of the schema on purpose — a simulator's internal state vector
+        is not a behaviour anyone should screen, and :data:`NOT_BEHAVIOUR` says
+        so. It is exposed here because it is the one thing needed to *re-enter*
+        the world these demonstrations were recorded in: reconstruct the
+        environment from :attr:`env`, reset to one of these, and a policy faces
+        exactly the scene a human faced.
+
+        That is what turns "how close were the predicted actions" into "did the
+        arm actually pick up the cube".
+        """
+        wanted = tuple(episode_ids) if episode_ids is not None else self._demos
+        with h5py.File(self._path, "r") as handle:
+            states = []
+            for episode_id in wanted:
+                if episode_id not in self._lengths:
+                    raise KeyError(f"{self._source}: no demo {episode_id!r}")
+                demo = handle["data"][episode_id]
+                if "states" not in demo:
+                    raise ConfigError(
+                        f"{self._path}: demo {episode_id!r} stores no 'states', so the "
+                        "scene it began in cannot be restored"
+                    )
+                states.append(np.asarray(demo["states"][0]))
+        return tuple(states)
 
     def available_observations(self) -> tuple[str, ...]:
         with h5py.File(self._path, "r") as handle:

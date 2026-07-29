@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from gantry.spine import ChannelSpec, compatible, get_semantics
-
 from gantry_semantics_manipulation import (
     action_channel,
     control_mode_of,
@@ -12,6 +10,7 @@ from gantry_semantics_manipulation import (
     state_channel,
 )
 
+from gantry.spine import ChannelSpec, compatible, get_semantics
 
 # -- the silent failures this vocabulary exists to make loud ---------------
 

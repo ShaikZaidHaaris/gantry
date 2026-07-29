@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from gantry.resolve import bind_channel, requires_channels
-from gantry.spine import ChannelSpec
-
 from gantry_adapters_core import (
     PERMUTE,
     RESAMPLE,
@@ -15,6 +12,9 @@ from gantry_adapters_core import (
     permutation_between,
     resample_to,
 )
+
+from gantry.resolve import bind_channel, requires_channels
+from gantry.spine import ChannelSpec
 
 
 def spec(**over):

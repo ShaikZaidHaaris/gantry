@@ -5,13 +5,12 @@ from __future__ import annotations
 import json
 
 import pytest
+from gantry_connector_evallog import STAGE_KEY, EvalLogConnector, read_run, stage_metadata
+
 from gantry.conformance import check_connector
 from gantry.contracts.feedback import Cohort
 from gantry.errors import ConfigError
 from gantry.resolve import Registry, requires_channels, resolve
-from gantry.spine import ChannelSpec
-
-from gantry_connector_evallog import STAGE_KEY, EvalLogConnector, read_run, stage_metadata
 
 
 def log_payload(*, scenes=None, stages=False, epochs=1, status="success"):

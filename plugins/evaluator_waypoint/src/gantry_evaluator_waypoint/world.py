@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from typing import Sequence
 
 import numpy as np
+
 from gantry.contracts.evaluator import (
     Evaluator,
     Protocol,
@@ -53,6 +54,7 @@ from gantry.spine import (
     RunRecord,
     StageEvent,
     episode_from_arrays,
+    seed_from,
 )
 
 VERSION = "0.1.0.dev0"
@@ -142,7 +144,7 @@ class GreedyPolicy(Policy):
             return target
         episode = self._context.episode_id if self._context else ""
         key = (self._seed, episode, tuple(np.round(target, 6)))
-        rng = np.random.default_rng(abs(hash(key)) % (2**32))
+        rng = np.random.default_rng(seed_from(*key))
         offset = rng.normal(size=3)
         offset /= np.linalg.norm(offset) + 1e-12
         return target + offset * self._aim_error * (1.0 - self.skill)
@@ -170,9 +172,7 @@ class GreedyPolicy(Policy):
         position = np.asarray(observation["position"], dtype=float)
         target = self._aim(np.asarray(observation["target"], dtype=float))
         episode = self._context.episode_id if self._context else ""
-        rng = np.random.default_rng(
-            abs(hash((self._seed, episode, observation.step))) % (2**32)
-        )
+        rng = np.random.default_rng(seed_from(self._seed, episode, observation.step))
 
         chunk = []
         for offset in range(self._chunk):

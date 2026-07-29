@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from gantry_retargeters_core import DropDimensions, PoseToPosition
+
 from gantry.resolve import RETARGETER, RetargeterRegistry, bind_channel, requires_channels
 from gantry.spine import ChannelSpec
-
-from gantry_retargeters_core import DropDimensions, PoseToPosition
 
 NEED = requires_channels("consumer", "policy")
 

@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "name": "lift-three-checkpoints-closed-loop",
+  "varies": "policy",
+  "cohorts": {
+    "ph": {
+      "name": "gr00t",
+      "config": {
+        "layout": "/home/ubuntu/lift_lerobot/ph",
+        "endpoint": {
+          "host": "localhost",
+          "port": 5555,
+          "timeout_ms": 180000
+        }
+      }
+    },
+    "mh": {
+      "name": "gr00t",
+      "config": {
+        "layout": "/home/ubuntu/lift_lerobot/ph",
+        "endpoint": {
+          "host": "localhost",
+          "port": 5556,
+          "timeout_ms": 180000
+        }
+      }
+    },
+    "mg": {
+      "name": "gr00t",
+      "config": {
+        "layout": "/home/ubuntu/lift_lerobot/ph",
+        "endpoint": {
+          "host": "localhost",
+          "port": 5557,
+          "timeout_ms": 180000
+        }
+      }
+    }
+  },
+  "dataset": {
+    "name": "robomimic",
+    "config": {
+      "path": "/home/ubuntu/robomimic_data/lift/ph/low_dim.hdf5"
+    }
+  },
+  "evaluation": {
+    "name": "robosuite",
+    "config": {}
+  },
+  "embodiment": {
+    "name": "declared",
+    "config": {
+      "path": "/home/ubuntu/gantry/manifests/lift_panda.embodiment.json"
+    }
+  },
+  "feedback": [
+    {
+      "name": "compare"
+    }
+  ],
+  "protocol": {
+    "execute": 8,
+    "max_trials": 25
+  },
+  "metadata": {
+    "what": "Three GR00T checkpoints, each trained on a different split, facing the same held-out scenes in the same simulator.",
+    "the_axis": [
+      "varies=policy. Every other plane is single-valued and therefore held,",
+      "which is what makes a difference in success rate attributable to the",
+      "checkpoint rather than to the world or the scenes.",
+      "The compare module declares holds=(evaluation, embodiment) \u2014 the mirror",
+      "image \u2014 so the framework checks from provenance that they really were."
+    ],
+    "each_checkpoint_is_served_separately": [
+      "One port per checkpoint, because a GR00T server holds one model. The",
+      "policy plane is a socket, so three cohorts is three addresses."
+    ],
+    "one_gpu_caveat": [
+      "Three ports is the correct declaration and needs three servers live at once.",
+      "A 22 GB L4 holds one GR00T at a time, so on this box the same experiment runs",
+      "as three single-cohort passes against one port, and the three run records are",
+      "compared afterwards. The manifest is unchanged for a machine that can host all",
+      "three; what differs is scheduling, not the experiment.",
+      "Pointing all three cohorts at ONE port would be the dangerous shortcut: three",
+      "measurements of whichever model happens to be loaded, labelled as three",
+      "checkpoints. compare's same_policy note catches it, because all three cohorts",
+      "would report an identical policy ref."
+    ]
+  }
+}

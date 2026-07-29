@@ -19,7 +19,6 @@ from gantry.fixtures import make_clean
 from gantry.isolate import RemoteConnector, isolated_or_refuse, wants_isolation
 from gantry.spine import ChannelSpec, Descriptor, Verdict
 
-
 # ==========================================================================
 # isolation
 # ==========================================================================
@@ -307,11 +306,12 @@ def test_a_nondeterministic_adapter_is_caught():
 
 def test_a_policy_that_cannot_command_the_machine_is_refused(tmp_path):
     """Before this, a manifest could name an embodiment and be silently ignored."""
+    from gantry_connector_csv import write_episodes
+    from gantry_evaluator_waypoint import GreedyPolicy, WaypointWorld
+
     from gantry.manifest import Manifest
     from gantry.resolve import Registry
     from gantry.runner import run_manifest
-    from gantry_connector_csv import write_episodes
-    from gantry_evaluator_waypoint import GreedyPolicy, WaypointWorld
 
     path = write_episodes(make_clean(n=3, seed=1).episodes, tmp_path / "s.csv")
     six_axis = EmbodimentDescriptor(

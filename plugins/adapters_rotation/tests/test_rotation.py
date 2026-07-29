@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from gantry_adapters_rotation import KNOWN, ROTATION, WIDTHS, convert, from_matrix, to_matrix
+from gantry_semantics_manipulation import action_channel
+
 from gantry.conformance import check_adapter
 from gantry.resolve import AdapterRegistry, bind_channel, requires_channels
 from gantry.spine import ChannelSpec, compatible
-from gantry_semantics_manipulation import action_channel
-
-from gantry_adapters_rotation import KNOWN, ROTATION, WIDTHS, convert, from_matrix, to_matrix
 
 NEED = requires_channels("consumer", "policy")
 

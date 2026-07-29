@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from gantry_policy_basic import ConstantPolicy, NoisyReplayPolicy, ReplayPolicy
+
 from gantry.conformance import check_policy, policy_checks
 from gantry.contracts.policy import EpisodeContext, Observation
 from gantry.fixtures import make_clean
-from gantry.spine import ChannelSpec
-
-from gantry_policy_basic import ConstantPolicy, NoisyReplayPolicy, ReplayPolicy
 
 SUITE = make_clean(n=4, seed=1)
 ACTION = SUITE.episodes[0].channel("action")

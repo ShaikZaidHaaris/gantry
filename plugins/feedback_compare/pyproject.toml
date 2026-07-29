@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-feedback-compare"
+version = "0.1.0.dev0"
+description = "Ranks policies measured in one world on one set of scenes"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["gantry-core"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.feedback"]
+compare = "gantry_feedback_compare:PolicyComparison"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

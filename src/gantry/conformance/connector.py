@@ -206,7 +206,7 @@ def _capability(cap: str, present: Callable[[EpisodeRecord], bool]) -> Callable[
         observed = any(present(episode) for episode in context.sample)
         if declared and not observed:
             return Verdict.note(
-                f"conformance.capability_unproven",
+                "conformance.capability_unproven",
                 f"declares {cap}=True but none of the {len(context.sample)} sampled "
                 "episodes show it",
                 hint="not necessarily wrong on a large dataset, but worth confirming",

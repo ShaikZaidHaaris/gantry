@@ -31,7 +31,11 @@ jobs:
         run: python -m pytest tests/test_neutrality.py -q
       - name: the frozen surface is unbroken
         run: python -m pytest tests/test_frozen_v1.py -q
-      - run: python -m pytest -q
+      - name: everything that does not need a plugin
+        # tests/integration/ imports plugins by design and is run by the
+        # integration job. Running it here would not test core-alone, it would
+        # break it — which is exactly what it did.
+        run: python -m pytest tests --ignore=tests/integration -q
 
   # Every plugin, in its own interpreter, with only core and what it declares.
   # This is the modularity claim made mechanical: a plugin that leans on a
@@ -46,12 +50,16 @@ jobs:
           - adapters_core
           - adapters_rotation
           - connector_csv
+          - embodiment_declared
           - connector_evallog
           - connector_lerobot
           - connector_robomimic
           - evaluator_gym
+          - evaluator_libero
           - evaluator_offline
+          - evaluator_robosuite
           - evaluator_waypoint
+          - feedback_compare
           - feedback_core
           - feedback_protocol
           - policy_basic
@@ -79,8 +87,14 @@ jobs:
           python-version: "3.12"
       - name: install core and every plugin
         run: |
-          pip install -e ".[dev]"
-          for plugin in plugins/*/; do pip install -e "$plugin"; done
+          # [dev] on each: a plugin's test dependencies are declared there,
+          # and without them collection fails on an import the package never
+          # claimed to need at runtime.
+          # One command, not a loop. Installed one at a time and
+          # alphabetically, connector_robomimic asks for
+          # gantry-semantics-manipulation before it exists and pip goes looking
+          # on PyPI, where none of these are published.
+          pip install -e ".[dev]" $(for plugin in plugins/*/; do printf -- "-e %s[dev] " "$plugin"; done)
       - run: python -m pytest -q
       - name: every plugin passes its own conformance kit
         run: python -m pytest plugins/*/tests -q

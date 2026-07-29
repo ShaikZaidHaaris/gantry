@@ -19,7 +19,10 @@ video = ["av>=10"]
 # The video tests need a decoder to write a fixture and read it back. Declared,
 # because a test that imports something the package does not name is how a
 # plugin quietly acquires a dependency.
-dev = ["pytest>=7.4", "av>=10"]
+# The writer's point is that any connector can be the source, so one test uses
+# a different one. Declared, because a test that imports something the package
+# never names is how a plugin quietly acquires a dependency.
+dev = ["pytest>=7.4", "av>=10", "gantry-connector-csv"]
 
 [project.entry-points."gantry.connectors"]
 lerobot = "gantry_connector_lerobot:LeRobotConnector"

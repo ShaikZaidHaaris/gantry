@@ -31,13 +31,14 @@ confident, not more correct.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Sequence
 
 from gantry.contracts.feedback import Cohort, FeedbackModule, Finding, Report, feedback_descriptor
-from gantry.resolve import Requirement, requires_channels
+from gantry.resolve import Requirement
 from gantry.spine import Descriptor, Measurement
 
-from . import metrics, statistics as st
+from . import metrics
+from . import statistics as st
 from .metrics import get_statistic, tabulate
 
 VERSION = "0.1.0.dev0"
@@ -122,7 +123,10 @@ class Harden(FeedbackModule):
         self.aliases = dict(aliases or {})
 
     def descriptor(self) -> Descriptor:
-        return feedback_descriptor("harden", VERSION, min_cohorts=2, prescribes=True)
+        return feedback_descriptor(
+            "harden", VERSION, min_cohorts=2, prescribes=True,
+            holds=("policy", "evaluation"),
+        )
 
     def requirement(self) -> Requirement:
         return metrics.requirement(

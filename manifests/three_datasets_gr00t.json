@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "name": "lift-three-splits",
+  "cohorts": {
+    "ph": {
+      "name": "lerobot",
+      "config": {
+        "path": "/home/ubuntu/lift_lerobot/ph",
+        "video": true
+      }
+    },
+    "mh": {
+      "name": "lerobot",
+      "config": {
+        "path": "/home/ubuntu/lift_lerobot/mh",
+        "video": true
+      }
+    },
+    "mg": {
+      "name": "lerobot",
+      "config": {
+        "path": "/home/ubuntu/lift_lerobot/mg",
+        "video": true
+      }
+    }
+  },
+  "embodiment": {
+    "name": "declared",
+    "config": {
+      "path": "/home/ubuntu/gantry/manifests/lift_panda.embodiment.json"
+    }
+  },
+  "policy": {
+    "name": "gr00t",
+    "config": {
+      "layout": "/home/ubuntu/lift_lerobot/ph",
+      "endpoint": {
+        "host": "localhost",
+        "port": 5555,
+        "timeout_ms": 120000
+      }
+    }
+  },
+  "evaluation": {
+    "name": "offline",
+    "config": {
+      "action_name": "action"
+    }
+  },
+  "feedback": [
+    {
+      "name": "screen",
+      "config": {
+        "mode": "comparative"
+      }
+    }
+  ],
+  "protocol": {
+    "execute": 1,
+    "max_trials": 8
+  },
+  "metadata": {
+    "what": "One policy, one evaluator, one protocol, three datasets.",
+    "why_this_is_a_file": [
+      "A run described in a script is a run nobody else can reproduce or diff.",
+      "Every plane here is named and configured; swapping a dataset, a policy or",
+      "an evaluator is an edit to this file and nothing else."
+    ],
+    "what_is_checked": [
+      "screen and protocol both declare holds=(policy, evaluation), so the",
+      "framework verifies from provenance that those planes really were identical",
+      "across the three cohorts before it reports any difference between them.",
+      "Without that, 'only the dataset varied' is a claim by whoever wrote the",
+      "script rather than a fact about the run."
+    ],
+    "what_was_refused": [
+      "The protocol sweep was in this manifest and `gantry plan` refused it:",
+      "it needs per-episode outcomes, and neither the LeRobot conversion nor an",
+      "offline evaluator has any. That refusal arrived in a second, before any",
+      "inference ran, which is the point of planning separately from running."
+    ],
+    "what_the_embodiment_adds": [
+      "With the machine described, the runner checks that the policy's action",
+      "channel can actually command it before the first step. Without it the check",
+      "existed and could never fire."
+    ]
+  }
+}

@@ -28,14 +28,16 @@ fitted, never as facts.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Sequence
 
 import numpy as np
+
 from gantry.contracts.feedback import Cohort, FeedbackModule, Finding, Report, feedback_descriptor
-from gantry.resolve import Requirement, requires_channels
+from gantry.resolve import Requirement
 from gantry.spine import Descriptor, Measurement
 
-from . import metrics, statistics as st
+from . import metrics
+from . import statistics as st
 from .metrics import HIGHER, LOWER, Statistic, known_statistics, outcomes_of, tabulate
 
 VERSION = "0.1.0.dev0"
@@ -80,6 +82,11 @@ class Screen(FeedbackModule):
             VERSION,
             min_cohorts=2 if self.mode in {"comparative", "reference"} else 1,
             prescribes=True,
+            # Comparing cohorts is only a statement about the *data* if
+            # everything downstream of it was the same. Held only in the modes
+            # that actually compare: a single-cohort screen has nothing to hold
+            # fixed against.
+            holds=("policy", "evaluation") if self.mode in {"comparative", "reference"} else (),
             mode=self.mode,
         )
 

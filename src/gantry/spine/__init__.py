@@ -24,6 +24,17 @@ from .channel import (
     register_semantics,
 )
 from .descriptor import ContractVersion, Descriptor
+from .episode import (
+    ArraySource,
+    EmptySource,
+    EpisodeLabels,
+    EpisodeMeta,
+    EpisodeRecord,
+    StageEvent,
+    StepSource,
+    episode_from_arrays,
+    episode_from_labels,
+)
 from .plane import (
     CORE_PLANES,
     MANY,
@@ -37,18 +48,17 @@ from .plane import (
     proxyable_planes,
     register_plane,
 )
-from .episode import (
-    ArraySource,
-    EmptySource,
-    EpisodeLabels,
-    EpisodeMeta,
-    EpisodeRecord,
-    StageEvent,
-    StepSource,
-    episode_from_arrays,
-    episode_from_labels,
+from .provenance import (
+    PLANES,
+    AdapterStep,
+    ComponentRef,
+    Measurement,
+    Provenance,
+    digest_of,
+    mcnemar,
+    proportion,
+    seed_from,
 )
-from .provenance import PLANES, AdapterStep, ComponentRef, Measurement, Provenance, digest_of
 from .run import RunRecord, RunSet, describe, runset
 from .verdict import IncompatibleError, Reason, Verdict
 
@@ -105,6 +115,9 @@ __all__ = [
     "Measurement",
     "Provenance",
     "digest_of",
+    "mcnemar",
+    "proportion",
+    "seed_from",
     # descriptors
     "ContractVersion",
     "Descriptor",

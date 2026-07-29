@@ -54,6 +54,19 @@ from ..spine import Descriptor, RunRecord, Verdict
 #: refused by name with ``contract.minor`` rather than failing later.
 EVALUATOR_CONTRACT = "evaluator@1.1"
 
+#: This evaluator's world comes from the data under test rather than from its
+#: own configuration, so it must be bound to a cohort before it can run.
+#:
+#: The distinction is real and not a convenience. A simulator brings its own
+#: scenes and is the same world whichever dataset you point at it. An offline
+#: replay's world *is* the recording, and a sim rebuilt from a dataset's own
+#: ``env_args`` is the world that dataset came from. Without somewhere to say
+#: which kind it is, a manifest cannot build the second kind at all — every
+#: plane is constructed independently, so an evaluator that needs the dataset
+#: would have to reach for it, and reaching across planes is the thing this
+#: design exists to prevent.
+CAP_NEEDS_DATASET = "needs_dataset"
+
 #: Emits milestones, so a funnel diagnosis is possible.
 CAP_STAGE_EVENTS = "stage_events"
 #: Emits a success label per trial.
@@ -163,6 +176,7 @@ def evaluator_descriptor(
     outcomes: bool,
     seedable: bool,
     closed_loop: bool,
+    needs_dataset: bool = False,
     isolation: str = "in-process",
     **metadata: Any,
 ) -> Descriptor:
@@ -176,6 +190,7 @@ def evaluator_descriptor(
             CAP_OUTCOMES: outcomes,
             CAP_SEEDABLE: seedable,
             CAP_CLOSED_LOOP: closed_loop,
+            CAP_NEEDS_DATASET: needs_dataset,
         },
         isolation=isolation,
         metadata=metadata,
@@ -219,8 +234,41 @@ class Evaluator(ABC):
     def name(self) -> str:
         return self.descriptor().name
 
+    @property
+    def needs_dataset(self) -> bool:
+        return bool(self.descriptor().provides.get(CAP_NEEDS_DATASET, False))
+
+    def bind(self, episodes: Sequence[Any]) -> "Evaluator":
+        """Return an evaluator for *this* cohort's data.
+
+        Only meaningful when the descriptor says ``needs_dataset``. The default
+        returns ``self``, because a simulator is the same world whichever
+        dataset is under test and rebinding it would be a lie.
+
+        Returns a new evaluator rather than mutating: a run compares cohorts, so
+        two bound evaluators exist at once, and an evaluator that quietly
+        rebound itself would score the second cohort against the first one's
+        answer key.
+        """
+        return self
+
     def check_inputs(self, task: TaskSpec, protocol: Protocol) -> Verdict:
-        return Verdict.all([task.validate(), protocol.validate()])
+        checks = [task.validate(), protocol.validate()]
+        if self.needs_dataset and not self.bound:
+            checks.append(
+                Verdict.no(
+                    "evaluator.unbound",
+                    f"{self.name} takes its world from the data under test and has "
+                    "not been bound to any",
+                    hint="call bind(episodes) first; a runner does this per cohort",
+                )
+            )
+        return Verdict.all(checks)
+
+    @property
+    def bound(self) -> bool:
+        """Whether this instance has the data it needs. True unless overridden."""
+        return True
 
     def evaluate(self, policy: Any, task: TaskSpec, protocol: Protocol | None = None) -> RunRecord:
         """Check, then run. The path callers should use."""

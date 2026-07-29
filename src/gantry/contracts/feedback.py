@@ -39,6 +39,16 @@ FEEDBACK_CONTRACT = "feedback@1.0"
 CAP_MIN_COHORTS = "min_cohorts"
 #: Whether the module emits actionable prescriptions, not just measurements.
 CAP_PRESCRIBES = "prescribes"
+#: Planes that must be identical across the cohorts for the answer to mean what
+#: it appears to mean.
+#:
+#: This is the framework's central promise made mechanical. A module comparing
+#: datasets is only measuring the data if the policy and the evaluator were the
+#: same; change the policy too and the difference is unattributable, but the
+#: table looks exactly the same either way. Declaring the held planes lets that
+#: be checked instead of assumed — which is the difference between a result and
+#: a coincidence.
+CAP_HOLDS = "holds"
 
 #: How much weight a finding carries. Not a p-value: evidence strength as
 #: judged by the module, so a reader can triage without re-deriving statistics.
@@ -176,6 +186,7 @@ def feedback_descriptor(
     *,
     min_cohorts: int,
     prescribes: bool,
+    holds: Sequence[str] = (),
     isolation: str = "in-process",
     **metadata: Any,
 ) -> Descriptor:
@@ -184,7 +195,11 @@ def feedback_descriptor(
         name=name,
         version=version,
         contract=FEEDBACK_CONTRACT,
-        provides={CAP_MIN_COHORTS: min_cohorts, CAP_PRESCRIBES: prescribes},
+        provides={
+            CAP_MIN_COHORTS: min_cohorts,
+            CAP_PRESCRIBES: prescribes,
+            CAP_HOLDS: list(holds),
+        },
         metadata=metadata,
     )
 
@@ -213,6 +228,80 @@ class FeedbackModule(ABC):
     def min_cohorts(self) -> int:
         return int(self.descriptor().provides.get(CAP_MIN_COHORTS, 1))
 
+    def holds(self) -> tuple[str, ...]:
+        """Planes this module's answer assumes were identical across cohorts."""
+        return tuple(self.descriptor().provides.get(CAP_HOLDS, ()) or ())
+
+    def check_comparability(self, cohorts: Sequence[Cohort]) -> Verdict:
+        """Were the planes this module holds fixed actually fixed?
+
+        Answered from provenance, which is why every run records what produced
+        it. A cohort with no provenance cannot be checked, and that is reported
+        rather than treated as agreement — "nobody wrote it down" is not the
+        same as "it matched".
+        """
+        held = self.holds()
+        if not held or len(cohorts) < 2:
+            return Verdict.yes()
+
+        # A cohort with no provenance at all is treated as naming nothing on
+        # every plane, which is what a raw recording genuinely is.
+        empty = Provenance()
+        first, checks = cohorts[0], []
+        for other in cohorts[1:]:
+            mine = first.provenance or empty
+            theirs = other.provenance or empty
+            verdicts = {plane: mine.agreement(theirs, plane) for plane in held}
+
+            differs = [plane for plane, answer in verdicts.items() if answer == "differs"]
+            if differs:
+                checks.append(
+                    Verdict.no(
+                        "feedback.incomparable",
+                        f"{self.name} compares cohorts while holding {list(held)} fixed, "
+                        f"but {first.name!r} and {other.name!r} differ on {differs}",
+                        hint="the difference in the numbers cannot be attributed to what "
+                        "this module claims to measure",
+                        module=self.name,
+                        planes=differs,
+                    )
+                )
+
+            one_sided = [plane for plane, answer in verdicts.items() if answer == "one_sided"]
+            if one_sided:
+                checks.append(
+                    Verdict.no(
+                        "feedback.unverifiable",
+                        f"{self.name} holds {one_sided} fixed, and {first.name!r} and "
+                        f"{other.name!r} disagree about whether there was one at all",
+                        hint="one cohort names a component here and the other does not, so "
+                        "nobody can say whether it changed; record it on both sides",
+                        module=self.name,
+                        planes=one_sided,
+                    )
+                )
+
+        absent = [
+            plane
+            for plane in held
+            if all(
+                (cohort.provenance or empty).component(plane) is None for cohort in cohorts
+            )
+        ]
+        if absent and len(absent) == len(held):
+            # Nothing downstream existed for any cohort — the ordinary shape of
+            # a screen over raw recordings. Vacuously satisfied, and said out
+            # loud so the reader knows the guarantee was cheap here.
+            checks.append(
+                Verdict.note(
+                    "feedback.nothing_held",
+                    f"{self.name} holds {list(held)} fixed and no cohort has any, so "
+                    "these are recordings compared directly rather than runs",
+                    module=self.name,
+                )
+            )
+        return Verdict.all(checks)
+
     def check_inputs(self, cohorts: Sequence[Cohort]) -> Verdict:
         """Refuse before analysing, rather than answering a different question."""
         checks = []
@@ -237,6 +326,7 @@ class FeedbackModule(ABC):
                     module=self.name,
                 )
             )
+        checks.append(self.check_comparability(cohorts))
         names = [cohort.name for cohort in cohorts]
         repeated = {name for name in names if names.count(name) > 1}
         if repeated:

@@ -50,13 +50,28 @@ what it needs and what it provides, and never learns anything about the others.
 |---|---|---|
 | `dataset` | where episodes come from | `lerobot` · `robomimic` · `csv` · `evallog` |
 | `policy` | anything that turns observations into actions | `gr00t` · `served` · `replay` · `constant` · `noisy_replay` |
-| `evaluation` | running a policy and recording what happened | `gym` · `offline` · `waypoint` |
-| `feedback` | records in, findings out | `screen` · `funnel` · `attribution` · `harden` · `protocol` |
-| `embodiment` | what a robot is, physically | *(contract only)* |
+| `evaluation` | running a policy and recording what happened | `robosuite` · `libero` · `gym` · `offline` · `waypoint` |
+| `feedback` | records in, findings out | `screen` · `compare` · `funnel` · `attribution` · `harden` · `protocol` |
+| `embodiment` | what a robot is, physically | `declared` |
 | `adapter` | one correct answer: units, rates, rotations | `unit_convert` · `resample` · `rotation` · `permute` |
 | `retargeter` | declared-judgement conversions between bodies | `pose_to_position` |
 
 Planes are themselves a registry: a plugin can add one without editing core.
+
+**Any plane can be the axis.** A manifest names one component per plane and says
+which one varies. Three datasets under one policy and three policies in one world
+are the same shape of question, so `varies` is a field rather than an assumption:
+
+```json
+{ "varies": "policy",
+  "cohorts": { "ph": {"name": "gr00t", …}, "mg": {"name": "gr00t", …} },
+  "dataset": {"name": "robomimic", …}, "evaluation": {"name": "robosuite"} }
+```
+
+Whatever varies is the one thing not held. A feedback module declares the mirror
+image with `holds`, and the two are checked against each other from provenance —
+so a comparison that claims to measure the data, while the policy also changed,
+is refused rather than reported.
 
 ## What makes it different
 
@@ -133,7 +148,7 @@ src/gantry/          core — depends on numpy and nothing else
   conformance/         one kit per contract, returning verdicts, importing no test framework
   resolve/             binding, adapters, retargeters, requirements
   isolate.py           subprocess boundary for conflicting dependencies
-plugins/             16 plugins, each installable on its own
+plugins/             20 plugins, each installable on its own
 docs/                writing-a-plugin.md
 manifests/           a run described as a file, so it can be committed and diffed
 reference/           earlier implementations, kept to check this one against
@@ -143,8 +158,9 @@ ARCHITECTURE.md      the whole design, contracts first
 ## Testing
 
 ```bash
-python -m pytest                      # 271 core
-python -m pytest plugins/*/tests      # 474 across 16 plugins
+python -m pytest tests --ignore=tests/integration   # core alone, no plugins
+python -m pytest                                   # 285, plugins installed
+python -m pytest plugins/*/tests                   # 564 across 20 plugins
 python tools/isolation_check.py       # each plugin alone, in a fresh venv
 ```
 
@@ -154,7 +170,7 @@ never mentions and nobody finds out until someone installs it alone. This builds
 interpreter per plugin and installs only core, that plugin, and what it actually declares:
 
 ```
-16/16 plugins install and pass on their own
+20/20 plugins install and pass on their own
 ```
 
 CI runs core on four Python versions with no plugin present, every plugin in isolation, and
@@ -162,12 +178,14 @@ everything together.
 
 ## Status
 
-Working: the seven planes, 16 plugins, 745 tests. Verified against real LeRobot and RoboMimic
-data, and against a GR00T server over its real protocol.
+Working: the seven planes, 20 plugins, 849 tests. Verified against real LeRobot and
+RoboMimic data; against a GR00T N1.7 checkpoint fine-tuned on this data and served over its
+real protocol; and in closed loop against MuJoCo, where replaying recorded actions into the
+rebuilt world lifts the cube 3/3, which is the check that proves the wiring rather than
+asserting it.
 
-Not done: no large-scale training run has been evaluated end to end yet — that needs a
-checkpoint and a box big enough to fine-tune on. The embodiment plane has a contract and no
-shipped implementation.
+Thin: evaluations so far are tens of trials, not hundreds. A fine-tune that freezes the
+diffusion head proves the pipeline and is not a capability result.
 
 ## License
 

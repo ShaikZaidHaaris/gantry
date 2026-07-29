@@ -8,11 +8,6 @@ reported, and the clean and decoy suites must produce nothing.
 from __future__ import annotations
 
 import pytest
-from gantry.contracts.feedback import Cohort
-from gantry.fixtures import make_clean, make_defective, make_duration_confound
-from gantry.spine import IncompatibleError
-from gantry_feedback_core.harden import PerCohort
-
 from gantry_feedback_core import (
     ATTRIBUTABLE,
     INCONSISTENT,
@@ -28,6 +23,11 @@ from gantry_feedback_core import (
     stage_order,
     uplift,
 )
+from gantry_feedback_core.harden import PerCohort
+
+from gantry.contracts.feedback import Cohort
+from gantry.fixtures import make_clean, make_defective, make_duration_confound
+from gantry.spine import IncompatibleError
 
 
 def cohort(name: str, suite) -> Cohort:
@@ -405,8 +405,9 @@ def test_an_empty_cohort_is_refused():
 
 def _run_that_always_stops_at_stage_two():
     """A run where no episode ever reaches the second milestone."""
-    from gantry.spine import EpisodeLabels, Provenance, StageEvent, episode_from_arrays
     import numpy as np
+
+    from gantry.spine import EpisodeLabels, Provenance, StageEvent, episode_from_arrays
 
     episodes = tuple(
         episode_from_arrays(

@@ -144,7 +144,13 @@ class ProtocolSweep(FeedbackModule):
 
     def descriptor(self) -> Descriptor:
         return feedback_descriptor(
-            "protocol", VERSION, min_cohorts=2, prescribes=True, levers=list(self.levers)
+            "protocol", VERSION, min_cohorts=2, prescribes=True,
+            # A sweep where the policy also changed is measuring the policy.
+            # Declared rather than hand-checked: the base contract verifies it
+            # from provenance for every module that declares it, so this one
+            # stopped carrying its own copy of the logic.
+            holds=HELD,
+            levers=list(self.levers),
         )
 
     def requirement(self) -> Requirement:
@@ -177,29 +183,7 @@ class ProtocolSweep(FeedbackModule):
                     hint="the evaluator should record how it executed the run",
                 )
             )
-        held = self._confounded(cohorts)
-        if held:
-            checks.append(
-                Verdict.no(
-                    "protocol.confounded",
-                    f"the cohorts differ on {', '.join(held)} as well as protocol",
-                    hint="a sweep where the policy also changed measures the policy",
-                    planes=list(held),
-                )
-            )
         return Verdict.all(checks)
-
-    @staticmethod
-    def _confounded(cohorts: Sequence[Cohort]) -> tuple[str, ...]:
-        differing = []
-        for plane in HELD:
-            refs = {
-                (c.provenance.component(plane).ref if c.provenance and c.provenance.component(plane) else None)
-                for c in cohorts
-            }
-            if len(refs) > 1:
-                differing.append(plane)
-        return tuple(differing)
 
     def analyse(self, cohorts: Sequence[Cohort]) -> Report:
         arms = [arm for arm in (_arm(c) for c in cohorts) if arm is not None]

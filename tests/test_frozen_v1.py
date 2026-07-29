@@ -23,7 +23,7 @@ import pytest
 
 from gantry import contracts
 from gantry.contracts.connector import CONNECTOR_CONTRACT, Connector
-from gantry.contracts.embodiment import EMBODIMENT_CONTRACT, EmbodimentDescriptor, Retargeter
+from gantry.contracts.embodiment import EMBODIMENT_CONTRACT, Retargeter
 from gantry.contracts.evaluator import EVALUATOR_CONTRACT, Evaluator
 from gantry.contracts.feedback import FEEDBACK_CONTRACT, FeedbackModule
 from gantry.contracts.policy import POLICY_CONTRACT, Policy

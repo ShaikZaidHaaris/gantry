@@ -60,6 +60,19 @@ class Manifest:
 
     name: str
     cohorts: Mapping[str, ComponentSpec] = field(default_factory=dict)
+    #: Which plane the cohorts are components of — the axis under comparison.
+    #:
+    #: Defaulted to the dataset plane because that is the common case, not
+    #: because it is privileged. Comparing three checkpoints in one world is the
+    #: same shape of question as comparing three datasets under one policy, and
+    #: a manifest that could only express the second was quietly saying the
+    #: dataset plane matters more. It does not.
+    #:
+    #: Whatever this names is the one thing that varies; every other plane is
+    #: single-valued and therefore held. That is the same distinction a feedback
+    #: module makes with ``holds``, seen from the other side, and the two are
+    #: checked against each other from provenance at analysis time.
+    varies: str = "dataset"
     #: Every single-valued plane, keyed by plane name. A plane registered by a
     #: plugin lands here with no edit to this class — which is the difference
     #: between a manifest that supports six planes and one that supports planes.
@@ -99,6 +112,11 @@ class Manifest:
             raise ConfigError(f"{where}: needs a non-empty 'name'")
 
         raw_cohorts = payload.get("cohorts", {})
+        varies = payload.get("varies", "dataset")
+        if isinstance(raw_cohorts, Mapping) and "plane" in raw_cohorts and "of" in raw_cohorts:
+            # {"cohorts": {"plane": "policy", "of": {...}}} — the explicit form.
+            varies = str(raw_cohorts["plane"])
+            raw_cohorts = raw_cohorts["of"]
         if not isinstance(raw_cohorts, Mapping):
             raise ConfigError(f"{where}: 'cohorts' must be an object of name -> component")
         cohorts = {
@@ -119,15 +137,25 @@ class Manifest:
         # add a plane and have manifests understand it immediately.
         from .spine import get_plane, known_planes
 
+        # Keys with a dedicated shape of their own. ``feedback`` is a plane and
+        # a list, so it must not also be read as a single component here.
+        reserved = {"version", "name", "cohorts", "varies", "feedback", "protocol", "metadata"}
+
         components: dict[str, ComponentSpec] = {}
         for plane in known_planes():
-            described = get_plane(plane)
-            if described is None or described.many:
+            if plane in reserved:
                 continue
+            described = get_plane(plane)
+            if described is None:
+                continue
+            # A many-valued plane used to be skipped here, because the only
+            # many-valued plane was the one cohorts were always built on. Now
+            # that any plane can be the axis, naming one as a single component
+            # is meaningful — "the dataset every policy is measured on". The
+            # conflict check below catches naming it both ways.
             if payload.get(plane) is not None:
                 components[plane] = ComponentSpec.parse(payload[plane], f"{where}.{plane}")
 
-        reserved = {"version", "name", "cohorts", "feedback", "protocol", "metadata"}
         unknown = [
             key
             for key in payload
@@ -143,9 +171,23 @@ class Manifest:
         if not isinstance(protocol, Mapping):
             raise ConfigError(f"{where}: 'protocol' must be an object")
 
+        from .spine import get_plane as _plane_named
+
+        if _plane_named(str(varies)) is None:
+            raise ConfigError(
+                f"{where}: cohorts vary on {varies!r}, which is not a plane; "
+                f"known planes are {sorted(known_planes())}"
+            )
+        if str(varies) in components:
+            raise ConfigError(
+                f"{where}: {varies!r} is named both as the varying axis and as a "
+                f"single component. It is one or the other — if it varies, every value "
+                f"belongs in 'cohorts'."
+            )
         return cls(
             name=name,
             cohorts=cohorts,
+            varies=str(varies),
             components=components,
             feedback=feedback,
             protocol=dict(protocol),
@@ -198,8 +240,27 @@ class Manifest:
 
     @property
     def evaluates(self) -> bool:
-        """Whether this manifest runs a policy, rather than only reading data."""
-        return self.policy is not None and self.evaluation is not None
+        """Whether this manifest runs a policy, rather than only reading data.
+
+        A plane that varies is supplied by the cohorts rather than by a single
+        component, so it counts as present either way.
+        """
+        return self.provides("policy") and self.provides("evaluation")
+
+    def provides(self, plane: str) -> bool:
+        """Is this plane supplied at all — as one component or as the axis?"""
+        return self.varies == plane or self.components.get(plane) is not None
+
+    def spec_for(self, plane: str, cohort: str) -> ComponentSpec | None:
+        """The component for one plane in one cohort.
+
+        The varying plane changes per cohort; every other plane is the same one
+        throughout. Callers ask this rather than reaching for ``.policy``, so
+        adding a new varying axis costs nothing at the call site.
+        """
+        if self.varies == plane:
+            return self.cohorts.get(cohort)
+        return self.components.get(plane)
 
     def validate(self) -> Verdict:
         checks = []
@@ -215,14 +276,26 @@ class Manifest:
                     "report nothing about it",
                 )
             )
-        if (self.policy is None) != (self.evaluation is None):
-            missing = "evaluation" if self.policy is not None else "policy"
+        # Asked through provides(), because a plane may be supplied by the
+        # cohorts rather than by a single component. Reading .policy directly
+        # would call a policy-varying run half an evaluation.
+        if self.provides("policy") != self.provides("evaluation"):
+            missing = "evaluation" if self.provides("policy") else "policy"
             checks.append(
                 Verdict.no(
                     "manifest.half_an_evaluation",
                     f"{self.name}: a run needs both a policy and an evaluation; "
                     f"{missing!r} is missing",
                     hint="drop both to analyse the data as recorded",
+                )
+            )
+        if self.varies != "dataset" and not self.provides("dataset"):
+            checks.append(
+                Verdict.no(
+                    "manifest.no_dataset",
+                    f"{self.name}: cohorts vary on {self.varies!r}, so the dataset plane "
+                    "has to be named — otherwise there is nothing for them to be "
+                    "measured on",
                 )
             )
         return Verdict.all(checks)

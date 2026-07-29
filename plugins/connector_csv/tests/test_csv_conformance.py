@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import pytest
+from gantry_connector_csv import CsvConnector, write_episodes
+
 from gantry.conformance import check_connector, connector_checks
 from gantry.fixtures import make_clean, make_defective, make_duration_confound
-from gantry_connector_csv import CsvConnector, write_episodes
 
 
 @pytest.fixture

@@ -1,0 +1,51 @@
+{
+  "name": "lift-panda",
+  "version": "1.0",
+  "control_hz": 20,
+  "state": [
+    {
+      "name": "observation.state",
+      "kind": "vector",
+      "shape": [
+        8
+      ],
+      "dtype": "float32",
+      "dim_labels": [
+        "x",
+        "y",
+        "z",
+        "roll",
+        "pitch",
+        "yaw",
+        "gripper.0",
+        "gripper.1"
+      ],
+      "semantics": "pose"
+    }
+  ],
+  "action": [
+    {
+      "name": "action",
+      "kind": "vector",
+      "shape": [
+        7
+      ],
+      "dtype": "float32",
+      "dim_labels": [
+        "x",
+        "y",
+        "z",
+        "roll",
+        "pitch",
+        "yaw",
+        "gripper"
+      ],
+      "semantics": "actuation"
+    }
+  ],
+  "notes": "OSC_POSE deltas; gripper is the seventh element. Limits not established.",
+  "capabilities": [
+    "simulated",
+    "resettable"
+  ]
+}

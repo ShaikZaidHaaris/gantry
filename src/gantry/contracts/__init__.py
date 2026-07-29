@@ -10,14 +10,26 @@ sentences. If the two ever disagree, the prose is the specification and the
 kit is the bug.
 """
 
+from .connector import (
+    CAP_LAZY,
+    CAP_MEDIA,
+    CAP_OUTCOMES,
+    CAP_STAGE_EVENTS,
+    CAPABILITIES,
+    CONNECTOR_CONTRACT,
+    Connector,
+    connector_descriptor,
+)
 from .embodiment import (
     CAP_RESETTABLE,
-    CAP_SEEDABLE as CAP_EMBODIMENT_SEEDABLE,
     CAP_SIMULATED,
     EMBODIMENT_CONTRACT,
     EmbodimentDescriptor,
     Retargeter,
     embodiment_from_channels,
+)
+from .embodiment import (
+    CAP_SEEDABLE as CAP_EMBODIMENT_SEEDABLE,
 )
 from .evaluator import (
     CAP_CLOSED_LOOP,
@@ -27,16 +39,6 @@ from .evaluator import (
     Scene,
     TaskSpec,
     evaluator_descriptor,
-)
-from .policy import (
-    CAP_CHUNK,
-    CAP_DETERMINISTIC,
-    CAP_STATEFUL,
-    POLICY_CONTRACT,
-    EpisodeContext,
-    Observation,
-    Policy,
-    policy_descriptor,
 )
 from .feedback import (
     CAP_MIN_COHORTS,
@@ -49,15 +51,15 @@ from .feedback import (
     Report,
     feedback_descriptor,
 )
-from .connector import (
-    CAP_LAZY,
-    CAP_MEDIA,
-    CAP_OUTCOMES,
-    CAP_STAGE_EVENTS,
-    CAPABILITIES,
-    CONNECTOR_CONTRACT,
-    Connector,
-    connector_descriptor,
+from .policy import (
+    CAP_CHUNK,
+    CAP_DETERMINISTIC,
+    CAP_STATEFUL,
+    POLICY_CONTRACT,
+    EpisodeContext,
+    Observation,
+    Policy,
+    policy_descriptor,
 )
 
 __all__ = [

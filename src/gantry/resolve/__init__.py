@@ -15,7 +15,7 @@ disguised as anything else.
 
 from .adapters import ADAPTER_CONTRACT, Adapter, AdapterRegistry, SupportsAdaptation
 from .apply import AdaptedSource, adapt_all, adapt_episode, changes_length
-from .plan import ChannelBinding, Plan, ResolvedComponent, Resolution, Wiring
+from .plan import ChannelBinding, Plan, Resolution, ResolvedComponent, Wiring
 from .registry import (
     ENTRY_POINT_GROUPS,
     DuplicateRegistration,

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from gantry_connector_csv import CsvConnector, write_episodes
+
 from gantry.fixtures import make_clean, make_defective
 from gantry.spine import compatible
-from gantry_connector_csv import CsvConnector, write_episodes
 
 
 @pytest.fixture

@@ -99,21 +99,6 @@ def test_unknown_plane_is_rejected():
         Registry().register("vibes", "x", lambda: None)
 
 
-def test_discovery_finds_an_installed_plugin():
-    """The CSV plugin declares an entry point, so it appears without editing core."""
-    reg = Registry()
-    found = reg.discover()
-    assert "dataset:csv" in found
-    assert reg.get("dataset", "csv").origin == "entry-point:gantry.connectors"
-
-
-def test_discovery_does_not_import_the_plugin_until_it_is_built():
-    reg = Registry()
-    reg.discover()
-    registration = reg.get("dataset", "csv")
-    assert "lazy" in repr(registration.factory)
-
-
 # -- capabilities ----------------------------------------------------------
 
 

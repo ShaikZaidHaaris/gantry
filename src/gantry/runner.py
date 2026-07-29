@@ -122,11 +122,13 @@ class Built:
     policy: Any = None
     evaluator: Any = None
     embodiment: Any = None
+    #: The single dataset, when the dataset plane is not the one varying.
+    dataset: Any = None
     refs: list[Any] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
     def close(self) -> None:
-        for component in (*self.cohorts.values(), self.policy, self.evaluator):
+        for component in (*self.cohorts.values(), self.policy, self.evaluator, self.dataset):
             closer = getattr(component, "close", None)
             if callable(closer):
                 try:
@@ -171,9 +173,12 @@ def build_component(
 
 
 def build_all(manifest: Manifest, registry: Registry) -> Built:
+    """Build every plane, with the cohorts on whichever one varies."""
     built = Built()
+    # The cohorts are components of the varying plane — datasets by default,
+    # policies when comparing checkpoints, evaluators when comparing worlds.
     for name, spec in manifest.cohorts.items():
-        component, ref, verdict = build_component(registry, "dataset", spec)
+        component, ref, verdict = build_component(registry, manifest.varies, spec)
         built.cohorts[name] = component
         built.refs.append(ref)
         built.notes.extend(reason.message for reason in verdict.reasons)
@@ -181,13 +186,17 @@ def build_all(manifest: Manifest, registry: Registry) -> Built:
         component, ref, _ = build_component(registry, "feedback", spec)
         built.feedback.append(component)
         built.refs.append(ref)
-    if manifest.embodiment is not None:
-        built.embodiment, ref, _ = build_component(registry, "embodiment", manifest.embodiment)
-        built.refs.append(ref)
-    if manifest.evaluates:
-        built.policy, ref, _ = build_component(registry, "policy", manifest.policy)
-        built.refs.append(ref)
-        built.evaluator, ref, _ = build_component(registry, "evaluation", manifest.evaluation)
+    # Everything single-valued. A plane supplied by the cohorts has no single
+    # component and is skipped here; the runner reads it per cohort instead.
+    for plane, attribute in (("embodiment", "embodiment"), ("policy", "policy"),
+                             ("evaluation", "evaluator"), ("dataset", "dataset")):
+        spec = manifest.components.get(plane)
+        if spec is None or manifest.varies == plane:
+            continue
+        if plane in ("policy", "evaluation") and not manifest.evaluates:
+            continue
+        component, ref, _ = build_component(registry, plane, spec)
+        setattr(built, attribute, component)
         built.refs.append(ref)
     return built
 
@@ -414,25 +423,45 @@ def _gather(
     failures: list[str] = []
     notes: list[str] = []
 
-    for name, connector in built.cohorts.items():
-        episodes = tuple(connector)
+    varies = manifest.varies
+    for name, component in built.cohorts.items():
+        # Whichever plane varies, this cohort supplies it; the rest are held.
+        provider = component if varies == "dataset" else built.dataset
+        policy = component if varies == "policy" else built.policy
+        evaluator = component if varies == "evaluation" else built.evaluator
+        if provider is None:
+            failures.append(
+                f"{name}: nothing supplies the dataset plane; name one, or vary on it"
+            )
+            continue
+        episodes = tuple(provider)
         if not manifest.evaluates:
-            sources.append(Source(name, episodes, connector))
+            sources.append(Source(name, episodes, provider))
             continue
 
         from .contracts.evaluator import Protocol
 
         protocol = Protocol(**_protocol_fields(manifest.protocol))
-        task = _task_for(built.evaluator, name, manifest)
+        # An evaluator whose world is the data under test gets this cohort's
+        # episodes. One bound instance per cohort, never a rebound shared one:
+        # the cohorts are compared against each other, so a single evaluator
+        # that rebound itself would score the second against the first's
+        # answer key.
+        evaluator = (
+            evaluator.bind(episodes)
+            if getattr(evaluator, "needs_dataset", False)
+            else evaluator
+        )
+        task = _task_for(evaluator, name, manifest)
         try:
-            record = built.evaluator.evaluate(built.policy, task, protocol)
+            record = evaluator.evaluate(policy, task, protocol)
         except GantryError as error:
             if must_halt(error):
                 raise
             failures.append(f"evaluation:{name}: {error}")
             continue
         runs.append(record)
-        sources.append(Source(name, record.episodes, built.evaluator, record.provenance))
+        sources.append(Source(name, record.episodes, evaluator, record.provenance))
         notes.extend(record.provenance.notes)
 
     return runs, sources, failures, notes

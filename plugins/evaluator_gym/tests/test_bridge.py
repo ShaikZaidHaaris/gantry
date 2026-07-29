@@ -197,6 +197,9 @@ def test_it_declares_only_what_its_readers_can_deliver():
         "outcomes": True,
         "seedable": True,
         "closed_loop": True,
+        # A gym env brings its own world, so it is the same world whichever
+        # dataset is under test and never needs binding to one.
+        "needs_dataset": False,
     }
 
 

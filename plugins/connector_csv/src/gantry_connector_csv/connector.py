@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import numpy as np
+
 from gantry.contracts.connector import Connector, connector_descriptor
 from gantry.spine import (
     ChannelSpec,

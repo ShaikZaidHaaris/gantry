@@ -24,6 +24,7 @@ elementwise would otherwise see a change that is not one.
 from __future__ import annotations
 
 import numpy as np
+
 from gantry.resolve import Adapter
 from gantry.spine import ChannelSpec, Verdict
 

@@ -7,10 +7,10 @@ from pathlib import Path
 import h5py
 import numpy as np
 import pytest
+from gantry_connector_robomimic import CONVENTIONS, RoboMimicConnector
+
 from gantry.conformance import check_connector
 from gantry.errors import ConfigError
-
-from gantry_connector_robomimic import CONVENTIONS, RoboMimicConnector
 
 REAL = Path("/tmp/gantry-real/robomimic_data/lift/ph/low_dim.hdf5")
 real_only = pytest.mark.skipif(not REAL.exists(), reason="no real RoboMimic file present")
@@ -107,9 +107,10 @@ def test_a_scalar_first_consumer_is_refused_without_a_converter(dataset):
 
 
 def test_the_rotation_adapter_closes_it(dataset):
+    from gantry_adapters_rotation import ROTATION
+
     from gantry.resolve import AdapterRegistry, bind_channel, requires_channels
     from gantry.spine import ChannelSpec
-    from gantry_adapters_rotation import ROTATION
 
 
     provided = {s.name: s for s in RoboMimicConnector(dataset).schema("demo_0")}["robot0_eef_quat"]

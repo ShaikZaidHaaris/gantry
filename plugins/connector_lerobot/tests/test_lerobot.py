@@ -265,15 +265,65 @@ def test_a_real_episode_has_the_shape_the_metadata_promised():
 
 
 @real_only
-def test_a_real_dataset_with_duplicate_dimension_names_drops_them():
+@real_only
+def test_duplicate_names_in_info_json_are_rescued_by_the_modality_sidecar():
     """Found in genuine data: the state names end ('gripper', 'gripper').
 
-    A repeated label cannot address a dimension, so keeping it would offer an
-    addressing scheme that silently resolves two columns to one.
+    A repeated label cannot address a dimension, so ``info.json``'s list is
+    unusable. The same dataset's ``modality.json`` says the gripper spans
+    columns 6 to 8, which is unambiguous, so the columns end up addressable
+    after all — numbered, because two columns are two dimensions.
     """
     connector = LeRobotConnector(REAL)
     schema = {spec.name: spec for spec in connector.schema(connector.episode_ids()[0])}
     names = connector.info["features"]["observation.state"]["names"]["motors"]
-    assert len(names) != len(set(names))
-    assert schema["observation.state"].dim_labels is None
+    assert len(names) != len(set(names)), "info.json alone could not address these"
+    assert schema["observation.state"].dim_labels == (
+        "x", "y", "z", "roll", "pitch", "yaw", "gripper.0", "gripper.1",
+    )
     assert schema["action"].dim_labels is not None
+
+
+def test_without_a_sidecar_duplicate_names_are_still_dropped(dataset):
+    """The rescue is the sidecar's doing, not a new tolerance for ambiguity."""
+    info = json.loads((dataset / "meta" / "info.json").read_text())
+    info["features"]["observation.state"]["names"] = {"motors": ["a", "b", "c", "c"]}
+    (dataset / "meta" / "info.json").write_text(json.dumps(info))
+    assert not (dataset / "meta" / "modality.json").exists()
+    schema = {s.name: s for s in LeRobotConnector(dataset).schema("episode_000000")}
+    assert schema["observation.state"].dim_labels is None
+
+
+def test_a_sidecar_that_does_not_tile_the_width_is_ignored(dataset):
+    """A partial description would mislabel every dimension after the hole.
+
+    Ignored means ignored, not fatal: info.json's names are still there and
+    still usable in this fixture, so the channel keeps those.
+    """
+    (dataset / "meta" / "modality.json").write_text(
+        json.dumps({"state": {"x": {"start": 0, "end": 1}, "z": {"start": 2, "end": 4}}})
+    )
+    schema = {s.name: s for s in LeRobotConnector(dataset).schema("episode_000000")}
+    assert schema["observation.state"].dim_labels == ("x", "y", "z", "gripper")
+
+
+def test_a_bad_sidecar_leaves_nothing_when_info_json_is_no_better(dataset):
+    """Both sources unusable is the case where a channel has no labels at all."""
+    info = json.loads((dataset / "meta" / "info.json").read_text())
+    info["features"]["observation.state"]["names"] = {"motors": ["a", "b", "c", "c"]}
+    (dataset / "meta" / "info.json").write_text(json.dumps(info))
+    (dataset / "meta" / "modality.json").write_text(
+        json.dumps({"state": {"x": {"start": 0, "end": 1}, "z": {"start": 2, "end": 4}}})
+    )
+    schema = {s.name: s for s in LeRobotConnector(dataset).schema("episode_000000")}
+    assert schema["observation.state"].dim_labels is None
+
+
+def test_a_sidecar_tiling_the_width_names_every_element(dataset):
+    (dataset / "meta" / "modality.json").write_text(
+        json.dumps(
+            {"state": {"pos": {"start": 0, "end": 3}, "grip": {"start": 3, "end": 4}}}
+        )
+    )
+    schema = {s.name: s for s in LeRobotConnector(dataset).schema("episode_000000")}
+    assert schema["observation.state"].dim_labels == ("pos.0", "pos.1", "pos.2", "grip")
