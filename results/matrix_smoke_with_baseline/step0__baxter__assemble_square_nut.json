@@ -1,0 +1,13 @@
+{
+  "checkpoint": "step0",
+  "arm": "baxter",
+  "task": "assemble_square_nut",
+  "trials": 1,
+  "execute": 16,
+  "horizon": 8,
+  "smoke": "horizon cut from 500 to 8 and 1 trial(s): this cell proves the path runs, it does not measure the policy",
+  "also": "'baxter' reports 2 hands (left, right); this conversion maps one hand onto one hand and there is no non-arbitrary way to choose between them",
+  "status": "refused",
+  "reason": "ConfigError: NutAssemblySquare will not host this configuration: Error: Expected one single-armed robot! Got <class 'robosuite.robots.bimanual.Bimanual'> type instead.",
+  "seconds": 0.0
+}
