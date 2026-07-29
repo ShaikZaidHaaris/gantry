@@ -160,5 +160,25 @@ class _LazyEntryPoint:
             self._loaded = self._entry.load()
         return self._loaded(*args, **kwargs)
 
+    @property
+    def target(self) -> Any:
+        """What the entry point names, imported now.
+
+        A factory is usually the component's class, and some things are asked
+        of the class rather than of an instance — writing a dataset that does
+        not exist yet, for one. Exposed rather than left for callers to reach
+        into a private attribute for.
+        """
+        if self._loaded is None:
+            self._loaded = self._entry.load()
+        return self._loaded
+
+    def __getattr__(self, name: str) -> Any:
+        # Anything not defined here is asked of what the entry point names, so
+        # a lazily-registered class behaves like the class for classmethods.
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return getattr(self.target, name)
+
     def __repr__(self) -> str:  # pragma: no cover - cosmetic
         return f"<lazy {self._entry.value}>"

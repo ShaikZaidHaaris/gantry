@@ -37,12 +37,19 @@ plane can add its own vocabulary without touching core.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Iterator
+from typing import Any, Iterator, Sequence
 
+from ..errors import ConfigError
 from ..spine import ChannelSpec, Descriptor, EpisodeRecord
 
 #: Version of this contract. Plugins pin it; the host checks it.
-CONNECTOR_CONTRACT = "connector@1.0"
+#: 1.1 added ``write``. A connector that can read a format can usually write
+#: it, and until now that ability existed only as a module-level function some
+#: connectors happened to expose — so anything wanting to *produce* a dataset
+#: had to import a specific one by name, which is exactly the coupling this
+#: plane exists to prevent. A minor bump: the default refuses, so a connector
+#: predating it is read-only and says so rather than failing later.
+CONNECTOR_CONTRACT = "connector@1.1"
 
 #: Selective reads are honoured, so opening an episode does not materialise it.
 CAP_LAZY = "lazy"
@@ -52,8 +59,10 @@ CAP_STAGE_EVENTS = "stage_events"
 CAP_OUTCOMES = "outcomes"
 #: At least some episodes carry an image, depth, or blob channel.
 CAP_MEDIA = "media"
+#: Can produce a dataset in this format, not only read one.
+CAP_WRITES = "writes"
 
-CAPABILITIES = (CAP_LAZY, CAP_STAGE_EVENTS, CAP_OUTCOMES, CAP_MEDIA)
+CAPABILITIES = (CAP_LAZY, CAP_STAGE_EVENTS, CAP_OUTCOMES, CAP_MEDIA, CAP_WRITES)
 
 
 def connector_descriptor(
@@ -64,6 +73,7 @@ def connector_descriptor(
     stage_events: bool,
     outcomes: bool,
     media: bool = False,
+    writes: bool = False,
     isolation: str = "in-process",
     requires: dict[str, Any] | None = None,
     **metadata: Any,
@@ -86,6 +96,7 @@ def connector_descriptor(
             CAP_STAGE_EVENTS: stage_events,
             CAP_OUTCOMES: outcomes,
             CAP_MEDIA: media,
+            CAP_WRITES: writes,
         },
         isolation=isolation,
         metadata=metadata,
@@ -129,6 +140,35 @@ class Connector(ABC):
     def episodes(self) -> Iterator[EpisodeRecord]:
         """Every episode, opened lazily one at a time."""
         return iter(self)
+
+    @property
+    def writes(self) -> bool:
+        return bool(self.descriptor().provides.get(CAP_WRITES, False))
+
+    @classmethod
+    def write(
+        cls, episodes: "Sequence[EpisodeRecord]", path: str, **options: Any
+    ) -> Any:
+        """Produce a dataset in this format. The inverse of reading it.
+
+        A classmethod, because writing is a property of the format and not of
+        any open dataset: the thing being written does not exist yet, so there
+        is nothing to have opened in order to ask.
+
+        Here rather than as a module-level function each connector happens to
+        expose, because otherwise anything that wants to *make* a dataset has
+        to import a particular format by name — and a framework that imports
+        one format by name has a favourite, which is the thing this plane is
+        for not having.
+
+        The default refuses. Most connectors read a format somebody else
+        writes, and quietly doing nothing would leave a caller believing a
+        dataset exists.
+        """
+        raise ConfigError(
+            f"{cls.__name__} reads this format but does not write it; a connector "
+            f"that can declares {CAP_WRITES!r}"
+        )
 
     def sample(self, n: int = 3) -> tuple[EpisodeRecord, ...]:
         """The first ``n`` episodes. Used by conformance and by previews."""

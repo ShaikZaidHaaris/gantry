@@ -37,11 +37,15 @@ from gantry.spine import PLANES, SPINE_CONTRACT
 #: Every contract, pinned. Moving one is allowed and must be recorded here in
 #: the same commit, which is what makes it a decision rather than a drift.
 #:
+#: connector@1.1 added ``write``. Producing a dataset used to mean importing a
+#: particular format by name, which gave core a favourite. The default refuses,
+#: so a connector predating it is read-only and says so.
+#:
 #: evaluator@1.1 made ``task_for`` required. It had been a hook the runner
 #: probed for, so an evaluator could pass every check and still be undriveable.
 FROZEN_CONTRACTS = {
     "spine": (SPINE_CONTRACT, "1.1"),
-    "connector": (CONNECTOR_CONTRACT, "1.0"),
+    "connector": (CONNECTOR_CONTRACT, "1.1"),
     "embodiment": (EMBODIMENT_CONTRACT, "1.0"),
     "policy": (POLICY_CONTRACT, "1.0"),
     "evaluator": (EVALUATOR_CONTRACT, "1.1"),
@@ -135,7 +139,9 @@ def test_every_public_method_is_documented(interface, methods):
 # --------------------------------------------------------------------------
 
 FROZEN_CAPABILITIES = {
-    "connector": {"lazy", "stage_events", "outcomes", "media"},
+    # "writes" added with connector@1.1: producing a dataset used to require
+    # importing a format by name, which gave core a favourite.
+    "connector": {"lazy", "stage_events", "outcomes", "media", "writes"},
     "policy": {"chunk", "deterministic", "stateful"},
     "evaluator": {"stage_events", "outcomes", "seedable", "closed_loop"},
     "feedback": {"min_cohorts", "prescribes"},

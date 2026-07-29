@@ -16,7 +16,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 from . import __version__
 from .conformance import KITS
@@ -164,6 +164,93 @@ def cmd_ledger(args: argparse.Namespace) -> int:
     return 0
 
 
+def _writer_for(registry: Any, name: str) -> Any:
+    """The class that writes this format.
+
+    Not an instance: a writer is asked to produce a dataset that does not exist
+    yet, so there is nothing for it to have opened. The registry's factory for a
+    connector is the class itself, and ``write`` is a classmethod on the
+    contract for exactly this reason.
+    """
+    return registry.get("dataset", name).factory
+
+
+def cmd_curate_apply(args: argparse.Namespace) -> int:
+    """Apply a plan to a real dataset and write the curated one out.
+
+    The plan comes from a file so that what was applied is the same artifact
+    that was proposed and, later, the same one the ledger names. Re-deriving it
+    here from a signal would mean the thing verified and the thing applied were
+    two different objects that merely agreed at the time.
+    """
+    from .contracts.curation import CurationPlan
+    from .curate import apply, mix_config
+    from .errors import GantryError
+    from .plan_io import read_plan
+    from .resolve import Registry
+
+    plan: CurationPlan = read_plan(args.plan)
+    registry = Registry()
+    registry.discover()
+    try:
+        connector = registry.get("dataset", args.reader).build({"path": args.dataset})
+        episodes = list(connector)
+    except Exception as error:  # noqa: BLE001 - reported, not raised
+        print(f"cannot read {args.dataset!r} with {args.reader!r}: {error}")
+        return 1
+    survivors, applied = apply(plan, episodes, strict=not args.force)
+    print(f"plan   : {plan.summary()}")
+    print(f"applied: {applied.summary(source_size=len(episodes))}")
+    for reason in applied.validate(source_size=len(episodes)).reasons:
+        print(f"  [{reason.code}] {reason.message}")
+
+    if applied.weights:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        mix = Path(str(args.out) + ".mix.json")
+        mix.write_text(json.dumps(mix_config(plan), indent=2) + "\n")
+        print(f"weights written to {mix} (configuration, not a change to the files)")
+
+    if not args.write:
+        print("nothing written: pass --write to produce the curated dataset")
+        return 0
+
+    # Reading and writing need not be the same format. The signal has to run
+    # where the evidence is — success labels usually survive only in the
+    # collection's native format — while the trainer reads whatever it reads.
+    # Curating in one and emitting in the other is the ordinary case, not an
+    # exotic one, so it is two arguments rather than an assumption.
+    writer_name = args.writer or args.reader
+    try:
+        report = _writer_for(registry, writer_name).write(
+            survivors, args.out, accept_loss=args.accept_loss
+        )
+    except GantryError as error:
+        print(f"{writer_name!r}: {error}")
+        return 1
+    print(f"wrote {len(survivors)} episode(s) to {args.out}")
+    # What the plan did travels with the data, so a checkpoint trained on this
+    # is traceable to the curation that produced it rather than to a memory.
+    Path(args.out).mkdir(parents=True, exist_ok=True)
+    (Path(args.out) / "curation.json").write_text(
+        json.dumps(
+            {
+                "signal": plan.signal,
+                "rung": plan.rung,
+                "predicted": str(plan.predicted),
+                "summary": plan.summary(),
+                "kept": len(applied.kept),
+                "dropped": len(applied.dropped),
+                "source": str(args.dataset),
+                "evidence_seeds": list(plan.evidence_seeds),
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    print(f"provenance written to {Path(args.out) / 'curation.json'}")
+    return 0 if getattr(report, "ok", True) else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gantry",
@@ -201,6 +288,23 @@ def build_parser() -> argparse.ArgumentParser:
     curate.add_argument("signal", help="an installed curator, e.g. labels")
     curate.add_argument("--ledger", default="ledger", help="where outcomes are kept")
     curate.set_defaults(func=cmd_curate)
+
+    applied = subparsers.add_parser(
+        "curate-apply", help="apply a plan to a dataset and write the curated one"
+    )
+    applied.add_argument("plan", help="a plan written by a curator, as JSON")
+    applied.add_argument("dataset", help="the source dataset")
+    applied.add_argument("-o", "--out", required=True, help="where to write it")
+    applied.add_argument("--reader", required=True, help="which connector reads the source")
+    applied.add_argument(
+        "--writer",
+        help="which connector writes the result; defaults to the reader. Curating "
+        "where the labels are and emitting where the trainer reads is ordinary.",
+    )
+    applied.add_argument("--write", action="store_true", help="actually write; otherwise dry run")
+    applied.add_argument("--force", action="store_true", help="apply despite refusals")
+    applied.add_argument("--accept-loss", action="store_true", help="write even if lossy")
+    applied.set_defaults(func=cmd_curate_apply)
 
     ledger = subparsers.add_parser(
         "ledger", help="which curation signals have actually worked, and where"

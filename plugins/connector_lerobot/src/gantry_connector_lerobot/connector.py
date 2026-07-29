@@ -385,11 +385,24 @@ class LeRobotConnector(Connector):
 
     # -- contract ----------------------------------------------------------
 
+    @classmethod
+    def write(cls, episodes, path, **options):
+        """Produce a dataset in this format, through this package's own writer.
+
+        The contract's inverse of reading. Delegates rather than duplicating:
+        the writer already refuses to drop anything silently, and that refusal
+        is the reason to go through it.
+        """
+        from .writer import write_episodes
+
+        return write_episodes(episodes, path, **options)
+
     def descriptor(self) -> Descriptor:
         return connector_descriptor(
             name="lerobot",
             version=VERSION,
             lazy=True,
+            writes=True,
             # v2.x records no per-episode outcome and no milestones. Saying so
             # is what lets the resolver refuse a funnel here rather than produce
             # an empty one.
