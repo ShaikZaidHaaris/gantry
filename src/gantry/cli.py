@@ -251,6 +251,56 @@ def cmd_curate_apply(args: argparse.Namespace) -> int:
     return 0 if getattr(report, "ok", True) else 1
 
 
+def cmd_relink(args: argparse.Namespace) -> int:
+    """Reconnect a converted dataset to the collection it came from, by content.
+
+    For datasets written before converters recorded where episodes came from.
+    Prints the mapping, and with --rewrite-plan translates a plan out of the
+    source's vocabulary and into the target's, which is what makes a plan built
+    from labels applicable where the labels no longer exist.
+    """
+    from .lineage import relink, rename
+    from .plan_io import read_plan, write_plan
+    from .resolve import Registry
+
+    registry = Registry()
+    registry.discover()
+    try:
+        src = list(registry.get("dataset", args.source_reader).build({"path": args.source}))
+        dst = list(registry.get("dataset", args.target_reader).build({"path": args.target}))
+    except Exception as error:  # noqa: BLE001 - reported, not raised
+        print(f"cannot read: {error}")
+        return 1
+
+    found = relink(src, dst)
+    print(f"source {len(src)} episode(s), target {len(dst)}")
+    print(f"linked {len(found.links)}")
+    for reason in found.validate(target_size=len(dst)).reasons:
+        print(f"  [{reason.code}] {reason.message}")
+    for converted, origin in list(found.links.items())[:3]:
+        print(f"  {converted}  <-  {origin}")
+    if len(found.links) > 3:
+        print(f"  ... and {len(found.links) - 3} more")
+
+    if args.rewrite_plan:
+        plan = read_plan(args.rewrite_plan)
+        translated = rename(plan.drops, found.links)
+        from dataclasses import replace
+
+        from .contracts.curation import CurationAction
+
+        rewritten = replace(
+            plan,
+            actions=(CurationAction("drop", episodes=translated),),
+            metadata={**dict(plan.metadata), "relinked_from": str(args.source)},
+        )
+        out = args.rewrite_plan_out or (str(args.rewrite_plan) + ".relinked.json")
+        write_plan(rewritten, out)
+        print(f"plan translated: {len(plan.drops)} name(s) -> {len(translated)} in the "
+              f"target's vocabulary, written to {out}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gantry",
@@ -305,6 +355,19 @@ def build_parser() -> argparse.ArgumentParser:
     applied.add_argument("--force", action="store_true", help="apply despite refusals")
     applied.add_argument("--accept-loss", action="store_true", help="write even if lossy")
     applied.set_defaults(func=cmd_curate_apply)
+
+    linked = subparsers.add_parser(
+        "relink",
+        help="reconnect a converted dataset to its source by content, for datasets "
+        "written before converters recorded it",
+    )
+    linked.add_argument("source", help="the collection the evidence lives in")
+    linked.add_argument("target", help="the converted copy a trainer reads")
+    linked.add_argument("--source-reader", required=True)
+    linked.add_argument("--target-reader", required=True)
+    linked.add_argument("--rewrite-plan", help="translate this plan into the target's names")
+    linked.add_argument("--rewrite-plan-out")
+    linked.set_defaults(func=cmd_relink)
 
     ledger = subparsers.add_parser(
         "ledger", help="which curation signals have actually worked, and where"

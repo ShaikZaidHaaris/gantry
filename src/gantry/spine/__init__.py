@@ -67,7 +67,7 @@ from .verdict import IncompatibleError, Reason, Verdict
 #: load-bearing, which core then enforces without knowing what they mean. Added
 #: because a quaternion stored scalar-first and one stored scalar-last were
 #: indistinguishable to every check the spine had.
-SPINE_CONTRACT = "spine@1.1"
+SPINE_CONTRACT = "spine@1.2"
 
 __all__ = [
     "SPINE_CONTRACT",

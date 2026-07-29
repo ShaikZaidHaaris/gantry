@@ -37,6 +37,11 @@ from gantry.spine import PLANES, SPINE_CONTRACT
 #: Every contract, pinned. Moving one is allowed and must be recorded here in
 #: the same commit, which is what makes it a decision rather than a drift.
 #:
+#: spine@1.2 gave EpisodeMeta ``derived_from``. A format conversion renumbers
+#: everything, so anything measured about a demonstration in the collection it
+#: came from could not be acted on in the copy a trainer reads. Additive, with
+#: an empty default, so a producer that records nothing is unchanged.
+#:
 #: connector@1.1 added ``write``. Producing a dataset used to mean importing a
 #: particular format by name, which gave core a favourite. The default refuses,
 #: so a connector predating it is read-only and says so.
@@ -44,7 +49,7 @@ from gantry.spine import PLANES, SPINE_CONTRACT
 #: evaluator@1.1 made ``task_for`` required. It had been a hook the runner
 #: probed for, so an evaluator could pass every check and still be undriveable.
 FROZEN_CONTRACTS = {
-    "spine": (SPINE_CONTRACT, "1.1"),
+    "spine": (SPINE_CONTRACT, "1.2"),
     "connector": (CONNECTOR_CONTRACT, "1.1"),
     "embodiment": (EMBODIMENT_CONTRACT, "1.0"),
     "policy": (POLICY_CONTRACT, "1.0"),

@@ -101,6 +101,8 @@ class _Episode:
     path: Path
     length: int
     tasks: tuple[str, ...]
+    #: Names it had before this format, when whoever wrote it recorded them.
+    derived_from: tuple[str, ...] = ()
 
 
 class _ParquetSource:
@@ -216,6 +218,7 @@ class LeRobotConnector(Connector):
                 path=path,
                 length=int(entry.get("length", 0)),
                 tasks=tuple(entry.get("tasks", ()) or ()),
+                derived_from=tuple(entry.get("derived_from", ()) or ()),
             )
         if not episodes:
             raise ConfigError(
@@ -437,6 +440,11 @@ class LeRobotConnector(Connector):
                 source=self._source,
                 embodiment=self._info.get("robot_type"),
                 task=instruction,
+                # Names this episode had before it was written here, when
+                # whoever wrote it recorded them. Absent for a dataset from
+                # any other producer, which is why it defaults to empty rather
+                # than to a guess.
+                derived_from=tuple(getattr(episode, "derived_from", ()) or ()),
                 extra={"path": str(episode.path), "tasks": list(episode.tasks)},
             ),
             schema=self._schema,

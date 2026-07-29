@@ -191,6 +191,12 @@ def write_episodes(
                     "tasks": list(episode.labels.annotations.get("tasks", ()))
                     or ([episode.meta.task] if episode.meta.task else []),
                     "length": steps,
+                    # What this episode was called before the conversion. An
+                    # extra key here is ignored by any other reader of this
+                    # format, and without it a demonstration renumbered by a
+                    # format change can never again be matched to anything
+                    # measured about it in the format it came from.
+                    "derived_from": list(episode.meta.lineage),
                 }
             )
         )

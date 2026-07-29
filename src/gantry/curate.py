@@ -39,9 +39,26 @@ from .spine import Verdict
 
 
 def uid_of(episode: Any) -> str:
-    """The identifier a plan names an episode by."""
+    """What this episode is called now."""
     meta = getattr(episode, "meta", None)
     return str(getattr(meta, "uid", None) or getattr(episode, "uid", "") or "")
+
+
+def names_of(episode: Any) -> tuple[str, ...]:
+    """Every name this episode answers to, including ones from earlier formats.
+
+    A plan is written against whichever format the evidence lived in — success
+    labels usually survive only in a collection's native one — and applied to
+    whichever format the trainer reads. Matching on the current name alone
+    means a plan can only ever be applied where it was made, which is not
+    where it is needed.
+    """
+    meta = getattr(episode, "meta", None)
+    lineage = getattr(meta, "lineage", None)
+    if lineage:
+        return tuple(str(name) for name in lineage)
+    uid = uid_of(episode)
+    return (uid,) if uid else ()
 
 
 @dataclass(frozen=True)
@@ -122,7 +139,8 @@ def select(
     to the source makes every later comparison harder to reason about for no
     benefit.
     """
-    present = {uid_of(episode) for episode in episodes}
+    # Every name in the dataset, under any format it has been through.
+    present = {name for episode in episodes for name in names_of(episode)}
     present.discard("")
 
     keeps = set(plan.keeps)
@@ -133,15 +151,16 @@ def select(
     kept, dropped, untouched = [], [], []
     for episode in episodes:
         uid = uid_of(episode)
+        names = set(names_of(episode))
         # A whitelist when one is given: "keep the top third" has to mean the
         # other two thirds go, or the selection was decorative.
-        if keeps and uid not in keeps:
+        if keeps and not (names & keeps):
             dropped.append(uid)
             continue
-        if uid in drops:
+        if names & drops:
             dropped.append(uid)
             continue
-        if uid not in keeps and uid not in drops:
+        if not (names & keeps):
             untouched.append(uid)
         kept.append(uid)
         survivors.append(episode)
