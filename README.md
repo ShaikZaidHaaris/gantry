@@ -43,12 +43,13 @@ demonstrations succeed.** Sixteen percent.
 
 ## The idea
 
-Seven planes, each an independent axis of variation. A plugin implements one contract, declares
+Eight planes, each an independent axis of variation. A plugin implements one contract, declares
 what it needs and what it provides, and never learns anything about the others.
 
 | Plane | What it is | Shipped |
 |---|---|---|
 | `dataset` | where episodes come from | `lerobot` · `robomimic` · `csv` · `evallog` |
+| `task` | what is being attempted, and how anyone decides it was done | `declared` |
 | `policy` | anything that turns observations into actions | `gr00t` · `served` · `replay` · `constant` · `noisy_replay` |
 | `evaluation` | running a policy and recording what happened | `robosuite` · `libero` · `gym` · `offline` · `waypoint` |
 | `feedback` | records in, findings out | `screen` · `compare` · `funnel` · `attribution` · `harden` · `protocol` |
@@ -116,6 +117,50 @@ Nothing was retrained. How much of a predicted action chunk gets executed before
 is one of the largest levers on a measured result and the one most often left implicit, so it
 lives in the record with everything else that changes an answer.
 
+## Tasks are files, not code
+
+A task says what is being attempted, where things start, and what counts as done —
+naming no robot and no simulator:
+
+```json
+{ "name": "lift_cube",
+  "instruction": "lift the cube off the table",
+  "objects": [{"id": "cube", "kind": "cube_20mm",
+               "start": {"surface": "table", "x": [-0.03, 0.03], "y": [-0.03, 0.03]}}],
+  "success": [{"check": "lifted", "args": {"object": "cube", "height": 0.04},
+               "rubric": "The cube is clear of the table by at least 4 cm and held in
+                          the gripper. A cube nudged off the edge does not count."}],
+  "staging": {"robosuite": {"env_name": "Lift", "places": {"cube": "cube"}}} }
+```
+
+**Every success criterion is written twice** — once machine-checkable, once as a rubric
+precise enough that two people watching a video agree. A criterion with no rubric is
+refused. In simulation success is a free, exact pose check; on a real bench it is a person
+watching, and the rubric is the part that survives the move. The 14 tasks in
+`manifests/tasks/` are all scorable by hand today, with no simulator.
+
+**The rectangle in the file is the rectangle in the simulator.** A `start` region becomes
+robosuite's placement sampler, so the numbers you would tape onto a real table are the ones
+that ran:
+
+```
+lift_cube        file says x=[-0.03, 0.03]   sim gives x=[-0.030, +0.030]
+lift_cube_wide   file says x=[-0.10, 0.10]   sim gives x=[-0.092, +0.096]
+```
+
+Same file, six bodies — Panda, Sawyer, IIWA, Kinova3, Jaco, UR5e — each rebuilt around its
+own measured description, none of them normalised to a shared one.
+
+And where a world *cannot* be driven from a file, it says so instead of pretending. Some
+robosuite environments build their own layout and discard the one they are handed; that is
+detected by checking the sampler survived, not by a list of environment names, so an
+environment added later is judged on what it does:
+
+```
+pick_place_can   REFUSED: PickPlaceCan exposes no surface origin …
+hang_tool        REFUSED: ToolHang takes no placement at all …
+```
+
 ## GR00T N1.7
 
 `plugins/policy_gr00t` speaks GR00T's inference protocol — ZeroMQ, msgpack — and **never
@@ -144,11 +189,11 @@ plausible numbers.
 ```
 src/gantry/          core — depends on numpy and nothing else
   spine/               what an episode, a run, a channel and a verdict are
-  contracts/           the five plane interfaces
+  contracts/           the eight plane interfaces
   conformance/         one kit per contract, returning verdicts, importing no test framework
   resolve/             binding, adapters, retargeters, requirements
   isolate.py           subprocess boundary for conflicting dependencies
-plugins/             20 plugins, each installable on its own
+plugins/             21 plugins, each installable on its own
 docs/                writing-a-plugin.md
 manifests/           a run described as a file, so it can be committed and diffed
 reference/           earlier implementations, kept to check this one against
@@ -160,7 +205,7 @@ ARCHITECTURE.md      the whole design, contracts first
 ```bash
 python -m pytest tests --ignore=tests/integration   # core alone, no plugins
 python -m pytest                                   # 285, plugins installed
-python -m pytest plugins/*/tests                   # 564 across 20 plugins
+python -m pytest plugins/*/tests                   # 614 across 21 plugins
 python tools/isolation_check.py       # each plugin alone, in a fresh venv
 ```
 
@@ -170,7 +215,7 @@ never mentions and nobody finds out until someone installs it alone. This builds
 interpreter per plugin and installs only core, that plugin, and what it actually declares:
 
 ```
-20/20 plugins install and pass on their own
+21/21 plugins install and pass on their own
 ```
 
 CI runs core on four Python versions with no plugin present, every plugin in isolation, and
@@ -178,7 +223,7 @@ everything together.
 
 ## Status
 
-Working: the seven planes, 20 plugins, 849 tests. Verified against real LeRobot and
+Working: the eight planes, 21 plugins, 899 tests. Verified against real LeRobot and
 RoboMimic data; against a GR00T N1.7 checkpoint fine-tuned on this data and served over its
 real protocol; and in closed loop against MuJoCo, where replaying recorded actions into the
 rebuilt world lifts the cube 3/3, which is the check that proves the wiring rather than

@@ -22,9 +22,10 @@ import re
 import shutil
 import subprocess
 import sys
-import tomllib
 import venv
 from pathlib import Path
+
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGINS = ROOT / "plugins"

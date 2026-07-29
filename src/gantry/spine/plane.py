@@ -119,6 +119,14 @@ for _plane in (
         proxyable=True,
     ),
     Plane(
+        "task",
+        "what is being attempted, described so that any world can stage it and "
+        "any person can judge it",
+        contract="task@1.0",
+        entry_point_group="gantry.tasks",
+        cardinality=MANY,
+    ),
+    Plane(
         "embodiment",
         "describes a machine, and what it costs to speak to another one",
         contract="embodiment@1.0",

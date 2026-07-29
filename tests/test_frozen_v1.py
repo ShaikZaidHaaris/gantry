@@ -67,6 +67,11 @@ def test_the_core_planes_are_frozen():
 
     assert CORE_PLANES == (
         "dataset",
+        # Added deliberately: a task used to be invented inside an evaluator,
+        # which made "the same task on another arm" and "the same task on real
+        # hardware" both unsayable. It is a plane because it is a thing you
+        # author once and stage many ways.
+        "task",
         "embodiment",
         "policy",
         "evaluation",

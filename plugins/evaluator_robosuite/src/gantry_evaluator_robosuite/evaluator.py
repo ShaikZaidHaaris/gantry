@@ -62,6 +62,18 @@ from gantry.spine import (
     episode_from_arrays,
     episode_from_labels,
     proportion,
+    seed_from,
+)
+
+from .staging import (  # noqa: E402  (same package; keeps the import block ordered)
+    REALISATION,
+    accepts_placement,
+    check_staging,
+    env_meta_for,
+    materialise,
+    sampler_shapes,
+    surface_origin,
+    verify_honoured,
 )
 
 VERSION = "0.1.0.dev0"
@@ -74,6 +86,33 @@ PROPRIO = (
     "robot0_gripper_qpos",
     "object",
 )
+
+#: ``REALISATION`` is imported from :mod:`.staging`: the name of this world is
+#: one fact, and an embodiment's realisation block and a task's staging block
+#: are keyed by the same one. Two copies would be two things to keep in step.
+
+
+def _with_body(env_meta: Mapping[str, Any], embodiment: Any) -> dict[str, Any]:
+    """The same world, built around a different machine.
+
+    Reads the embodiment's ``robosuite`` metadata block — robot name, controller,
+    gripper — and falls back to the embodiment's own name, which is what most
+    descriptions of a robosuite-supported arm will say anyway.
+    """
+    block = dict((getattr(embodiment, "metadata", {}) or {}).get(REALISATION, {}))
+    robot = block.pop("robots", None) or [getattr(embodiment, "name", None)]
+    if not robot or robot == [None]:
+        raise ConfigError(
+            f"{getattr(embodiment, 'name', embodiment)!r} does not say which robosuite "
+            f"robot it is; add a {REALISATION!r} block to its description"
+        )
+    out = dict(env_meta)
+    kwargs = dict(out.get("env_kwargs") or {})
+    kwargs["robots"] = list(robot) if isinstance(robot, (list, tuple)) else [robot]
+    kwargs.update(block)
+    out["env_kwargs"] = kwargs
+    return out
+
 
 #: OSC_POSE, which is what the robomimic datasets were collected with: three
 #: position deltas, three orientation deltas, one gripper command.
@@ -104,6 +143,12 @@ def build_env(env_meta: Mapping[str, Any], *, use_image_obs: bool = False, **kwa
     knows how to read it — including the ``type`` field that distinguishes a
     robosuite environment from a gym or MOMART one.
     """
+    if env_meta.get("placement"):
+        raise ConfigError(
+            "this world carries placement from a task file, and robomimic's factory "
+            "has nowhere to put it; build it with factory=build_native_env, or the "
+            "run would report the task's regions and use the environment's"
+        )
     try:
         import robomimic.utils.env_utils as EnvUtils
     except ImportError as error:  # pragma: no cover - needs the simulator
@@ -172,7 +217,22 @@ def build_native_env(env_meta: Mapping[str, Any], *, use_image_obs: bool = False
             "running robosuite needs the simulator: pip install "
             "'gantry-evaluator-robosuite[sim]'"
         ) from error
+    from robosuite.utils.errors import RandomizationError
+
     settings = dict(env_meta.get("env_kwargs") or {})
+    # A machine description names a controller; robosuite wants the whole
+    # config — gains, limits, interpolation. Expanded here, through robosuite's
+    # own loader, rather than transcribed into every embodiment file: a gain
+    # copied by hand drifts from the arm it was tuned for. Done at build time
+    # rather than at merge time so that describing a machine never needs a
+    # simulator installed.
+    controller = settings.get("controller_configs")
+    if isinstance(controller, Mapping) and set(controller) <= {"type"}:
+        from robosuite.controllers import load_controller_config
+
+        settings["controller_configs"] = load_controller_config(
+            default_controller=controller["type"]
+        )
     settings.update(
         has_renderer=False,
         has_offscreen_renderer=use_image_obs,
@@ -182,7 +242,60 @@ def build_native_env(env_meta: Mapping[str, Any], *, use_image_obs: bool = False
         ignore_done=True,
     )
     settings.update(kwargs)
-    return _Native(robosuite.make(env_name=str(env_meta["env_name"]), **settings))
+    name = str(env_meta["env_name"])
+    placements = tuple(env_meta.get("placement") or ())
+    if not placements:
+        return _Native(robosuite.make(env_name=name, **settings))
+
+    from robosuite.environments.base import REGISTERED_ENVS
+
+    if not accepts_placement(REGISTERED_ENVS[name]):
+        raise ConfigError(
+            f"{name} takes no placement at all, so a task file's start regions cannot "
+            "drive it; this environment lays its objects out its own way, and a task "
+            "staged in it should map none of them"
+        )
+
+    # A task file's regions are relative to the surface, which is what makes
+    # them printable onto a real table. Where this world puts that surface is
+    # measured from a world rather than written into the task, so the two
+    # cannot drift apart: build once bare to read it, then build for real.
+    probe = robosuite.make(env_name=name, **settings)
+    try:
+        reference = surface_origin(probe)
+    finally:
+        probe.close()
+    # Environments bind objects to an injected sampler in two incompatible
+    # ways and say which nowhere, so the shape is offered and the world either
+    # takes it or rejects it. Only the rejection each convention raises is
+    # caught; anything else is this task being wrong about this world and
+    # should surface as itself.
+    refusals = []
+    for composite in sampler_shapes(placements):
+        sampler = materialise(placements, reference, composite=composite)
+        try:
+            env = robosuite.make(env_name=name, placement_initializer=sampler, **settings)
+        except (AttributeError, KeyError) as error:
+            refusals.append(f"{'composite' if composite else 'single'}: {error}")
+            continue
+        except RandomizationError as error:
+            # The shape was right and the regions do not fit the objects. Named
+            # here because it is a fact about the task file, not about this
+            # world, and robosuite's own message ("Cannot place all objects")
+            # does not say which regions or whose.
+            raise ConfigError(
+                f"{name} could not lay out "
+                + ", ".join(f"{p.task_id!r} in x={list(p.x)} y={list(p.y)}" for p in placements)
+                + " — the declared start regions are too small for the objects, or "
+                "two of them overlap"
+            ) from error
+        verify_honoured(env, sampler, name)
+        return _Native(env)
+    raise ConfigError(
+        f"{name} would not take the placement this task describes, in any shape "
+        f"this world offers ({'; '.join(refusals)}); its objects cannot be laid "
+        "out from a task file"
+    )
 
 
 @dataclass
@@ -200,8 +313,10 @@ class RobosuiteEvaluator(Evaluator):
     def __init__(
         self,
         env_meta: Mapping[str, Any],
-        initial_states: Sequence[np.ndarray],
+        initial_states: Sequence[np.ndarray] = (),
         *,
+        seeds: Sequence[int] = (),
+        embodiment: Any = None,
         name: str = "robosuite",
         observations: Sequence[str] = PROPRIO,
         action: ChannelSpec = OSC_POSE,
@@ -210,18 +325,27 @@ class RobosuiteEvaluator(Evaluator):
         observe: Callable[[Mapping[str, Any]], Mapping[str, Any]] | None = None,
         use_image_obs: bool = False,
         instruction: str | None = None,
+        definition: Any = None,
     ):
         """``env_meta`` and ``initial_states`` are what a robomimic connector
         exposes as ``.env`` and ``.initial_states()``. Passed in rather than
         read here, so this plugin needs no reader and no HDF5 library."""
         if not env_meta.get("env_name"):
             raise ConfigError("env_meta names no env_name, so there is no world to build")
-        if len(initial_states) == 0:
+        if len(initial_states) == 0 and len(seeds) == 0:
             raise ConfigError(
-                "no initial states; a scene here is a demonstration's starting state"
+                "no scenes: give initial_states (restored from a recording) or seeds "
+                "(the simulator's own placement, drawn the same way every time)"
+            )
+        if initial_states and seeds:
+            raise ConfigError(
+                "initial_states and seeds are two different definitions of a scene; "
+                "pick one, or a rerun is not comparable to this run"
             )
         self.env_meta = dict(env_meta)
         self.initial_states = tuple(np.asarray(state) for state in initial_states)
+        self.seeds = tuple(int(seed) for seed in seeds)
+        self.embodiment = embodiment
         self._name = name
         self._observations = tuple(observations)
         self._action = action
@@ -232,6 +356,47 @@ class RobosuiteEvaluator(Evaluator):
         self._instruction = instruction
         self._env: Any = None
         self._checked = False
+        self.definition = definition
+        if embodiment is not None:
+            self.env_meta = _with_body(self.env_meta, embodiment)
+
+    @classmethod
+    def for_task(
+        cls,
+        task: Any,
+        *,
+        trials: int | None = None,
+        embodiment: Any = None,
+        **options: Any,
+    ) -> "RobosuiteEvaluator":
+        """Build the world a declared task describes.
+
+        The other constructor takes its world from a recording: the scenes are
+        that dataset's, and nobody without the file can reproduce them. This one
+        takes it from a task file, which is a few hundred bytes of text that
+        says where things start and what counts as done — so the same scenes can
+        be built by anyone, on any of the arms this world hosts, and marked out
+        on a real table by hand.
+
+        Scenes are seeds rather than restored states for the same reason: a
+        restored simulator state is one machine's joint configuration and cannot
+        be given to a different body, which would make the embodiment axis
+        unusable exactly where it matters most.
+        """
+        check_staging(task).raise_if_refused(f"cannot stage {task.name!r} in {REALISATION}")
+        count = task.trials if trials is None else trials
+        return cls(
+            env_meta_for(task),
+            seeds=[seed_from(task.name, i) for i in range(count)],
+            embodiment=embodiment,
+            instruction=task.instruction,
+            # robomimic's factory has nowhere to put placement, and this world
+            # is defined by its placement. Chosen here rather than left to the
+            # caller, because the alternative silently ignores the task file.
+            factory=options.pop("factory", build_native_env),
+            definition=task,
+            **options,
+        )
 
     # -- contract ----------------------------------------------------------
 
@@ -251,9 +416,14 @@ class RobosuiteEvaluator(Evaluator):
             # same scene index is the same scene, exactly.
             seedable=True,
             closed_loop=True,
+            # It rebuilds its world from a machine description, which is what
+            # makes the embodiment a real axis rather than a manifest key.
+            hosts_embodiment=True,
             task=self.task_name,
             robots=self.env_meta.get("env_kwargs", {}).get("robots"),
-            scenes=len(self.initial_states),
+            embodiment=getattr(self.embodiment, "name", None),
+            scenes=len(self.initial_states or self.seeds),
+            scene_source=self.restores,
         )
 
     def requires(self) -> Requirement:
@@ -262,21 +432,64 @@ class RobosuiteEvaluator(Evaluator):
             description=f"a policy commanding {self.task_name} through its controller",
         )
 
-    def task_for(self, name: str = "", scenes: int | None = None, horizon: int = 400) -> TaskSpec:
-        """One scene per recorded demonstration's starting state."""
-        count = len(self.initial_states) if scenes is None else min(scenes, len(self.initial_states))
-        return TaskSpec(
-            name=name or self.task_name,
-            scenes=tuple(
-                Scene(
-                    id=f"demo_{index}",
-                    instruction=self._instruction,
-                    metadata={"initial_state": index},
-                )
-                for index in range(count)
-            ),
-            horizon=horizon,
+    def for_embodiment(self, embodiment: Any) -> "RobosuiteEvaluator":
+        """The same task and scenes, on a different machine.
+
+        Refused when the scenes are restored states. Those are one machine's
+        joint configuration written down; handing them to another body either
+        errors on a shape mismatch or — worse, where the widths happen to
+        agree — silently puts the arm somewhere meaningless. Seeded scenes have
+        no such problem: the simulator draws the same layout and each robot
+        starts at its own home.
+        """
+        if self.restores == "states":
+            raise ConfigError(
+                f"{self.name}'s scenes are MuJoCo states restored from a recording of "
+                f"{self.env_meta.get('env_kwargs', {}).get('robots')}, and a state is a "
+                "description of that machine's joints. Build with seeds= to compare "
+                "bodies: the layout is drawn the same way and each starts at its own home"
+            )
+        return RobosuiteEvaluator(
+            self.env_meta, seeds=self.seeds, embodiment=embodiment,
+            name=self._name, observations=self._observations, action=self._action,
+            success=self._success, factory=self._factory, observe=self._observe,
+            use_image_obs=self._use_image_obs, instruction=self._instruction,
+            definition=self.definition,
         )
+
+    @property
+    def restores(self) -> str:
+        """``states`` or ``seeds`` — how a scene here is defined."""
+        return "states" if self.initial_states else "seeds"
+
+    def task_for(
+        self, name: str = "", scenes: int | None = None, horizon: int | None = None
+    ) -> TaskSpec:
+        """One scene per recorded starting state, or per seed.
+
+        A world built from a task file already knows how long the task gets and
+        what it is called; asking the caller to repeat those is how the number
+        that ran stops matching the number in the file.
+        """
+        if horizon is None:
+            horizon = self.definition.horizon if self.definition is not None else 400
+        if not name and self.definition is not None:
+            name = self.definition.name
+        source = self.initial_states or self.seeds
+        count = len(source) if scenes is None else min(scenes, len(source))
+        if self.restores == "states":
+            made = [
+                Scene(id=f"demo_{i}", instruction=self._instruction,
+                      metadata={"initial_state": i})
+                for i in range(count)
+            ]
+        else:
+            made = [
+                Scene(id=f"seed_{self.seeds[i]}", instruction=self._instruction,
+                      seed=self.seeds[i], metadata={"initial_state": self.seeds[i]})
+                for i in range(count)
+            ]
+        return TaskSpec(name=name or self.task_name, scenes=tuple(made), horizon=horizon)
 
     # -- the world ---------------------------------------------------------
 
@@ -346,10 +559,19 @@ class RobosuiteEvaluator(Evaluator):
         )
 
     def _one(self, policy: Any, scene: Scene, task: TaskSpec, protocol: Protocol):
-        index = int(scene.metadata["initial_state"])
         env = self.env
-        env.reset()
-        observation = self._seen(env.reset_to({"states": self.initial_states[index]}))
+        if self.restores == "states":
+            env.reset()
+            raw = env.reset_to({"states": self.initial_states[int(scene.metadata["initial_state"])]})
+        else:
+            # The simulator draws its own layout under a fixed seed, and the
+            # robot starts at its own home pose. The only way a scene can mean
+            # the same thing to two different bodies: a restored state is a
+            # description of one machine's joints and cannot be given to
+            # another.
+            np.random.seed(int(scene.seed))
+            raw = env.reset()
+        observation = self._seen(raw)
         if not self._checked:
             # Once, on the first scene's own first observation. Outside the try
             # below on purpose: a policy that cannot read this world should stop
@@ -359,7 +581,10 @@ class RobosuiteEvaluator(Evaluator):
                 f"{self.name} cannot show {getattr(policy, 'name', 'this policy')} "
                 "what it reads"
             )
-        policy.reset(EpisodeContext(scene.id, scene.instruction, seed=index))
+        policy.reset(
+            EpisodeContext(scene.id, scene.instruction,
+                           seed=int(scene.metadata['initial_state']))
+        )
 
         trial = _Trial()
         while trial.steps < task.horizon:

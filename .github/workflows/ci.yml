@@ -37,36 +37,33 @@ jobs:
         # break it — which is exactly what it did.
         run: python -m pytest tests --ignore=tests/integration -q
 
+  # The plugin list, read off disk rather than kept by hand. A matrix that has
+  # to be edited when a plugin is added is a matrix that silently stops covering
+  # the newest plugin, which is the one most likely to lean on a sibling.
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.find.outputs.plugins }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: find
+        run: |
+          printf 'plugins=' >> "$GITHUB_OUTPUT"
+          ls -d plugins/*/ | xargs -n1 basename | sort \
+            | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().split()))' \
+            >> "$GITHUB_OUTPUT"
+
   # Every plugin, in its own interpreter, with only core and what it declares.
   # This is the modularity claim made mechanical: a plugin that leans on a
   # sibling it never mentioned fails here and nowhere else, because a shared
   # environment satisfies undeclared imports silently.
   plugins-alone:
+    needs: discover
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        plugin:
-          - adapters_core
-          - adapters_rotation
-          - connector_csv
-          - embodiment_declared
-          - connector_evallog
-          - connector_lerobot
-          - connector_robomimic
-          - evaluator_gym
-          - evaluator_libero
-          - evaluator_offline
-          - evaluator_robosuite
-          - evaluator_waypoint
-          - feedback_compare
-          - feedback_core
-          - feedback_protocol
-          - policy_basic
-          - policy_gr00t
-          - policy_served
-          - retargeters_core
-          - semantics_manipulation
+        plugin: ${{ fromJSON(needs.discover.outputs.plugins) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

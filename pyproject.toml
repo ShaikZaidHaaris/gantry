@@ -25,7 +25,13 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q --import-mode=importlib"
+# Twenty-odd plugins each test the thing they implement, so two of them naming
+# a file test_declared.py is the normal case rather than a mistake. Under the
+# default import mode that is a hard collection error, and the fix on offer —
+# rename one of them — makes every plugin's test names depend on every other
+# plugin's, which is the coupling this repo exists to avoid. importlib mode
+# imports each file on its own path and the collision stops existing.
 
 [tool.ruff]
 line-length = 100

@@ -1,0 +1,73 @@
+{
+  "name": "assemble_round_nut",
+  "instruction": "put the round nut on the round peg",
+  "surfaces": [
+    "table"
+  ],
+  "objects": [
+    {
+      "id": "square_nut",
+      "kind": "square_nut",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.115,
+          -0.11
+        ],
+        "y": [
+          0.11,
+          0.225
+        ]
+      }
+    },
+    {
+      "id": "round_nut",
+      "kind": "round_nut",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.115,
+          -0.11
+        ],
+        "y": [
+          -0.225,
+          -0.11
+        ]
+      }
+    },
+    {
+      "id": "square_peg",
+      "kind": "square_peg"
+    },
+    {
+      "id": "round_peg",
+      "kind": "round_peg"
+    }
+  ],
+  "success": [
+    {
+      "check": "on_peg",
+      "args": {
+        "object": "round_nut",
+        "target": "round_peg"
+      },
+      "rubric": "The round nut is around the round peg and resting down on it, with the gripper released."
+    }
+  ],
+  "horizon": 500,
+  "trials": 20,
+  "staging": {
+    "robosuite": {
+      "env_name": "NutAssemblyRound",
+      "places": {
+        "square_nut": "SquareNut",
+        "round_nut": "RoundNut"
+      },
+      "z_offsets": {
+        "square_nut": 0.02,
+        "round_nut": 0.02
+      }
+    }
+  },
+  "metadata": {}
+}

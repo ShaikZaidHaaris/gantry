@@ -15,7 +15,7 @@ import av
 import numpy as np
 import pytest
 from gantry_connector_lerobot import LeRobotConnector, VideoSource
-from test_lerobot import build_dataset
+from gantry_connector_lerobot.testing import build_dataset
 
 from gantry.conformance import check_connector
 from gantry.errors import ComponentError, ConfigError

@@ -1,0 +1,31 @@
+{
+  "name": "baxter",
+  "version": "robosuite-1.4.1",
+  "control_hz": 20,
+  "state": [],
+  "action": [],
+  "kinematics": "",
+  "notes": "14-DoF bimanual arm, default gripper {'right': 'RethinkGripper', 'left': 'RethinkGripper'}. Commanded in end-effector space (OSC_POSE): the action is a pose delta, so it means the same thing on any arm here. Limits not established. Bimanual: the single-arm action above does not describe it, so no action channel is declared rather than one that would be wrong.",
+  "capabilities": [
+    "simulated",
+    "resettable",
+    "seedable"
+  ],
+  "metadata": {
+    "robosuite": {
+      "robots": [
+        "Baxter"
+      ],
+      "controller_configs": {
+        "type": "OSC_POSE"
+      },
+      "gripper_types": {
+        "right": "RethinkGripper",
+        "left": "RethinkGripper"
+      }
+    },
+    "arm_type": "bimanual",
+    "dof": 14,
+    "default_mount": "RethinkMinimalMount"
+  }
+}

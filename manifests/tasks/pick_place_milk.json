@@ -1,0 +1,49 @@
+{
+  "name": "pick_place_milk",
+  "instruction": "pick up the milk and put it in its bin",
+  "surfaces": [
+    "table"
+  ],
+  "objects": [
+    {
+      "id": "milk",
+      "kind": "milk_carton",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.03,
+          0.03
+        ],
+        "y": [
+          -0.03,
+          0.03
+        ]
+      }
+    },
+    {
+      "id": "bin",
+      "kind": "bin"
+    }
+  ],
+  "success": [
+    {
+      "check": "in_bin",
+      "args": {
+        "object": "milk",
+        "into": "bin"
+      },
+      "rubric": "The milk is inside its own bin, resting on the bin floor, with the gripper released. Landing in a neighbouring bin does not count."
+    }
+  ],
+  "horizon": 500,
+  "trials": 20,
+  "staging": {
+    "robosuite": {
+      "env_name": "PickPlaceMilk",
+      "places": {}
+    }
+  },
+  "metadata": {
+    "placement": "This environment builds its own object layout and discards any given to it, so the start regions here describe the task for a real bench and do not drive the simulator. Runs in it are noted accordingly."
+  }
+}

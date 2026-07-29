@@ -1,0 +1,77 @@
+{
+  "name": "assemble_both_nuts",
+  "instruction": "put each nut on its matching peg",
+  "surfaces": [
+    "table"
+  ],
+  "objects": [
+    {
+      "id": "square_nut",
+      "kind": "square_nut",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.115,
+          -0.11
+        ],
+        "y": [
+          0.11,
+          0.225
+        ]
+      }
+    },
+    {
+      "id": "round_nut",
+      "kind": "round_nut",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.115,
+          -0.11
+        ],
+        "y": [
+          -0.225,
+          -0.11
+        ]
+      }
+    },
+    {
+      "id": "square_peg",
+      "kind": "square_peg"
+    },
+    {
+      "id": "round_peg",
+      "kind": "round_peg"
+    }
+  ],
+  "success": [
+    {
+      "check": "all_on_pegs",
+      "args": {
+        "objects": [
+          "square_nut",
+          "round_nut"
+        ]
+      },
+      "rubric": "Both nuts are around their own pegs and resting down on them, with the gripper released. One nut placed and the other still on the table does not count."
+    }
+  ],
+  "horizon": 1000,
+  "trials": 20,
+  "staging": {
+    "robosuite": {
+      "env_name": "NutAssembly",
+      "places": {
+        "square_nut": "SquareNut",
+        "round_nut": "RoundNut"
+      },
+      "z_offsets": {
+        "square_nut": 0.02,
+        "round_nut": 0.02
+      }
+    }
+  },
+  "metadata": {
+    "note": "The two-object form of assemble_square_nut and assemble_round_nut. Scored all-or-nothing, so it separates a policy that can chain two placements from one that can do a single placement twice."
+  }
+}

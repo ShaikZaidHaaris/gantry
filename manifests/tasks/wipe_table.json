@@ -1,0 +1,31 @@
+{
+  "name": "wipe_table",
+  "instruction": "wipe the marked area of the table clean",
+  "surfaces": [
+    "table"
+  ],
+  "objects": [
+    {
+      "id": "dirt",
+      "kind": "dirt_markers"
+    }
+  ],
+  "success": [
+    {
+      "check": "all_wiped",
+      "args": {
+        "object": "dirt"
+      },
+      "rubric": "Every marked patch on the table has been wiped. Any patch still visible means the task is not done."
+    }
+  ],
+  "horizon": 300,
+  "trials": 20,
+  "staging": {
+    "robosuite": {
+      "env_name": "Wipe",
+      "places": {}
+    }
+  },
+  "metadata": {}
+}

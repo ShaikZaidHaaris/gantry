@@ -153,9 +153,15 @@ def test_a_world_with_no_name_is_refused():
         RobosuiteEvaluator({"env_kwargs": {}}, STATES)
 
 
-def test_no_starting_states_is_refused():
-    with pytest.raises(ConfigError, match="initial states"):
+def test_no_scenes_at_all_is_refused():
+    with pytest.raises(ConfigError, match="no scenes"):
         RobosuiteEvaluator(ENV_META, [])
+
+
+def test_two_definitions_of_a_scene_at_once_is_refused():
+    """States and seeds are different experiments; a rerun must know which."""
+    with pytest.raises(ConfigError, match="pick one"):
+        RobosuiteEvaluator(ENV_META, STATES, seeds=[1, 2])
 
 
 # -- scenes are the demonstrations' starting states ------------------------
@@ -377,3 +383,69 @@ def test_an_assembly_supplied_by_the_caller_satisfies_it():
 def test_a_policy_reading_nothing_is_never_blocked():
     ev = evaluator(goal=99.0)
     assert ev.fits(Pusher(), {"anything": 1}).ok
+
+
+# -- hosting a different body ----------------------------------------------
+
+
+class Body:
+    """What an embodiment file amounts to here."""
+
+    def __init__(self, name, block=None):
+        self.name = name
+        self.metadata = {"robosuite": block} if block else {}
+
+
+def test_it_declares_that_it_can_host_a_body():
+    assert evaluator().descriptor().provides["hosts_embodiment"] is True
+    assert evaluator().hosts_embodiment
+
+
+def test_restored_states_cannot_be_given_to_another_body():
+    """The check that stops the worst silent failure in cross-embodiment work.
+
+    A restored state is one machine's joint configuration. Handed to another it
+    either errors on a shape mismatch or — where the widths happen to agree —
+    puts the arm somewhere meaningless and reports it as a scene.
+    """
+    ev = evaluator()                       # built from STATES
+    assert ev.restores == "states"
+    with pytest.raises(ConfigError, match="own home"):
+        ev.for_embodiment(Body("sawyer"))
+
+
+def test_seeded_scenes_can_be_rebuilt_around_another_body():
+    ev = RobosuiteEvaluator(ENV_META, seeds=[11, 12, 13], factory=evaluator().  # noqa: SLF001
+                            _factory)
+    assert ev.restores == "seeds"
+    other = ev.for_embodiment(Body("sawyer", {"robots": ["Sawyer"]}))
+    assert other.env_meta["env_kwargs"]["robots"] == ["Sawyer"]
+    assert ENV_META["env_kwargs"]["robots"] == ["Panda"], "the source meta is untouched"
+    assert ev.env_meta["env_kwargs"]["robots"] == ["Panda"], "the original is untouched"
+    assert other.seeds == (11, 12, 13), "same scenes, different body"
+
+
+def test_a_body_that_does_not_say_what_it_is_is_refused():
+    ev = RobosuiteEvaluator(ENV_META, seeds=[1])
+    with pytest.raises(ConfigError, match="which robosuite robot"):
+        ev.for_embodiment(Body(None))
+
+
+def test_a_body_can_carry_its_controller_and_gripper():
+    ev = RobosuiteEvaluator(ENV_META, seeds=[1])
+    body = Body("ur5e", {"robots": ["UR5e"], "gripper_types": "Robotiq85Gripper",
+                         "controller_configs": {"type": "OSC_POSE"}})
+    kwargs = ev.for_embodiment(body).env_meta["env_kwargs"]
+    assert kwargs["robots"] == ["UR5e"]
+    assert kwargs["gripper_types"] == "Robotiq85Gripper"
+    # The merge stays pure: a named controller passes through untouched, and is
+    # expanded to robosuite's full config only when the world is built. So
+    # describing a machine never requires a simulator to be installed.
+    assert kwargs["controller_configs"] == {"type": "OSC_POSE"}
+
+
+def test_seeded_scenes_are_named_by_their_seed():
+    ev = RobosuiteEvaluator(ENV_META, seeds=[7, 9], factory=evaluator()._factory)  # noqa: SLF001
+    scenes = ev.task_for().scenes
+    assert [s.id for s in scenes] == ["seed_7", "seed_9"]
+    assert [s.seed for s in scenes] == [7, 9]

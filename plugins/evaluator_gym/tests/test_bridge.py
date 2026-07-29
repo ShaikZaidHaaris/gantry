@@ -200,6 +200,9 @@ def test_it_declares_only_what_its_readers_can_deliver():
         # A gym env brings its own world, so it is the same world whichever
         # dataset is under test and never needs binding to one.
         "needs_dataset": False,
+        # And its body is whatever it was written as; it cannot be handed
+        # another one.
+        "hosts_embodiment": False,
     }
 
 

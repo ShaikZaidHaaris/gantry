@@ -22,7 +22,7 @@ from gantry_policy_gr00t import (
     check,
     observation_specs,
 )
-from server import FakeServer, modality_payload
+from gantry_policy_gr00t.testing import FakeServer, modality_payload
 
 from gantry.conformance import check_policy
 from gantry.contracts.policy import EpisodeContext, Observation

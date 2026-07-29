@@ -429,6 +429,21 @@ def _gather(
         provider = component if varies == "dataset" else built.dataset
         policy = component if varies == "policy" else built.policy
         evaluator = component if varies == "evaluation" else built.evaluator
+        embodiment = component if varies == "embodiment" else built.embodiment
+        if embodiment is not None and evaluator is not None:
+            # The world is rebuilt around the body whether the body is the axis
+            # or is being held. Only rebuilding it when it varies was a real
+            # hole: a manifest naming one embodiment recorded that name in
+            # provenance and simulated whatever the evaluator already had, so
+            # the run described a machine it never ran on.
+            #
+            # An evaluator with a body welded in refuses here rather than
+            # running identical worlds under different labels.
+            try:
+                evaluator = evaluator.for_embodiment(embodiment)
+            except GantryError as error:
+                failures.append(f"embodiment:{name}: {error}")
+                continue
         if provider is None:
             failures.append(
                 f"{name}: nothing supplies the dataset plane; name one, or vary on it"
