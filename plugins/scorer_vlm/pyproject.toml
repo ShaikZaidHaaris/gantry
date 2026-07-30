@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-scorer-vlm"
+version = "0.1.0.dev0"
+description = "A vision-language model reads the same rubric a person would"
+requires-python = ">=3.10"
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+# Sampling frames out of a recorded episode video. An extra, because replaying a
+# cached transcript needs no decoder — and replay is how the tests run.
+video = ["av>=10", "pillow>=10"]
+# Whichever model you point it at. None is a hard dependency: the wire is a
+# callable, so a lab with its own inference stack substitutes that instead.
+anthropic = ["anthropic>=0.40"]
+openai = ["openai>=1.40"]
+
+[project.entry-points."gantry.scorers"]
+vlm = "gantry_scorer_vlm:VlmScorer"
+
+[tool.setuptools.packages.find]
+where = ["src"]
