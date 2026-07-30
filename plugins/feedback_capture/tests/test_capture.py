@@ -179,7 +179,10 @@ def test_hands_off_frame_is_the_heaviest_check():
     dropped before anything is trained."""
     report = Capture().analyse([cohort([clean(hands_visible=0.78)] * 5)])
     finding = next(f for f in report.findings if f.code == "capture.hands_offscreen")
-    assert "out of frame for 12%" in finding.summary
+    # 22%, not 12%. The number a person recognises is the actual shortfall
+    # (1 - 0.78), not the distance below a 0.9 bar. The earlier version printed
+    # the latter, so footage with no hands at all read as "90% out of frame".
+    assert "out of frame for 22%" in finding.summary
     assert "cannot produce a hand pose" in finding.prescription
 
 
