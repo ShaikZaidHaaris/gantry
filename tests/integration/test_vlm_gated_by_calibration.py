@@ -50,17 +50,17 @@ def as_human(outcomes):
 def test_a_model_that_agrees_with_a_person_is_cleared():
     """The whole reason this is safe to point at twenty thousand videos."""
     labels = scored_by_model(["yes" if v else "no" for v in HUMAN])
-    gate = Calibration(
-        Corpus(labels={"human": as_human(HUMAN), "candidate": labels})
-    ).gate("candidate")
+    gate = Calibration(Corpus(labels={"human": as_human(HUMAN), "candidate": labels})).gate(
+        "candidate"
+    )
     assert gate.ok
 
 
 def test_a_model_that_guesses_is_refused():
     labels = scored_by_model(["no" if v else "yes" for v in HUMAN])
-    gate = Calibration(
-        Corpus(labels={"human": as_human(HUMAN), "candidate": labels})
-    ).gate("candidate")
+    gate = Calibration(Corpus(labels={"human": as_human(HUMAN), "candidate": labels})).gate(
+        "candidate"
+    )
     assert not gate.ok
     assert "judge.uncalibrated" in gate.codes()
 
@@ -76,9 +76,7 @@ def test_a_model_nobody_has_checked_is_refused_rather_than_trusted():
 def test_abstentions_are_dropped_from_agreement_but_the_rate_is_reported():
     replies = ["unclear"] * 4 + ["yes" if v else "no" for v in HUMAN[4:]]
     labels = scored_by_model(replies)
-    report = Calibration(
-        Corpus(labels={"human": as_human(HUMAN), "candidate": labels})
-    ).analyse([])
+    report = Calibration(Corpus(labels={"human": as_human(HUMAN), "candidate": labels})).analyse([])
     kappa = report.measurements["candidate.kappa"]
     assert kappa.detail["dropped_abstentions"] == 4
     assert report.measurements["candidate.abstention_rate"].value > 0

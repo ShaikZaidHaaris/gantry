@@ -35,6 +35,11 @@ def cohort(clips, name="theirs"):
     return Cohort(name=name, episodes=episodes)
 
 
+def varied(index, **over):
+    """A clip from a well-made upload: its own location and its own description."""
+    return clean(scene=f"room-{index}", instruction=f"do thing {index}", **over)
+
+
 def clean(**over):
     base = {
         "hands_visible": 0.98,
@@ -99,7 +104,9 @@ def test_findings_come_out_ordered_by_measured_cost_not_by_how_bad_they_sound():
     theirs. Dropped frames still win, because they weigh three times what missing
     metadata does — one costs training data, the other costs a column.
     """
-    report = Capture().analyse([cohort([clean(hands_visible=0.7, labelled=0.0)] * 6)])
+    report = Capture().analyse(
+        [cohort([varied(index, hands_visible=0.7, labelled=0.0) for index in range(6)])]
+    )
     assert codes(report)[0] == "capture.hands_offscreen"
     assert "capture.unlabelled_outcomes" in codes(report)
 
@@ -120,15 +127,16 @@ def test_only_the_leading_few_are_strong():
         [
             cohort(
                 [
-                    clean(
+                    varied(
+                        index,
                         hands_visible=0.5,
                         in_reach=0.4,
                         usable_length=0.5,
                         motion_ok=0.5,
                         labelled=0.0,
                     )
+                    for index in range(6)
                 ]
-                * 6
             )
         ]
     )
@@ -159,7 +167,7 @@ def test_a_signal_nobody_measured_is_absent_rather_than_zero():
 
 
 def test_a_cohort_with_nothing_wrong_says_so():
-    report = Capture().analyse([cohort([clean(scene=f"room-{i}") for i in range(6)])])
+    report = Capture().analyse([cohort([varied(index) for index in range(6)])])
     assert codes(report) == ["capture.clean"]
 
 
@@ -184,12 +192,14 @@ def test_out_of_workspace_reaching_is_reported_from_the_retargeters_number():
     assert "Stand closer" in finding.prescription
 
 
-def test_one_location_across_many_clips_fires_and_names_the_counts():
+def test_one_location_fires_whether_the_upload_is_large_or_small():
     """Usually the largest single difference between the uploads that transfer
-    and the ones that do not."""
-    report = Capture().analyse([cohort([clean()] * 40)])
-    finding = next(f for f in report.findings if f.code == "capture.single_scene")
-    assert "1 location(s) across 40 clips" in finding.summary
+    and the ones that do not — and the advice is the same at six clips as at
+    forty, which a per-clip ratio got wrong."""
+    for size in (6, 40):
+        report = Capture().analyse([cohort([clean()] * size)])
+        finding = next(f for f in report.findings if f.code == "capture.single_scene")
+        assert f"1 location(s) across {size} clips" in finding.summary
 
 
 def test_many_locations_does_not_fire():
@@ -201,6 +211,13 @@ def test_one_instruction_everywhere_means_the_language_carries_nothing():
     report = Capture().analyse([cohort([clean()] * 40)])
     finding = next(f for f in report.findings if f.code == "capture.one_instruction")
     assert "1 distinct instruction(s) across 40 clips" in finding.summary
+
+
+def test_several_instructions_do_not_fire_however_few_clips_there_are():
+    report = Capture().analyse(
+        [cohort([clean(scene=f"r-{i}", instruction=f"do thing {i}") for i in range(4)])]
+    )
+    assert "capture.one_instruction" not in codes(report)
 
 
 def test_stabilisation_fires_upward_rather_than_downward():
@@ -246,8 +263,10 @@ def test_a_new_check_is_an_entry_rather_than_a_code_change():
         fix="Film with the light in front of you.",
         why="A dark frame gives the estimator nothing to work with.",
     )
-    report = Capture(checks=(*CHECKS, extra)).analyse([cohort([clean(lighting=0.2)] * 5)])
-    assert "capture.too_dark" in codes(report)
+    report = Capture(checks=(*CHECKS, extra)).analyse(
+        [cohort([varied(index, lighting=0.2) for index in range(5)])]
+    )
+    assert codes(report) == ["capture.too_dark"]
     assert "underexposed" in report.findings[0].summary
 
 
@@ -275,7 +294,7 @@ def test_the_helpers_read_off_annotations_and_metadata_alike():
     assert signals["hands_visible"] == pytest.approx(0.7)
 
     counts = variety(cohort([clean(scene="a"), clean(scene="b"), clean(scene="a")]))
-    assert counts["_scenes"] == 2
+    assert counts["scenes"] == 2
     assert counts["scene_variety"] == pytest.approx(2 / 3)
 
 

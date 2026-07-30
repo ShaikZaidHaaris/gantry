@@ -60,8 +60,10 @@ def test_keep_is_a_whitelist_not_a_hint(tmp_path):
     chosen = [e.meta.uid for e in episodes[:2]]
     plan = CurationPlan(
         actions=(CurationAction("keep", episodes=tuple(chosen)),),
-        signal="topk", rung="influence",
-        predicted=Prediction(magnitude=0.1), evidence_seeds=(1, 2),
+        signal="topk",
+        rung="influence",
+        predicted=Prediction(magnitude=0.1),
+        evidence_seeds=(1, 2),
     )
     survivors, applied = apply(plan, episodes)
     assert [e.meta.uid for e in survivors] == chosen
@@ -97,7 +99,8 @@ def test_a_plan_that_changes_nothing_is_noted(tmp_path):
     episodes = list(source(tmp_path))
     plan = CurationPlan(
         actions=(CurationAction("keep", episodes=tuple(e.meta.uid for e in episodes)),),
-        signal="labels", rung="screening",
+        signal="labels",
+        rung="screening",
     )
     _, applied = apply(plan, episodes)
     verdict = applied.validate(source_size=len(episodes))
@@ -123,11 +126,12 @@ def test_weights_are_configuration_not_a_change_to_the_files(tmp_path):
             CurationAction("weight", cohort="mh", weight=2.0),
             CurationAction("weight", cohort="mg", weight=0.0),
         ),
-        signal="mixture", rung="leave_out",
+        signal="mixture",
+        rung="leave_out",
         predicted=Prediction(magnitude=0.05),
     )
     survivors, applied = apply(plan, episodes)
-    assert len(survivors) == len(episodes)      # nothing removed
+    assert len(survivors) == len(episodes)  # nothing removed
     assert applied.weights == {"mh": 2.0, "mg": 0.0}
     assert mix_config(plan)["datasets"][0] == {"cohort": "mg", "mix_ratio": 0.0}
 
@@ -141,7 +145,8 @@ def test_a_plan_round_trips_through_a_file(tmp_path):
             CurationAction("drop", episodes=("a/1", "a/2"), detail={"score": 0.3}),
             CurationAction("weight", cohort="mh", weight=2.0),
         ),
-        signal="cupid", rung="influence",
+        signal="cupid",
+        rung="influence",
         predicted=Prediction(magnitude=0.07, tasks=("lift_cube",)),
         evidence_seeds=(11, 22, 33),
         metadata={"note": "hello"},
@@ -157,8 +162,10 @@ def test_the_evidence_seeds_survive_the_round_trip(tmp_path):
     """Losing them turns a leakage refusal into a clean pass."""
     plan = CurationPlan(
         actions=(CurationAction("drop", episodes=("a/1",)),),
-        signal="cupid", rung="influence",
-        predicted=Prediction(magnitude=0.1), evidence_seeds=(7, 8, 9),
+        signal="cupid",
+        rung="influence",
+        predicted=Prediction(magnitude=0.1),
+        evidence_seeds=(7, 8, 9),
     )
     assert read_plan(write_plan(plan, tmp_path / "p.json")).evidence_seeds == (7, 8, 9)
 
@@ -169,7 +176,8 @@ def test_a_collection_order_survives_the_round_trip(tmp_path):
     order = CollectionOrder(task="lift_cube", n=40, seeds=(1, 2), stage="grasp", note="east")
     plan = CurationPlan(
         actions=(CurationAction("collect", order=order),),
-        signal="collect", rung="screening",
+        signal="collect",
+        rung="screening",
         predicted=Prediction(magnitude=0.08),
     )
     back = read_plan(write_plan(plan, tmp_path / "p.json"))
@@ -185,10 +193,19 @@ def test_the_curated_dataset_is_written_and_reads_back(tmp_path, capsys):
     doomed = [e.meta.uid for e in episodes[:2]]
     write_plan(plan_dropping(doomed), tmp_path / "plan.json")
 
-    code = main([
-        "curate-apply", str(tmp_path / "plan.json"), str(tmp_path / "src"), "--reader", "lerobot",
-        "-o", str(tmp_path / "curated"), "--write", "--accept-loss",
-    ])
+    code = main(
+        [
+            "curate-apply",
+            str(tmp_path / "plan.json"),
+            str(tmp_path / "src"),
+            "--reader",
+            "lerobot",
+            "-o",
+            str(tmp_path / "curated"),
+            "--write",
+            "--accept-loss",
+        ]
+    )
     assert code == 0
 
     # The real check: re-open it with the same connector.
@@ -202,10 +219,19 @@ def test_the_curated_dataset_carries_what_produced_it(tmp_path):
     """A checkpoint trained on this is traceable to the curation, not a memory."""
     episodes = list(source(tmp_path, episodes=6))
     write_plan(plan_dropping([episodes[0].meta.uid]), tmp_path / "plan.json")
-    main([
-        "curate-apply", str(tmp_path / "plan.json"), str(tmp_path / "src"), "--reader", "lerobot",
-        "-o", str(tmp_path / "curated"), "--write", "--accept-loss",
-    ])
+    main(
+        [
+            "curate-apply",
+            str(tmp_path / "plan.json"),
+            str(tmp_path / "src"),
+            "--reader",
+            "lerobot",
+            "-o",
+            str(tmp_path / "curated"),
+            "--write",
+            "--accept-loss",
+        ]
+    )
     stamped = json.loads((tmp_path / "curated" / "curation.json").read_text())
     assert stamped["signal"] == "labels"
     assert stamped["rung"] == "screening"
@@ -216,10 +242,17 @@ def test_the_curated_dataset_carries_what_produced_it(tmp_path):
 def test_a_dry_run_writes_nothing(tmp_path, capsys):
     episodes = list(source(tmp_path))
     write_plan(plan_dropping([episodes[0].meta.uid]), tmp_path / "plan.json")
-    main([
-        "curate-apply", str(tmp_path / "plan.json"), str(tmp_path / "src"), "--reader", "lerobot",
-        "-o", str(tmp_path / "curated"),
-    ])
+    main(
+        [
+            "curate-apply",
+            str(tmp_path / "plan.json"),
+            str(tmp_path / "src"),
+            "--reader",
+            "lerobot",
+            "-o",
+            str(tmp_path / "curated"),
+        ]
+    )
     assert not (tmp_path / "curated").exists()
     assert "pass --write" in capsys.readouterr().out
 
@@ -228,7 +261,15 @@ def test_the_command_refuses_an_unactionable_plan_rather_than_writing_nothing_us
     source(tmp_path)
     write_plan(plan_dropping(["nope/1"]), tmp_path / "plan.json")
     with pytest.raises(IncompatibleError, match="curation.unactionable"):
-        main([
-            "curate-apply", str(tmp_path / "plan.json"), str(tmp_path / "src"), "--reader", "lerobot",
-            "-o", str(tmp_path / "curated"), "--write",
-        ])
+        main(
+            [
+                "curate-apply",
+                str(tmp_path / "plan.json"),
+                str(tmp_path / "src"),
+                "--reader",
+                "lerobot",
+                "-o",
+                str(tmp_path / "curated"),
+                "--write",
+            ]
+        )

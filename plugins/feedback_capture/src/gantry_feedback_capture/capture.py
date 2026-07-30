@@ -135,9 +135,13 @@ CHECKS: tuple[Check, ...] = (
         "whatever else is right about the clip.",
     ),
     Check(
-        key="scene_variety",
+        # A count, not a per-clip ratio. As a ratio, six clips in one kitchen
+        # scored better than forty in one kitchen and passed — but one location
+        # is one location, and the advice is identical either way. The ratio
+        # conflated "few clips" with "many locations".
+        key="scenes",
         code="capture.single_scene",
-        threshold=0.08,
+        threshold=3.0,
         below=True,
         weight=2.0,
         summary="all of it was filmed in {scenes} location(s) across {clips} clips",
@@ -170,9 +174,12 @@ CHECKS: tuple[Check, ...] = (
         "is both blurred and unreachable as a target.",
     ),
     Check(
-        key="instruction_variety",
+        # Also a count, for the same reason. The failure worth catching is one
+        # sentence reused for a whole upload, and that is a property of the set
+        # rather than of its size.
+        key="instructions",
         code="capture.one_instruction",
-        threshold=0.05,
+        threshold=2.0,
         below=True,
         weight=1.0,
         summary="{unique} distinct instruction(s) across {clips} clips",
@@ -238,9 +245,10 @@ def measured(cohort: Cohort, checks: Sequence[Check] = CHECKS) -> dict[str, floa
 def variety(cohort: Cohort) -> dict[str, float]:
     """Scene and instruction variety, which are properties of the set not the clip.
 
-    Expressed as distinct-per-clip so they sit on the same 0-to-1 scale as
-    everything else: forty clips in one kitchen scores 0.025, forty across ten
-    scores 0.25.
+    Reported as counts rather than as per-clip ratios. A ratio looked tidier and
+    was wrong: six clips in one kitchen scored better than forty in one kitchen,
+    when the problem and the advice are identical. The ratios are kept alongside
+    for anything that wants them.
     """
     scenes: set[str] = set()
     instructions: set[str] = set()
@@ -255,10 +263,10 @@ def variety(cohort: Cohort) -> dict[str, float]:
             instructions.add(str(annotations["instruction"]))
     clips = max(1, len(cohort.episodes))
     return {
+        "scenes": float(len(scenes)),
+        "instructions": float(len(instructions)),
         "scene_variety": len(scenes) / clips,
         "instruction_variety": len(instructions) / clips,
-        "_scenes": float(len(scenes)),
-        "_instructions": float(len(instructions)),
         "_clips": float(clips),
     }
 
@@ -313,8 +321,8 @@ class Capture(FeedbackModule):
             signals = {**measured(cohort, self._checks), **variety(cohort)}
             counts = {
                 "clips": int(signals.get("_clips", len(cohort.episodes))),
-                "scenes": int(signals.get("_scenes", 0)),
-                "unique": int(signals.get("_instructions", 0)),
+                "scenes": int(signals.get("scenes", 0)),
+                "unique": int(signals.get("instructions", 0)),
             }
             unmeasured = [check.code for check in self._checks if check.key not in signals]
             scored: list[tuple[float, Check, float]] = []

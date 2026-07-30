@@ -329,8 +329,14 @@ def test_a_lossy_adapter_used_by_a_run_reaches_its_provenance(tmp_path):
     from gantry.spine import ChannelSpec
 
     slow = ChannelSpec(
-        "position", "vector", (3,), "float32",
-        units="m", frame="world", rate_hz=10.0, semantics="position",
+        "position",
+        "vector",
+        (3,),
+        "float32",
+        units="m",
+        frame="world",
+        rate_hz=10.0,
+        semantics="position",
     )
 
     class Downsampler(FeedbackModule):
@@ -371,9 +377,7 @@ def test_the_whole_loop_runs_from_one_manifest(tmp_path):
     path = write_episodes(make_clean(n=4, seed=1).episodes, tmp_path / "seed.csv")
     registry = Registry()
     registry.discover()
-    registry.register(
-        "policy", "greedy", lambda **_: GreedyPolicy(skill=0.75), replace=True
-    )
+    registry.register("policy", "greedy", lambda **_: GreedyPolicy(skill=0.75), replace=True)
     registry.register(
         "evaluation",
         "waypoint",
@@ -406,10 +410,13 @@ def test_cohorts_default_to_the_dataset_plane():
     """Unchanged behaviour: a manifest that says nothing varies datasets."""
     from gantry.manifest import Manifest
 
-    m = Manifest.from_dict({
-        "version": 1, "name": "x",
-        "cohorts": {"a": {"name": "csv", "config": {"path": "a.csv"}}},
-    })
+    m = Manifest.from_dict(
+        {
+            "version": 1,
+            "name": "x",
+            "cohorts": {"a": {"name": "csv", "config": {"path": "a.csv"}}},
+        }
+    )
     assert m.varies == "dataset"
     assert m.provides("dataset") and not m.provides("policy")
 
@@ -423,16 +430,19 @@ def test_cohorts_can_vary_the_policy_instead():
     """
     from gantry.manifest import Manifest
 
-    m = Manifest.from_dict({
-        "version": 1, "name": "three-checkpoints",
-        "varies": "policy",
-        "cohorts": {
-            "ph": {"name": "constant", "config": {}},
-            "mg": {"name": "replay", "config": {}},
-        },
-        "dataset": {"name": "csv", "config": {"path": "held_out.csv"}},
-        "evaluation": {"name": "offline", "config": {"action_name": "action"}},
-    })
+    m = Manifest.from_dict(
+        {
+            "version": 1,
+            "name": "three-checkpoints",
+            "varies": "policy",
+            "cohorts": {
+                "ph": {"name": "constant", "config": {}},
+                "mg": {"name": "replay", "config": {}},
+            },
+            "dataset": {"name": "csv", "config": {"path": "held_out.csv"}},
+            "evaluation": {"name": "offline", "config": {"action_name": "action"}},
+        }
+    )
     assert m.varies == "policy"
     assert m.provides("policy"), "supplied by the cohorts, not by a single component"
     assert m.evaluates
@@ -444,11 +454,14 @@ def test_cohorts_can_vary_the_policy_instead():
 def test_the_explicit_form_reads_the_same():
     from gantry.manifest import Manifest
 
-    m = Manifest.from_dict({
-        "version": 1, "name": "x",
-        "cohorts": {"plane": "evaluation", "of": {"sim": {"name": "waypoint"}}},
-        "dataset": {"name": "csv", "config": {"path": "a.csv"}},
-    })
+    m = Manifest.from_dict(
+        {
+            "version": 1,
+            "name": "x",
+            "cohorts": {"plane": "evaluation", "of": {"sim": {"name": "waypoint"}}},
+            "dataset": {"name": "csv", "config": {"path": "a.csv"}},
+        }
+    )
     assert m.varies == "evaluation"
     assert m.spec_for("evaluation", "sim").name == "waypoint"
 
@@ -458,11 +471,15 @@ def test_a_plane_cannot_both_vary_and_be_fixed():
     from gantry.manifest import Manifest
 
     with pytest.raises(ConfigError, match="one or the other"):
-        Manifest.from_dict({
-            "version": 1, "name": "x", "varies": "policy",
-            "cohorts": {"a": {"name": "constant"}},
-            "policy": {"name": "replay"},
-        })
+        Manifest.from_dict(
+            {
+                "version": 1,
+                "name": "x",
+                "varies": "policy",
+                "cohorts": {"a": {"name": "constant"}},
+                "policy": {"name": "replay"},
+            }
+        )
 
 
 def test_varying_on_something_that_is_not_a_plane_is_refused():
@@ -470,10 +487,14 @@ def test_varying_on_something_that_is_not_a_plane_is_refused():
     from gantry.manifest import Manifest
 
     with pytest.raises(ConfigError, match="not a plane"):
-        Manifest.from_dict({
-            "version": 1, "name": "x", "varies": "checkpoint",
-            "cohorts": {"a": {"name": "constant"}},
-        })
+        Manifest.from_dict(
+            {
+                "version": 1,
+                "name": "x",
+                "varies": "checkpoint",
+                "cohorts": {"a": {"name": "constant"}},
+            }
+        )
 
 
 def test_a_policy_varying_run_evaluates_each_cohort_against_one_dataset(tmp_path):
@@ -488,17 +509,20 @@ def test_a_policy_varying_run_evaluates_each_cohort_against_one_dataset(tmp_path
     path = write_episodes(suite.episodes, tmp_path / "held_out.csv")
     action = suite.episodes[0].channel("action")
 
-    m = Manifest.from_dict({
-        "version": 1, "name": "two-policies",
-        "varies": "policy",
-        "cohorts": {
-            "zero": {"name": "constant", "config": {"action": _spec_dict(action)}},
-            "copy": {"name": "replay", "config": {"action": _spec_dict(action)}},
-        },
-        "dataset": {"name": "csv", "config": {"path": str(path)}},
-        "evaluation": {"name": "offline", "config": {"action_name": "action"}},
-        "feedback": [],
-    })
+    m = Manifest.from_dict(
+        {
+            "version": 1,
+            "name": "two-policies",
+            "varies": "policy",
+            "cohorts": {
+                "zero": {"name": "constant", "config": {"action": _spec_dict(action)}},
+                "copy": {"name": "replay", "config": {"action": _spec_dict(action)}},
+            },
+            "dataset": {"name": "csv", "config": {"path": str(path)}},
+            "evaluation": {"name": "offline", "config": {"action_name": "action"}},
+            "feedback": [],
+        }
+    )
     outcome = run_manifest(m)
     assert not outcome.refusals, outcome.explain()
     assert len(outcome.runs) == 2, "one run per policy, same dataset"

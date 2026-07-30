@@ -24,8 +24,16 @@ EPISODE = SUITE.episodes[0]
 
 
 def want(**over) -> ChannelSpec:
-    base = dict(name="position", kind="vector", shape=(3,), dtype="float32",
-                units="m", frame="world", rate_hz=20.0, semantics="position")
+    base = dict(
+        name="position",
+        kind="vector",
+        shape=(3,),
+        dtype="float32",
+        units="m",
+        frame="world",
+        rate_hz=20.0,
+        semantics="position",
+    )
     return ChannelSpec(**{**base, **over})
 
 
@@ -161,15 +169,23 @@ def test_a_load_bearing_metadata_key_survives_the_round_trip(tmp_path):
     from gantry.spine import compatible
 
     provider = ChannelSpec(
-        "rotation", "vector", (4,), "float32",
-        discriminators=("rotation_repr",), metadata={"rotation_repr": "quat_xyzw"},
+        "rotation",
+        "vector",
+        (4,),
+        "float32",
+        discriminators=("rotation_repr",),
+        metadata={"rotation_repr": "quat_xyzw"},
     )
     restored = spec_from_dict(spec_to_dict(provider))
     assert restored == provider
 
     consumer = ChannelSpec(
-        "rotation", "vector", (4,), "float32",
-        discriminators=("rotation_repr",), metadata={"rotation_repr": "quat_wxyz"},
+        "rotation",
+        "vector",
+        (4,),
+        "float32",
+        discriminators=("rotation_repr",),
+        metadata={"rotation_repr": "quat_wxyz"},
     )
     assert "metadata.mismatch" in compatible(restored, consumer).codes()
 
@@ -314,15 +330,23 @@ def test_a_seed_derived_from_data_is_the_same_in_every_process():
 
     here = seed_from(0, "scene-1", 3)
     elsewhere = subprocess.run(
-        [sys.executable, "-c",
-         "from gantry.spine import seed_from; print(seed_from(0, 'scene-1', 3))"],
-        capture_output=True, text=True, check=True,
+        [
+            sys.executable,
+            "-c",
+            "from gantry.spine import seed_from; print(seed_from(0, 'scene-1', 3))",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
     assert str(here) == elsewhere
 
     salted = subprocess.run(
         [sys.executable, "-c", "print(abs(hash((0, 'scene-1', 3))) % (2**32))"],
-        capture_output=True, text=True, check=True, env={"PYTHONHASHSEED": "random", "PATH": ""},
+        capture_output=True,
+        text=True,
+        check=True,
+        env={"PYTHONHASHSEED": "random", "PATH": ""},
     ).stdout.strip()
     assert salted != elsewhere, "the builtin would have agreed by luck; rerun"
 

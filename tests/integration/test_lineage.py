@@ -34,7 +34,8 @@ def converted(tmp_path, name="a", episodes=5, steps=6):
 def plan_dropping(uids):
     return CurationPlan(
         actions=(CurationAction("drop", episodes=tuple(uids)),),
-        signal="labels", rung="screening",
+        signal="labels",
+        rung="screening",
         predicted=Prediction(magnitude=0.1, tasks=("lift_cube",)),
     )
 
@@ -53,9 +54,7 @@ def test_an_episode_answers_to_the_names_it_used_to_have():
 
 def test_a_chain_of_conversions_stays_walkable_end_to_end():
     meta = (
-        EpisodeMeta(id="e0", source="c")
-        .descended("mg/demo_1")
-        .descended("lerobot/episode_000000")
+        EpisodeMeta(id="e0", source="c").descended("mg/demo_1").descended("lerobot/episode_000000")
     )
     assert meta.lineage == ("mg/demo_1", "lerobot/episode_000000", "c/e0")
     assert meta.known_as("mg/demo_1")

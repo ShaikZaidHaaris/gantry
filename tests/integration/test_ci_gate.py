@@ -113,9 +113,7 @@ def test_a_drop_that_is_only_noise_does_not_block(measured):
     root, h, keys = measured
     h.pin(keys["ph"], task="lift_cube")
     # One scene worse out of fifty: real direction, no evidence.
-    barely = h.put(
-        run("lift_cube", "barely_worse", [True] * 27 + [False] * 23), keep_record=False
-    )
+    barely = h.put(run("lift_cube", "barely_worse", [True] * 27 + [False] * 23), keep_record=False)
     result = gantry("ci", barely, "--history", root)
     assert result.returncode == 0
     assert "not separable" in result.stdout

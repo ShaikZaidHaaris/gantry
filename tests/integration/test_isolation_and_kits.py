@@ -122,14 +122,26 @@ def arm(**over) -> EmbodimentDescriptor:
         name="arm",
         version="1.0",
         state=(
-            ChannelSpec("joints", "vector", (6,), "float32", units="rad",
-                        semantics="joint_position",
-                        dim_labels=tuple(f"j{i}" for i in range(6))),
+            ChannelSpec(
+                "joints",
+                "vector",
+                (6,),
+                "float32",
+                units="rad",
+                semantics="joint_position",
+                dim_labels=tuple(f"j{i}" for i in range(6)),
+            ),
         ),
         action=(
-            ChannelSpec("command", "vector", (6,), "float32", units="rad",
-                        semantics="joint_position",
-                        dim_labels=tuple(f"j{i}" for i in range(6))),
+            ChannelSpec(
+                "command",
+                "vector",
+                (6,),
+                "float32",
+                units="rad",
+                semantics="joint_position",
+                dim_labels=tuple(f"j{i}" for i in range(6)),
+            ),
         ),
         control_hz=20.0,
     )
@@ -149,8 +161,11 @@ def test_an_undescribed_channel_is_a_note_and_a_strict_failure():
 
 def test_an_unlabelled_actuator_is_caught():
     unlabelled = arm(
-        action=(ChannelSpec("command", "vector", (6,), "float32", units="rad",
-                            semantics="joint_position"),)
+        action=(
+            ChannelSpec(
+                "command", "vector", (6,), "float32", units="rad", semantics="joint_position"
+            ),
+        )
     )
     verdict = check_embodiment(unlabelled, strict=True)
     assert "conformance.unlabelled_action" in verdict.codes()
@@ -174,10 +189,24 @@ def test_the_kit_is_discoverable():
 # ==========================================================================
 
 
-SEVEN = ChannelSpec("a", "vector", (7,), "float32", units="rad", semantics="joint_position",
-                    dim_labels=tuple(f"j{i}" for i in range(7)))
-SIX = ChannelSpec("a", "vector", (6,), "float32", units="rad", semantics="joint_position",
-                  dim_labels=tuple(f"j{i}" for i in range(6)))
+SEVEN = ChannelSpec(
+    "a",
+    "vector",
+    (7,),
+    "float32",
+    units="rad",
+    semantics="joint_position",
+    dim_labels=tuple(f"j{i}" for i in range(7)),
+)
+SIX = ChannelSpec(
+    "a",
+    "vector",
+    (6,),
+    "float32",
+    units="rad",
+    semantics="joint_position",
+    dim_labels=tuple(f"j{i}" for i in range(6)),
+)
 
 
 def test_a_real_retargeter_conforms():
@@ -222,8 +251,16 @@ def test_a_retargeter_that_discards_silently_is_caught():
 
 
 def metres(**over) -> ChannelSpec:
-    base = dict(name="position", kind="vector", shape=(3,), dtype="float32",
-                units="m", frame="world", rate_hz=20.0, semantics="position")
+    base = dict(
+        name="position",
+        kind="vector",
+        shape=(3,),
+        dtype="float32",
+        units="m",
+        frame="world",
+        rate_hz=20.0,
+        semantics="position",
+    )
     return ChannelSpec(**{**base, **over})
 
 
@@ -294,9 +331,10 @@ def test_a_nondeterministic_adapter_is_caught():
         transform=lambda v, s, t: np.asarray(v) + np.random.default_rng().normal(0, 1, np.shape(v)),
         cost=lambda s, t: ("noise",),
     )
-    assert "conformance.not_deterministic" in check_adapter(
-        jittery, metres(units="mm"), metres()
-    ).codes()
+    assert (
+        "conformance.not_deterministic"
+        in check_adapter(jittery, metres(units="mm"), metres()).codes()
+    )
 
 
 # ==========================================================================
@@ -318,9 +356,15 @@ def test_a_policy_that_cannot_command_the_machine_is_refused(tmp_path):
         name="six-axis",
         version="1.0",
         action=(
-            ChannelSpec("command", "vector", (6,), "float32", units="rad",
-                        semantics="joint_position",
-                        dim_labels=tuple(f"j{i}" for i in range(6))),
+            ChannelSpec(
+                "command",
+                "vector",
+                (6,),
+                "float32",
+                units="rad",
+                semantics="joint_position",
+                dim_labels=tuple(f"j{i}" for i in range(6)),
+            ),
         ),
         control_hz=20.0,
     )
@@ -354,8 +398,7 @@ def test_a_width_alone_never_establishes_that_something_is_a_pose():
     """
     from gantry_retargeters_core import PoseToPosition
 
-    joints = ChannelSpec("a", "vector", (6,), "float32", units="rad",
-                         semantics="joint_position")
+    joints = ChannelSpec("a", "vector", (6,), "float32", units="rad", semantics="joint_position")
     position = ChannelSpec("a", "vector", (3,), "float32", units="m", semantics="position")
     verdict = PoseToPosition().check(joints, position)
     assert "retarget.not_a_pose" in verdict.codes()

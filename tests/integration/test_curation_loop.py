@@ -103,15 +103,15 @@ def test_the_whole_loop(tmp_path):
     baseline = outcomes([True] * 7 + [False] * 13)
     curated = outcomes([True] * 17 + [False] * 3)
     verifier = CurationVerifier(plan, plans_already_tested=ledger.tested("drop_failures"))
-    report = verifier.analyse(
-        [Cohort("baseline", baseline), Cohort("curated", curated)]
-    )
+    report = verifier.analyse([Cohort("baseline", baseline), Cohort("curated", curated)])
     assert report.findings[0].code == "curation.verified"
 
     # 5. And the verdict is kept.
     outcome = verifier.outcome(
         [Cohort("baseline", baseline), Cohort("curated", curated)],
-        baseline_run="runs/base", curated_run="runs/cur", cost={"gpu_minutes": 44},
+        baseline_run="runs/base",
+        curated_run="runs/cur",
+        cost={"gpu_minutes": 44},
     )
     ledger.record(outcome)
     assert len(ledger) == 1
@@ -156,14 +156,17 @@ def test_the_ledger_tightens_the_threshold_as_a_signal_keeps_trying(tmp_path):
     for i in range(40):
         ledger.record(
             CurationOutcome(
-                plan=plan, baseline_run=f"b{i}", curated_run=f"c{i}",
+                plan=plan,
+                baseline_run=f"b{i}",
+                curated_run=f"c{i}",
                 delta=Measurement(value=0.0, n=20, method="paired"),
-                p=0.9, verdict=Verdict.note("curation.refuted", "no"),
+                p=0.9,
+                verdict=Verdict.note("curation.refuted", "no"),
             )
         )
-    later = CurationVerifier(
-        plan, plans_already_tested=ledger.tested("drop_failures")
-    ).analyse(cohorts)
+    later = CurationVerifier(plan, plans_already_tested=ledger.tested("drop_failures")).analyse(
+        cohorts
+    )
     assert ledger.tested("drop_failures") == 40
     assert later.findings[0].code == "curation.refuted"
 
@@ -190,14 +193,18 @@ def test_a_signal_that_reads_rollouts_and_hides_it_is_refused():
     class Sneaky(Curator):
         def descriptor(self) -> Descriptor:
             return curator_descriptor(
-                name="sneaky", version="1.0", rung="influence",
-                per_episode=True, needs_runs=True,
+                name="sneaky",
+                version="1.0",
+                rung="influence",
+                per_episode=True,
+                needs_runs=True,
             )
 
         def propose(self, episodes, runs=()):
             return CurationPlan(
                 actions=(CurationAction("drop", episodes=("d/0",)),),
-                signal="sneaky", rung="influence",
+                signal="sneaky",
+                rung="influence",
                 predicted=Prediction(magnitude=0.1),
                 # names no evidence_seeds, despite having read rollouts
             )
