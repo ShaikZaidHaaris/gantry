@@ -235,7 +235,10 @@ def test_a_milestone_is_recorded_once_at_the_step_it_was_reached():
     suite = Suite(milestone_at=3)
     record = suite.run(Steady(), suite.task_for(scenes=1, horizon=6), Protocol())
     events = record.episodes[0].labels.stage_events
-    assert [(event.name, event.step) for event in events] == [("touched", 3)]
+    # Step 2, not 3: the milestone is indexed by the action that caused it, and
+    # the world reported it after the third action, whose index is 2. Off by one
+    # here and a milestone on the final step points past the end of the episode.
+    assert [(event.name, event.step) for event in events] == [("touched", 2)]
 
 
 def test_epochs_give_one_episode_per_attempt_with_distinct_ids():
@@ -369,4 +372,67 @@ def test_a_trial_reports_milestones_in_the_order_reached():
     trial.steps = 5
     trial.note(("b", "c"))
     assert trial.reached == ("a", "b", "c")
-    assert [event.step for event in trial.events] == [2, 2, 5]
+    assert [event.step for event in trial.events] == [1, 1, 4]
+
+
+# -- worlds that only know at the end ---------------------------------------
+
+
+def test_a_world_that_only_knows_at_the_end_is_asked_once_it_is_over():
+    """The normal case off a simulator: a person watching says afterwards, a
+    chained suite counts subtasks afterwards, an offline comparison has nothing
+    to say until the episode is exhausted."""
+
+    class Late(Counter):
+        def __init__(self, answer):
+            super().__init__()
+            self.answer = answer
+            self.asked = 0
+
+        def verdict(self, trial):
+            self.asked += 1
+            return self.answer
+
+    for answer, expected in ((True, True), (False, False), (None, None)):
+        world = Late(answer)
+        suite = Suite(world=world)
+        record = suite.run(Steady(), suite.task_for(scenes=2, horizon=4), Protocol())
+        assert world.asked == 2
+        assert [e.labels.success for e in record.episodes] == [expected, expected]
+
+    # An abstaining world contributes no rate at all rather than a rate of zero.
+    assert (
+        Suite(world=Late(None)).run(Steady(), Suite().task_for(scenes=2), Protocol()).metrics == {}
+    )
+
+
+def test_a_per_step_predicate_is_not_asked_again_at_the_end():
+    """Redundant, and worse than redundant: a suite that answers both would have
+    two sources of truth for one field."""
+
+    class Both(Counter):
+        def __init__(self):
+            super().__init__(win_at=2)
+            self.asked = 0
+
+        def verdict(self, trial):
+            self.asked += 1
+            return False
+
+    world = Both()
+    suite = Suite(world=world)
+    record = suite.run(Steady(), suite.task_for(scenes=1, horizon=6), Protocol())
+    assert world.asked == 0
+    assert record.episodes[0].labels.success is True
+
+
+def test_an_operator_who_cannot_answer_loses_the_trial_not_the_run():
+    class Grumpy(Counter):
+        def verdict(self, trial):
+            raise RuntimeError("the operator went to lunch")
+
+    suite = Suite(world=Grumpy())
+    record = suite.run(Steady(), suite.task_for(scenes=2, horizon=4), Protocol())
+    assert len(record.episodes) == 2
+    assert all(e.labels.success is None for e in record.episodes)
+    assert "lunch" in record.episodes[0].labels.annotations["error"]

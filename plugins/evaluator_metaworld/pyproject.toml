@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-evaluator-metaworld"
+version = "0.1.0.dev0"
+description = "Runs a policy over the Meta-World fifty"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# The simulator is not a hard dependency. This plugin installs on a laptop, and
+# its descriptor and task list can be read and planned against with nothing
+# heavier than numpy present.
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+sim = ["metaworld>=2.0", "gymnasium"]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.evaluators"]
+metaworld = "gantry_evaluator_metaworld:MetaworldEvaluator"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

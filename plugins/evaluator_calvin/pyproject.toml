@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-evaluator-calvin"
+version = "0.1.0.dev0"
+description = "Runs a policy over CALVIN instruction chains, scored by chain length"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# The simulator is not a hard dependency. This plugin installs on a laptop, and
+# its descriptor and task list can be read and planned against with nothing
+# heavier than numpy present.
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+sim = ["calvin_env"]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.evaluators"]
+calvin = "gantry_evaluator_calvin:CalvinEvaluator"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

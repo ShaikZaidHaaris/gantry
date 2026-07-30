@@ -116,6 +116,26 @@ class World(Protocol):
         """Release whatever was held. Called once per run, not per trial."""
 
 
+class Concluding(Protocol):
+    """A world that only knows the outcome once the attempt is over.
+
+    Optional, and checked for by ``hasattr`` rather than required, because for a
+    simulator with a per-step predicate it would be redundant. But it is the
+    normal case everywhere else: a person on a real bench says what happened
+    after watching the whole thing, a chained long-horizon suite counts how many
+    subtasks were completed at the end, and an offline comparison has nothing to
+    say until the episode is exhausted.
+
+    Without this hook every such adapter would have to fake a per-step answer,
+    and the natural fake — report failure until the last step — makes a trial
+    that ran out of horizon indistinguishable from one that was watched and
+    judged to have failed.
+    """
+
+    def verdict(self, trial: "Trial") -> bool | None:
+        """Whether the attempt succeeded, now that it is over. ``None`` to abstain."""
+
+
 @dataclass
 class Trial:
     """One attempt, accumulating."""
@@ -134,10 +154,20 @@ class Trial:
         return tuple(event.name for event in self.events)
 
     def note(self, reached: Sequence[str]) -> None:
+        """Record milestones newly reached, indexed by the step that caused them.
+
+        ``steps - 1`` rather than ``steps``: this is called after the counter has
+        been advanced, so the action responsible is the one at the previous index.
+        Off by one and a milestone reached on the final step points one past the
+        end of the episode — which is exactly how conformance caught it, since a
+        stage event outside the episode's step range makes a funnel unjoinable to
+        the frames it is supposed to explain.
+        """
         seen = set(self.reached)
+        index = max(0, self.steps - 1)
         for name in reached:
             if name not in seen:
-                self.events.append(StageEvent(name=str(name), step=self.steps))
+                self.events.append(StageEvent(name=str(name), step=index))
                 seen.add(str(name))
 
     def observe(self, observation: Mapping[str, Any], keep: Sequence[str] | None) -> None:
@@ -324,8 +354,25 @@ class ClosedLoop(Evaluator):
                 if step.success is not None:
                     trial.success = bool(step.success)
                 if step.success or step.done:
-                    return trial
+                    return self.conclude(world, trial)
         trial.truncated = True
+        return self.conclude(world, trial)
+
+    def conclude(self, world: Any, trial: Trial) -> Trial:
+        """Give a world that only knows at the end its chance to say.
+
+        Only asked when nothing per-step established an outcome, so a simulator
+        with a success predicate is unaffected. A world whose ``verdict`` raises
+        loses that trial rather than the run — the same call made for a policy
+        that raises, and for the same reason: on a real bench the thing that
+        raises here is usually an operator answering a prompt.
+        """
+        if trial.success is not None or not hasattr(world, "verdict"):
+            return trial
+        try:
+            trial.success = world.verdict(trial)
+        except Exception as error:  # noqa: BLE001 - one trial, not the run
+            trial.error = f"{type(error).__name__}: {error}"
         return trial
 
     # -- assembling --------------------------------------------------------
