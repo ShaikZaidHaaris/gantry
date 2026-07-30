@@ -66,7 +66,32 @@ class Layout:
     images: Mapping[str, str]
     state: int
     action: int
+    #: The key openpi expects the state under, on the wire.
     state_key: str = "state"
+    #: The key the cameras nest under, or ``None`` for flat top-level keys.
+    #:
+    #: Both shapes are real and neither is guessable from the config name. The
+    #: Aloha-family transforms read ``data["images"]["cam_high"]``; the DROID one
+    #: reads ``data["observation/exterior_image_1_left"]`` at the top level. Send
+    #: the wrong shape and the server raises KeyError deep inside its own
+    #: transform stack, which is a long way from anything that names the cause.
+    images_key: str | None = "images"
+    #: Whether the cameras go on the wire channel-first, ``(3, H, W)``.
+    #:
+    #: The Aloha-family transform does ``rearrange(img, "c h w -> h w c")``, so
+    #: it wants channel-first and silently mangles anything else — a (224,224,3)
+    #: frame arrives as a 3-pixel-tall image of 224 channels and dies inside PIL,
+    #: several layers below anything that names the cause. Nothing in the config
+    #: name says which way round it is.
+    channels_first: bool = True
+    #: The Gantry channel it is read from. Separate because these are two
+    #: different namespaces and conflating them was a real bug: a dataset whose
+    #: channel is ``observation.state`` served to a config whose wire key is
+    #: ``state`` failed with "the observation is missing ['state']", which reads
+    #: as a missing channel rather than as a mapping that was never expressed.
+    #: Images always had this mapping; state did not, and nothing noticed until a
+    #: real server was on the other end.
+    state_from: str | None = None
     prompt_key: str | None = "prompt"
     #: Per-dimension names for the action and state vectors. Optional in general
     #: and close to mandatory for anything bimanual.
@@ -100,9 +125,14 @@ class Layout:
             )
 
     @property
+    def reads(self) -> str:
+        """The Gantry channel the state comes from."""
+        return self.state_from or self.state_key
+
+    @property
     def channels(self) -> tuple[str, ...]:
         """Gantry-side channel names this layout reads, cameras then state."""
-        return (*self.images, self.state_key)
+        return (*self.images, self.reads)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -111,6 +141,10 @@ class Layout:
             "state": self.state,
             "action": self.action,
             "arms": self.arms,
+            "state_key": self.state_key,
+            "images_key": self.images_key,
+            "channels_first": self.channels_first,
+            "state_from": self.reads,
             "prompt_key": self.prompt_key,
             **dict(self.metadata),
         }
@@ -142,6 +176,10 @@ DROID = Layout(
     state=8,
     action=8,
     state_key="observation/joint_position",
+    # DROID's transform reads flat top-level keys rather than a nested block,
+    # and takes frames the way a camera hands them over.
+    images_key=None,
+    channels_first=False,
     labels=tuple([f"joint_{index}" for index in range(7)] + ["gripper"]),
     arms=1,
     metadata={"rig": "DROID / Franka", "control": "joint velocity"},
@@ -189,6 +227,9 @@ def layout_for(raw: Layout | Mapping[str, Any] | str) -> Layout:
         state=int(data.pop("state", 0)),
         action=int(data.pop("action", 0)),
         state_key=str(data.pop("state_key", "state")),
+        state_from=data.pop("state_from", None),
+        images_key=data.pop("images_key", "images"),
+        channels_first=bool(data.pop("channels_first", True)),
         prompt_key=data.pop("prompt_key", "prompt"),
         labels=tuple(str(label) for label in labels),
         arms=int(data.pop("arms", 1)),

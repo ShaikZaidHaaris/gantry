@@ -201,7 +201,7 @@ class Pi0Policy(Policy):
         ]
         channels.append(
             ChannelSpec(
-                self._layout.state_key,
+                self._layout.reads,
                 "vector",
                 (self._layout.state,),
                 "float32",
@@ -262,16 +262,21 @@ class Pi0Policy(Policy):
         """
         channels = observation.channels
         payload: dict[str, Any] = {}
+        images: dict[str, Any] = {}
         missing: list[str] = []
         for name, key in self._layout.images.items():
             if name not in channels:
                 missing.append(name)
                 continue
-            payload[key] = _image(channels[name])
-        if self._layout.state_key not in channels:
-            missing.append(self._layout.state_key)
+            images[key] = _image(channels[name], self._layout.channels_first)
+        if self._layout.images_key:
+            payload[self._layout.images_key] = images
         else:
-            state = np.asarray(channels[self._layout.state_key], dtype="float32").reshape(-1)
+            payload.update(images)
+        if self._layout.reads not in channels:
+            missing.append(self._layout.reads)
+        else:
+            state = np.asarray(channels[self._layout.reads], dtype="float32").reshape(-1)
             if state.size != self._layout.state:
                 raise ComponentError(
                     f"{self._name}: state is {state.size} wide and the "
@@ -360,7 +365,7 @@ def bimanual(host: str = "localhost", port: int = 8000, **kwargs: Any) -> Pi0Pol
     return Pi0Policy(layout="aloha", host=host, port=port, **kwargs)
 
 
-def _image(value: Any) -> np.ndarray:
+def _image(value: Any, channels_first: bool = False) -> np.ndarray:
     """One camera, as uint8 HWC.
 
     Float images in [0, 1] are common from a pipeline that normalised early, and
@@ -368,13 +373,15 @@ def _image(value: Any) -> np.ndarray:
     an error. So the conversion is explicit and the range is checked.
     """
     array = np.asarray(value)
-    if array.dtype == np.uint8:
-        return array
-    if np.issubdtype(array.dtype, np.floating):
-        peak = float(np.nanmax(array)) if array.size else 0.0
-        scaled = array * 255.0 if peak <= 1.0 else array
-        return np.clip(scaled, 0, 255).astype("uint8")
-    return array.astype("uint8")
+    if array.dtype != np.uint8:
+        if np.issubdtype(array.dtype, np.floating):
+            peak = float(np.nanmax(array)) if array.size else 0.0
+            array = array * 255.0 if peak <= 1.0 else array
+            array = np.clip(array, 0, 255)
+        array = array.astype("uint8")
+    if channels_first and array.ndim == 3 and array.shape[-1] in (1, 3, 4):
+        array = np.transpose(array, (2, 0, 1))
+    return np.ascontiguousarray(array)
 
 
 def prompts_of(episodes: Sequence[Any]) -> dict[str, int]:

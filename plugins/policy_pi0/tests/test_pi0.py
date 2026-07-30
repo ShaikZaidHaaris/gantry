@@ -255,16 +255,18 @@ def test_float_images_are_converted_rather_than_sent_near_black():
     channels = {name: np.full((8, 8, 3), 0.5, dtype="float32") for name in ALOHA.images}
     channels["state"] = np.zeros(14, dtype="float32")
     made.act(Observation(0, channels))
-    sent = made.server.seen[0]["cam_high"]
+    sent = made.server.seen[0]["images"]["cam_high"]
     assert sent.dtype == np.uint8
     assert int(sent.max()) == 127
+    # channel-first for the aloha family, which its transform requires
+    assert sent.shape == (3, 8, 8)
 
 
 def test_uint8_images_pass_through_untouched():
     made = policy()
     made.reset(EpisodeContext("ep-0", instruction="x"))
     made.act(observation())
-    assert made.server.seen[0]["cam_high"].dtype == np.uint8
+    assert made.server.seen[0]["images"]["cam_high"].dtype == np.uint8
 
 
 def test_the_channels_are_named_by_the_layout_not_by_this_plugin():
@@ -379,3 +381,76 @@ def test_against_a_real_server():  # pragma: no cover
     made = bimanual(host="localhost", port=8000)
     made.reset(EpisodeContext("ep-0", instruction="pick up the mug"))
     assert made.act(observation()).shape[1] == 14
+
+
+def test_the_wire_key_and_the_channel_it_reads_are_separate():
+    """Two namespaces, and conflating them was a real bug found only when a real
+    server was on the other end: a dataset whose channel is `observation.state`
+    served to a config whose wire key is `state` failed with "missing ['state']",
+    which reads as a missing channel rather than an unexpressed mapping."""
+    layout = Layout(
+        name="ego",
+        images={"ego_rgb": "cam_high"},
+        state=14,
+        action=14,
+        state_key="state",
+        state_from="observation.state",
+        labels=bimanual_labels(),
+        arms=2,
+    )
+    made = policy(FakeServer(width=14), layout=layout)
+    assert layout.reads == "observation.state"
+    assert [c.name for c in made.observes().channels][-1] == "observation.state"
+
+    made.reset(EpisodeContext("ep-0", instruction="x"))
+    made.act(
+        Observation(
+            0,
+            {
+                "ego_rgb": np.zeros((8, 8, 3), dtype="uint8"),
+                "observation.state": np.zeros(14, dtype="float32"),
+            },
+        )
+    )
+    sent = made.server.seen[0]
+    assert "state" in sent and "observation.state" not in sent
+    assert "cam_high" in sent["images"]
+
+
+def test_state_from_defaults_to_the_wire_key():
+    assert ALOHA.reads == ALOHA.state_key == "state"
+
+
+def test_cameras_nest_or_stay_flat_as_the_config_requires():
+    """Both shapes are real and neither is guessable from the config name. Send
+    the wrong one and the server raises KeyError deep inside its own transform
+    stack, a long way from anything that names the cause."""
+    nested = policy()  # aloha: images_key="images"
+    nested.reset(EpisodeContext("ep-0", instruction="x"))
+    nested.act(observation())
+    sent = nested.server.seen[0]
+    assert "images" in sent and "cam_high" in sent["images"]
+    assert "cam_high" not in sent
+
+    flat = policy(FakeServer(width=8), layout="droid")
+    flat.reset(EpisodeContext("ep-0", instruction="x"))
+    flat.act(observation(DROID))
+    sent = flat.server.seen[0]
+    assert "observation/exterior_image_1_left" in sent
+    assert "images" not in sent
+
+
+def test_channel_order_follows_the_config_and_not_a_guess():
+    """The aloha transform rearranges "c h w -> h w c", so it wants channel
+    first and mangles anything else — a (224,224,3) frame arrives as a
+    3-pixel-tall image of 224 channels and dies inside PIL, several layers below
+    anything that names the cause."""
+    aloha = policy()
+    aloha.reset(EpisodeContext("ep-0", instruction="x"))
+    aloha.act(observation())
+    assert aloha.server.seen[0]["images"]["cam_high"].shape == (3, 8, 8)
+
+    droid = policy(FakeServer(width=8), layout="droid")
+    droid.reset(EpisodeContext("ep-0", instruction="x"))
+    droid.act(observation(DROID))
+    assert droid.server.seen[0]["observation/exterior_image_1_left"].shape == (8, 8, 3)
