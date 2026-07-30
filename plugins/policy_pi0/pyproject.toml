@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-policy-pi0"
+version = "0.1.0.dev0"
+description = "Serves pi-zero / pi-0.5 over openpi's websocket as a Gantry policy"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# The model, JAX and the weights live on the server. This side is a socket.
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+client = ["openpi-client"]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.policies"]
+pi0 = "gantry_policy_pi0:Pi0Policy"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
