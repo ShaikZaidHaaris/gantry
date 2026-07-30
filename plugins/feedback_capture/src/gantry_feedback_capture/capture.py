@@ -378,8 +378,18 @@ class Capture(FeedbackModule):
         counts: Mapping[str, int],
         rank: int,
     ) -> Finding:
+        # `missing` is the *actual* shortfall a person would recognise — footage
+        # with no hands in it at all is 100% missing, not 90%. An earlier version
+        # formatted the distance below the threshold instead, so a clip with
+        # hands_visible=0.0 was reported as "out of frame for 90%" because the
+        # bar happened to sit at 0.9. Nothing in the tests caught it; the first
+        # real video did, immediately.
+        #
+        # `shortfall` keeps the distance-past-the-bar, because that is what the
+        # ordering is computed from and it is genuinely a different quantity.
         context = {
-            "missing": max(0.0, check.threshold - value) if check.below else value,
+            "missing": max(0.0, 1.0 - value) if check.below else value,
+            "shortfall": max(0.0, check.threshold - value) if check.below else value,
             "affected": int(round(value * counts["clips"])),
             **counts,
         }

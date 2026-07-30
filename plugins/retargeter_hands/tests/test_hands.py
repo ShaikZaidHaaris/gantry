@@ -473,3 +473,24 @@ def test_the_moving_frame_refusal_comes_before_the_scale_one():
     source = hand_command("hand", scale="unscaled", frame="camera")
     explanation = retargeter(hand=Hand(closed=0.02, open=0.10)).accepts(source, TARGET).explain()
     assert "hands.moving_frame" in explanation
+
+
+def test_image_coordinates_are_refused_separately_from_unscaled():
+    """The distinction the first real ego video taught.
+
+    An unscaled metric hand is right up to one multiplier, and a measured span
+    recovers it. An image coordinate is a pixel fraction — x and y are fractions
+    of the frame, z is a relative offset near zero — and no span rescues it.
+    Treating the second as the first produced a smooth, confident trajectory
+    inside a 19 cm box, which reads as an arm that never reaches anything.
+    """
+    image = hand_command("hand", scale="normalized", frame="world")
+    verdict = retargeter().accepts(image, TARGET)
+
+    assert not verdict.ok
+    assert "hands.image_coordinates" in verdict.explain()
+    assert "needs depth" in verdict.explain()
+
+    # A measured span does not change the answer, which is the point.
+    with_span = HandToArm(mount=Mount.aligned(), hand=HAND)
+    assert not with_span.accepts(image, TARGET).ok

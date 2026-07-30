@@ -99,6 +99,20 @@ class Track:
 
     keypoints: Mapping[str, np.ndarray]
     confidence: Mapping[str, np.ndarray]
+    #: Hand-centred metric landmarks, where the estimator produces them.
+    #:
+    #: The distinction between this and ``keypoints`` is the single most
+    #: important thing in this file, and getting it wrong produced smooth,
+    #: confident, wrong trajectories on the first real video ever run through
+    #: here. ``keypoints`` are image-normalised — x and y are fractions of the
+    #: frame and z is a relative offset near zero. ``world`` is metres, centred
+    #: on the hand itself.
+    #:
+    #: So the hand's *shape* is metric and its *position in the scene* is not,
+    #: and no amount of arithmetic on image coordinates recovers the second.
+    #: That is the whole Tier-1 versus Tier-2 distinction, and it is a property
+    #: of monocular video rather than of any particular estimator.
+    world: Mapping[str, np.ndarray] = field(default_factory=dict)
     #: Which convention the joints are in. Load-bearing — see the ego vocabulary
     #: on why MANO and MediaPipe are both 21 joints and not interchangeable.
     convention: str = "mediapipe"
@@ -150,6 +164,7 @@ def mediapipe(model_path: str | None = None, **options: Any) -> Estimator:
                 )
             )
             points = {hand: [] for hand in HANDS}
+            world = {hand: [] for hand in HANDS}
             scores = {hand: [] for hand in HANDS}
             for frame in frames:
                 image = mp.Image(image_format=mp.ImageFormat.SRGB, data=np.asarray(frame))
@@ -162,15 +177,25 @@ def mediapipe(model_path: str | None = None, **options: Any) -> Estimator:
                     index = found.get(hand)
                     if index is None:
                         points[hand].append(np.zeros((21, 3), dtype="float32"))
+                        world[hand].append(np.zeros((21, 3), dtype="float32"))
                         scores[hand].append(0.0)
                         continue
                     marks = result.hand_landmarks[index]
                     points[hand].append(
                         np.asarray([[m.x, m.y, m.z] for m in marks], dtype="float32")
                     )
+                    metric = (getattr(result, "hand_world_landmarks", None) or [None])[
+                        index if result.hand_world_landmarks else 0
+                    ]
+                    world[hand].append(
+                        np.asarray([[m.x, m.y, m.z] for m in metric], dtype="float32")
+                        if metric is not None
+                        else np.zeros((21, 3), dtype="float32")
+                    )
                     scores[hand].append(float(result.handedness[index][0].score))
             return Track(
                 keypoints={hand: np.stack(points[hand]) for hand in HANDS},
+                world={hand: np.stack(world[hand]) for hand in HANDS},
                 confidence={hand: np.asarray(scores[hand], dtype="float32") for hand in HANDS},
                 convention="mediapipe",
                 metadata={"estimator": "mediapipe.HandLandmarker"},
@@ -348,8 +373,10 @@ class HandPoseConnector(Connector):
             # nothing else here would have kept the difference.
             estimator=type(self._estimator).__name__ if self._estimator else "none",
             derived_from=f"{upstream.name}@{upstream.version}",
-            # Said once, loudly: everything this produces is monocular.
-            scale="unscaled",
+            # Said once, loudly. Position is image-normalised and stays that
+            # way; only the hand's own shape is metric.
+            scale="normalized",
+            metric_shape=True,
             found_threshold=self._found,
         )
 
@@ -387,33 +414,46 @@ class HandPoseConnector(Connector):
         for hand in HANDS:
             if hand not in track.keypoints:
                 continue
-            points = np.asarray(track.keypoints[hand], dtype="float32")
+            image = np.asarray(track.keypoints[hand], dtype="float32")
+            metric = np.asarray(track.world.get(hand, np.zeros_like(image)), dtype="float32")
+            has_world = bool(track.world) and np.any(metric)
             confidence = np.asarray(track.confidence[hand], dtype="float32")
-            wrist = wrist_from(points, convention=track.convention)
-            aperture = aperture_from(points, convention=track.convention)
 
-            arrays[f"{hand}_hand"] = points
+            # Orientation comes from the metric hand where there is one: a
+            # rotation needs no scale, so this part IS recoverable from a single
+            # camera. Position does not come with it — the world landmarks are
+            # centred on the hand, so they say what shape it is and nothing about
+            # where it was.
+            shape_source = metric if has_world else image
+            wrist = wrist_from(shape_source, convention=track.convention)
+            # Position from the image, which is where the only positional
+            # information exists, and declared normalized so nothing downstream
+            # mistakes a pixel fraction for a metre.
+            wrist[:, :3] = image[:, 0, :]
+
+            arrays[f"{hand}_hand"] = image
             arrays[f"{hand}_wrist"] = wrist
-            arrays[f"{hand}_aperture"] = aperture
             arrays[f"{hand}_confidence"] = confidence
             schema += [
                 hand_channel(
                     f"{hand}_hand",
                     hand=hand,
                     keypoints=track.convention,
-                    scale="unscaled",
-                    frame="camera",
+                    scale="normalized",
+                    frame="image",
                     rate_hz=rate,
                 ),
                 wrist_channel(
                     f"{hand}_wrist",
                     hand=hand,
-                    scale="unscaled",
+                    # normalized, not unscaled: these are pixel fractions, and no
+                    # arithmetic on them recovers metres. A hand span rescues an
+                    # unscaled metric hand; it cannot rescue an image coordinate.
+                    scale="normalized",
                     rotation_repr="quat_wxyz",
                     frame="camera",
                     rate_hz=rate,
                 ),
-                aperture_channel(f"{hand}_aperture", hand=hand, scale="unscaled", rate_hz=rate),
                 ChannelSpec(
                     f"{hand}_confidence",
                     "scalar",
@@ -423,6 +463,31 @@ class HandPoseConnector(Connector):
                     metadata={"estimator": track.metadata.get("estimator", "unknown")},
                 ),
             ]
+            if has_world:
+                # The half that genuinely is metric: hand shape, in metres,
+                # centred on the hand. The aperture computed from it is a real
+                # distance, which is what makes the gripper command trustworthy
+                # even when the wrist trajectory is not.
+                arrays[f"{hand}_shape"] = metric
+                arrays[f"{hand}_aperture"] = aperture_from(metric, convention=track.convention)
+                schema += [
+                    hand_channel(
+                        f"{hand}_shape",
+                        hand=hand,
+                        keypoints=track.convention,
+                        scale="metric",
+                        frame="head",
+                        rate_hz=rate,
+                    ),
+                    aperture_channel(f"{hand}_aperture", hand=hand, scale="metric", rate_hz=rate),
+                ]
+            else:
+                arrays[f"{hand}_aperture"] = aperture_from(image, convention=track.convention)
+                schema.append(
+                    aperture_channel(
+                        f"{hand}_aperture", hand=hand, scale="normalized", rate_hz=rate
+                    )
+                )
 
         signals = self._signals(track, frames, rate)
         labels = original.labels
@@ -439,7 +504,10 @@ class HandPoseConnector(Connector):
                     **dict(original.meta.extra),
                     "estimator": track.metadata.get("estimator", type(self.estimator).__name__),
                     "keypoints": track.convention,
-                    "scale": "unscaled",
+                    # Two answers, because there are two quantities. The hand's
+                    # shape is metres; where it was in the room is not.
+                    "scale": "normalized",
+                    "shape_scale": "metric" if track.world else "normalized",
                 },
             ),
             schema=tuple(schema),
@@ -481,7 +549,7 @@ class HandPoseConnector(Connector):
             "usable_length": 1.0 if steps >= self._min_steps else 0.0,
             "steps": int(steps),
             "keypoints": track.convention,
-            "scale": "unscaled",
+            "scale": "normalized",
         }
 
     def _upstream(self, episode_id: str) -> str:

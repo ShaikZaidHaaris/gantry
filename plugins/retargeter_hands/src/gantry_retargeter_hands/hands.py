@@ -221,6 +221,19 @@ class HandToArm(Retargeter):
         scale = source.metadata.get(KEY_SCALE)
         if scale == "metric":
             return Verdict.yes()
+        if scale == "normalized":
+            return Verdict.no(
+                "hands.image_coordinates",
+                f"{source.name} is in normalized coordinates — pixel fractions, not "
+                "a metric hand at an unknown scale",
+                hint="a hand span rescues an unscaled *metric* hand; it cannot "
+                "rescue an image coordinate, because x and y are fractions of the "
+                "frame and z is a relative offset near zero. Multiplying them by a "
+                "span produces a smooth trajectory inside a box the size of a hand, "
+                "which reads as an arm that never reaches anything. Monocular video "
+                "gives hand shape and orientation; position needs depth, SLAM, or a "
+                "calibrated capture",
+            )
         if scale is None:
             return Verdict.no(
                 "hands.scale_undeclared",

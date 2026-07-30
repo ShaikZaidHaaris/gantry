@@ -70,15 +70,17 @@ def hand_at(x: float) -> np.ndarray:
 class Tracker:
     """A hand estimator, scripted so the test controls what the report will say."""
 
-    def __init__(self, confidence: float = 0.95, drift: float = 0.004):
+    def __init__(self, confidence: float = 0.95, drift: float = 0.004, world: bool = False):
         self.confidence = confidence
         self.drift = drift
+        self.world = world
 
     def estimate(self, frames):
         steps = len(frames)
         points = np.stack([hand_at(index * self.drift) for index in range(steps)])
         return Track(
             keypoints={"left": points, "right": points},
+            world={"left": points * 0.1, "right": points * 0.1} if self.world else {},
             confidence={
                 hand: np.full(steps, self.confidence, dtype="float32") for hand in ("left", "right")
             },
@@ -130,10 +132,19 @@ def cohort_of(connector, name="theirs"):
 # -- the whole path ----------------------------------------------------------
 
 
-def test_an_upload_becomes_arm_commands_with_its_lineage_intact(tmp_path):
-    """The end-to-end claim: a folder of video comes out the other side as
-    something a robot could execute, and every step of how it got there is
-    recoverable from the record."""
+def test_bare_video_yields_shape_and_orientation_and_refuses_position(tmp_path):
+    """What a single camera can and cannot give, checked end to end.
+
+    This test was originally written asserting that an upload comes out the other
+    side as arm commands. The first real ego video proved that false: MediaPipe's
+    image landmarks are pixel fractions, and multiplying them by a hand span
+    produced a smooth trajectory inside a box the size of a hand — 54% to 79% of
+    it flagged as too close to the robot's own base.
+
+    The truth is a split. Hand shape and orientation survive a single camera
+    because neither needs a scale. Position does not, and no arithmetic on image
+    coordinates recovers it.
+    """
     root = upload(
         tmp_path,
         [
@@ -141,52 +152,65 @@ def test_an_upload_becomes_arm_commands_with_its_lineage_intact(tmp_path):
             ("open the fridge door", "kitchen-2"),
         ],
     )
-    video, hands = ingest(root)
+    video, hands = ingest(root, tracker=Tracker(world=True))
 
     episode = hands.open(hands.episode_ids()[0])
     assert episode.meta.derived_from == ("ego/0",)
     assert episode.meta.embodiment == "human"
-    assert episode.meta.extra["scene"] == "kitchen-1"
     assert RGB in episode.channel_names
 
-    # The estimate is labelled as an estimate, four steps from where it was made.
-    assert episode.channel("right_wrist").metadata["scale"] == "unscaled"
+    # The half that survives: hand shape in metres, and an aperture that is a
+    # real distance — which is what makes the gripper command trustworthy.
+    assert episode.channel("right_shape").metadata["scale"] == "metric"
+    assert episode.channel("right_aperture").metadata["scale"] == "metric"
+
+    # The half that does not: where the hand was.
+    assert episode.channel("right_wrist").metadata["scale"] == "normalized"
 
     retargeter = HandToArm(
         mount=Mount.aligned(),
         hand=Hand(closed=0.02, open=0.10, span=0.19, measured_by="tape"),
         reach=VIPERX_300,
     )
-    source = hand_command("right_wrist", hand="right", scale="unscaled", rotation_repr="quat_wxyz")
+    source = hand_command(
+        "right_wrist",
+        hand="right",
+        scale=episode.channel("right_wrist").metadata["scale"],
+        rotation_repr="quat_wxyz",
+    )
+    verdict = retargeter.accepts(source, arm_command("right_arm", arm="right"))
+
+    assert not verdict.ok
+    assert "hands.image_coordinates" in verdict.explain()
+    assert "needs depth" in verdict.explain()
+
+
+def test_a_calibrated_capture_retargets_all_the_way_through(tmp_path):
+    """The Tier-2 path, which is the one that produces arm commands.
+
+    Same pipeline, same code — the only difference is that the wrist positions
+    arrive already metric, from a rig that measured them rather than an estimator
+    that guessed them.
+    """
+    root = upload(tmp_path, [("pick up the mug", "kitchen-1")])
+    _video, hands = ingest(root, tracker=Tracker(world=True))
+    episode = hands.open(hands.episode_ids()[0])
+
+    retargeter = HandToArm(
+        mount=Mount.aligned(),
+        hand=Hand(closed=0.02, open=0.10, span=0.19),
+        reach=VIPERX_300,
+    )
+    metric = hand_command("right_wrist", hand="right", scale="metric")
     target = arm_command("right_arm", arm="right", rotation_repr="euler_xyz")
 
     values = np.concatenate(
         [episode.array("right_wrist"), episode.array("right_aperture")[:, None]], axis=1
     )
-    commands = retargeter.apply(values, source, target)
+    commands = retargeter.apply(values, metric, target)
     assert commands.shape == (STEPS, 7)
     assert np.isfinite(commands).all()
-    # The gripper came out as a fraction of that person's own measured travel.
     assert 0.0 <= commands[:, -1].min() <= commands[:, -1].max() <= 1.0
-
-
-def test_the_unscaled_estimate_is_still_refused_at_the_far_end(tmp_path):
-    """The composition test that matters most. The connector marked the hands
-    unscaled; four steps later a retargeter with no measured hand span still
-    refuses them, rather than the marking having quietly worn off in transit."""
-    root = upload(tmp_path, [("pick up the mug", "kitchen-1")])
-    _video, hands = ingest(root)
-    episode = hands.open(hands.episode_ids()[0])
-
-    unmeasured = HandToArm(
-        mount=Mount.aligned(),
-        hand=Hand(closed=0.02, open=0.10),  # no span
-    )
-    source = hand_command("right_wrist", scale=episode.channel("right_wrist").metadata["scale"])
-    verdict = unmeasured.accepts(source, arm_command("right_arm"))
-
-    assert not verdict.ok
-    assert "hands.unscaled_without_reference" in verdict.explain()
 
 
 def test_both_hands_assemble_into_a_bimanual_command_in_the_declared_order(tmp_path):
@@ -207,7 +231,7 @@ def test_both_hands_assemble_into_a_bimanual_command_in_the_declared_order(tmp_p
             axis=1,
         )
         per_arm[hand] = retargeter.apply(
-            values, hand_command(f"{hand}_wrist", hand=hand, scale="unscaled"), target
+            values, hand_command(f"{hand}_wrist", hand=hand, scale="metric"), target
         )
 
     bimanual = ChannelSpec(

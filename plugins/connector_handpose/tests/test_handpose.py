@@ -107,7 +107,9 @@ class Scripted:
         hands=("left", "right"),
         convention="mediapipe",
         omit_confidence=False,
+        world=False,
     ):
+        self.world = world
         self.confidence = confidence
         self.drift = drift
         self.hands = hands
@@ -125,6 +127,7 @@ class Scripted:
         scores = {hand: np.full(steps, self.confidence, dtype="float32") for hand in self.hands}
         return Track(
             keypoints=points,
+            world={h: v * 0.1 for h, v in points.items()} if self.world else {},
             confidence={} if self.omit_confidence else scores,
             convention=self.convention,
             metadata={"estimator": "scripted"},
@@ -142,14 +145,33 @@ def derived(**kwargs):
 # -- the estimate stays an estimate -----------------------------------------
 
 
-def test_every_hand_channel_says_it_is_unscaled():
-    """The whole reason this is a separate dataset. A monocular estimate that
-    presented itself as metres would be retargeted as though it were, and the arm
-    would reach for points that do not exist."""
+def test_position_is_normalized_and_only_the_hand_shape_is_metric():
+    """The distinction the first real video taught, expensively.
+
+    Image landmarks are pixel fractions; world landmarks are metres centred on
+    the hand. So the hand's shape is metric and its position in the room is not,
+    and calling both "unscaled" let a hand span be applied to a pixel fraction —
+    which produced a smooth, confident trajectory inside a 19 cm box.
+    """
     episode = derived().open("handpose/ego/0")
-    for name in ("left_hand", "right_hand", "left_wrist", "right_aperture"):
-        assert episode.channel(name).metadata["scale"] == "unscaled"
-    assert episode.meta.extra["scale"] == "unscaled"
+    for name in ("left_hand", "right_hand", "left_wrist"):
+        assert episode.channel(name).metadata["scale"] == "normalized"
+    assert episode.meta.extra["scale"] == "normalized"
+
+
+def test_the_metric_half_is_labelled_metric():
+    """Aperture from world landmarks is a real distance in metres, which is what
+    makes the gripper command trustworthy even when the wrist trajectory is not."""
+    episode = derived(estimator=Scripted(world=True)).open("handpose/ego/0")
+    assert episode.channel("left_shape").metadata["scale"] == "metric"
+    assert episode.channel("left_aperture").metadata["scale"] == "metric"
+    assert episode.meta.extra["shape_scale"] == "metric"
+
+
+def test_without_world_landmarks_nothing_claims_to_be_metric():
+    episode = derived().open("handpose/ego/0")
+    assert "left_shape" not in episode.channel_names
+    assert episode.channel("left_aperture").metadata["scale"] == "normalized"
 
 
 def test_the_lineage_points_back_at_the_footage_it_was_guessed_from():
@@ -164,7 +186,7 @@ def test_the_descriptor_names_the_estimator_and_the_dataset_it_came_from():
     metadata = derived().descriptor().metadata
     assert metadata["estimator"] == "Scripted"
     assert metadata["derived_from"] == "ego@0.1"
-    assert metadata["scale"] == "unscaled"
+    assert metadata["scale"] == "normalized"
 
 
 def test_the_keypoint_convention_travels_on_the_channel_and_the_episode():
