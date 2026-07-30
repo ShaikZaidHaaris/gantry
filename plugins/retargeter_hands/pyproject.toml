@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-retargeter-hands"
+version = "0.1.0.dev0"
+description = "A person's hand trajectory as a robot arm's pose-and-gripper command"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# The rotation conversions are already written and tested next door; a second
+# quaternion implementation in this repo would be a second place for the wxyz
+# versus xyzw mistake to live.
+dependencies = ["gantry-core", "gantry-adapters-rotation", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.retargeters"]
+hands = "gantry_retargeter_hands:HandToArm"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
