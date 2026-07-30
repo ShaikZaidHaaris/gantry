@@ -51,7 +51,7 @@ from gantry.contracts.feedback import (
     Report,
     feedback_descriptor,
 )
-from gantry.resolve import Requirement
+from gantry.resolve import Requirement, requires_channels
 from gantry.spine import Descriptor, Measurement, Verdict, mcnemar, proportion
 
 VERSION = "0.1.0.dev0"
@@ -198,7 +198,16 @@ class CurationVerifier(FeedbackModule):
         )
 
     def requirement(self) -> Requirement:
-        return Requirement()
+        # A bare Requirement() is not constructible — it needs a name and a
+        # plane — and this went unnoticed because the tests call analyse()
+        # directly while only run() consults it. Anything driven from a
+        # manifest would have hit it.
+        return requires_channels(
+            "verify",
+            "feedback",
+            capabilities={"outcomes": True},
+            description="whether a curation plan produced the effect it predicted",
+        )
 
     def analyse(self, cohorts: Sequence[Cohort]) -> Report:
         named = {cohort.name: cohort for cohort in cohorts}

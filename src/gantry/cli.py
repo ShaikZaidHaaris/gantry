@@ -301,6 +301,131 @@ def cmd_relink(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ci(args: argparse.Namespace) -> int:
+    """Compare a run against the pinned baseline, and fail on a real regression.
+
+    The habit this exists to create: every checkpoint gets paired against the
+    last accepted one automatically, so a regression is caught by a red build
+    rather than by somebody noticing months later. Exits nonzero only when the
+    drop is significant — noise must not block a merge, or the gate gets
+    switched off within a week and stops protecting anything.
+    """
+    from .history import History
+    from .spine import mcnemar, proportion
+    from .spine.inference import trials_needed
+
+    history = History(args.history)
+    candidate = history.get(args.run)
+    if candidate is None:
+        print(f"no run {args.run!r} in {args.history}")
+        return 2
+
+    task = args.task or candidate.task
+    if not task:
+        print("the run names no task and none was given; nothing to compare against")
+        return 2
+
+    baseline = history.baseline_for(task, args.embodiment or candidate.embodiment)
+    if baseline is None:
+        print(f"no baseline pinned for {task!r}")
+        print(f"  pin one:  gantry ci-pin <run> --task {task}")
+        # Not a failure: the first run on a task has nothing to regress against,
+        # and failing here would block the commit that establishes the baseline.
+        return 0
+
+    wins, losses, shared = history.paired(baseline.key, candidate.key)
+    if not shared:
+        print(f"{candidate.key[:8]} and baseline {baseline.key[:8]} share no scene")
+        print("  a paired comparison needs the same seeds; check the protocol")
+        return 2
+
+    before = proportion(sum(1 for v in baseline.outcomes.values() if v), baseline.scored)
+    after = proportion(sum(1 for v in candidate.outcomes.values() if v), candidate.scored)
+    delta = after.value - before.value
+    p = mcnemar(losses, wins)
+    attempts = history.attempts(task=task)
+    threshold = args.alpha / max(1, attempts)
+    regressed = delta < 0 and p < threshold
+
+    lines = [
+        f"### {task}: {candidate.policy or candidate.key[:8]} vs baseline "
+        f"{baseline.policy or baseline.key[:8]}",
+        "",
+        "| | rate | n |",
+        "|---|---|---|",
+        f"| baseline | {before.value:.1%} | {baseline.scored} |",
+        f"| candidate | {after.value:.1%} | {candidate.scored} |",
+        "",
+        f"paired on {shared} shared scene(s): won {wins}, lost {losses}, p={p:.4f}",
+        f"threshold p<{threshold:.4f} ({attempts} run(s) recorded on this task)",
+        "",
+    ]
+    if regressed:
+        lines.append(f"**REGRESSION**: {delta:+.1%} and significant.")
+    elif delta < 0:
+        needed = trials_needed(before.value, abs(delta), alpha=threshold)
+        lines.append(
+            f"Down {delta:+.1%}, but not separable at {shared} trials "
+            f"(about {needed} would be needed). Not blocking."
+        )
+    else:
+        lines.append(f"Up {delta:+.1%}.")
+
+    report = "\n".join(lines)
+    print(report)
+    if args.summary:
+        Path(args.summary).write_text(report + "\n")
+    return 1 if regressed else 0
+
+
+def cmd_ci_pin(args: argparse.Namespace) -> int:
+    """Make a run the reference every later one is compared against."""
+    from .history import History
+
+    history = History(args.history)
+    row = history.get(args.run)
+    if row is None:
+        print(f"no run {args.run!r} in {args.history}")
+        return 2
+    task = args.task or row.task
+    if not task:
+        print("the run names no task and none was given")
+        return 2
+    path = history.pin(args.run, task=task, embodiment=args.embodiment or row.embodiment)
+    print(f"pinned {args.run[:8]} as the baseline for {task!r} -> {path}")
+    return 0
+
+
+def cmd_history(args: argparse.Namespace) -> int:
+    """What has been run, and what it now knows without being told."""
+    from .history import History
+
+    history = History(args.dir)
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "runs": len(history),
+                    "rows": [
+                        {
+                            "key": row.key,
+                            "task": row.task,
+                            "policy": row.policy,
+                            "scorer": row.scorer,
+                            "rate": row.rate,
+                            "trials": row.trials,
+                        }
+                        for row in history
+                    ],
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(history.report())
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gantry",
@@ -368,6 +493,31 @@ def build_parser() -> argparse.ArgumentParser:
     linked.add_argument("--rewrite-plan", help="translate this plan into the target's names")
     linked.add_argument("--rewrite-plan-out")
     linked.set_defaults(func=cmd_relink)
+
+    ci = subparsers.add_parser(
+        "ci", help="compare a run against the pinned baseline; nonzero on regression"
+    )
+    ci.add_argument("run", help="the candidate run's key in history")
+    ci.add_argument("--history", default="history")
+    ci.add_argument("--task", help="defaults to the task the run records")
+    ci.add_argument("--embodiment")
+    ci.add_argument("--alpha", type=float, default=0.05)
+    ci.add_argument("--summary", help="write the markdown report here, for a PR comment")
+    ci.set_defaults(func=cmd_ci)
+
+    pin = subparsers.add_parser("ci-pin", help="make a run the baseline for its task")
+    pin.add_argument("run")
+    pin.add_argument("--history", default="history")
+    pin.add_argument("--task")
+    pin.add_argument("--embodiment")
+    pin.set_defaults(func=cmd_ci_pin)
+
+    hist = subparsers.add_parser(
+        "history", help="what has been run, and the priors that fall out of it"
+    )
+    hist.add_argument("dir", nargs="?", default="history")
+    hist.add_argument("--json", action="store_true")
+    hist.set_defaults(func=cmd_history)
 
     ledger = subparsers.add_parser(
         "ledger", help="which curation signals have actually worked, and where"
