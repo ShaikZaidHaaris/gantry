@@ -67,6 +67,8 @@ from gantry.spine import (
     EpisodeRecord,
 )
 
+from .pnp import Intrinsics, intrinsics_from, plausible, rotations_to_quaternions, solve_sequence
+
 VERSION = "0.1.0.dev0"
 
 #: Both hands, always in this order, so a channel name is enough to say which.
@@ -116,6 +118,21 @@ class Track:
     #: Which convention the joints are in. Load-bearing — see the ego vocabulary
     #: on why MANO and MediaPipe are both 21 joints and not interchangeable.
     convention: str = "mediapipe"
+    #: Metric wrist position in the camera frame, per hand, where the estimator
+    #: recovered one. This is the quantity a retargeter actually needs and the
+    #: one neither `keypoints` nor `world` is on its own.
+    poses: Mapping[str, np.ndarray] = field(default_factory=dict)
+    #: Per-step reprojection error in pixels, where poses were solved.
+    residual: Mapping[str, np.ndarray] = field(default_factory=dict)
+    #: What the weights behind this estimator permit.
+    #:
+    #: Load-bearing rather than decorative. The best monocular hand
+    #: reconstructions available — HaWoR, WiLoR, anything built on MANO — are
+    #: CC-BY-NC-ND and registration-gated, so a dataset produced through one is
+    #: encumbered. That is discovered at legal review rather than at build time
+    #: unless something carries it, and this is the something: it propagates onto
+    #: every derived episode.
+    licence: str = "unknown"
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -319,6 +336,72 @@ def _quaternions(matrices: np.ndarray) -> np.ndarray:
     return np.divide(out, norms, out=np.zeros_like(out), where=norms > 1e-9)
 
 
+def metric(
+    model_path: str | None = None,
+    *,
+    intrinsics: Intrinsics | Mapping[str, Any],
+    max_reprojection: float = 10.0,
+    **options: Any,
+) -> Estimator:
+    """MediaPipe plus perspective-n-point: metric hand pose from one camera.
+
+    The recommended wire, and the one that produces something a retargeter will
+    accept. MediaPipe supplies a metric hand shape and its projection; PnP turns
+    that pair into a pose in metres, using the hand's own measured size as the
+    ruler. Nothing has to be assumed about the person.
+
+    Apache-2.0 throughout, which is why it is the default rather than HaWoR or
+    WiLoR. Those reconstruct better and are CC-BY-NC-ND on top of a
+    registration-gated MANO, so a dataset built through them cannot be sold.
+    """
+    camera = intrinsics_from(intrinsics)
+    if camera is None:
+        raise ConfigError(
+            "metric pose needs the camera's intrinsics. Every distance scales with "
+            "the focal length, so a guessed one makes every number in the dataset "
+            "wrong by the same unseen factor. Use Intrinsics.from_fov() or for_rig() "
+            "if the camera was never calibrated — both record the assumption"
+        )
+    base = mediapipe(model_path, **options)
+
+    class Metric:
+        def estimate(self, frames: np.ndarray) -> Track:
+            track = base.estimate(frames)
+            height, width = np.asarray(frames).shape[1:3]
+            poses: dict[str, np.ndarray] = {}
+            residual: dict[str, np.ndarray] = {}
+            for hand, image in track.keypoints.items():
+                world = np.asarray(track.world.get(hand, ()), dtype=float)
+                if not world.size:
+                    continue
+                pixels = np.asarray(image, dtype=float).copy()
+                pixels[..., 0] *= width
+                pixels[..., 1] *= height
+                positions, rotations, errors = solve_sequence(
+                    world, pixels[..., :2], camera, max_reprojection=max_reprojection
+                )
+                poses[hand] = np.concatenate(
+                    [positions, rotations_to_quaternions(rotations)], axis=1
+                ).astype("float32")
+                residual[hand] = errors
+            return Track(
+                keypoints=track.keypoints,
+                world=track.world,
+                confidence=track.confidence,
+                convention=track.convention,
+                poses=poses,
+                residual=residual,
+                licence="Apache-2.0 (MediaPipe hand landmarker + OpenCV solvePnP)",
+                metadata={
+                    **dict(track.metadata),
+                    "pose_method": "solvePnP(SQPNP) on metric hand landmarks",
+                    **camera.as_dict(),
+                },
+            )
+
+    return Metric()
+
+
 class HandPoseConnector(Connector):
     """Another connector's clips, with hands estimated onto them."""
 
@@ -372,6 +455,7 @@ class HandPoseConnector(Connector):
             # Two runs through different estimators are not comparable and
             # nothing else here would have kept the difference.
             estimator=type(self._estimator).__name__ if self._estimator else "none",
+            licence=getattr(self._estimator, "licence", "unknown"),
             derived_from=f"{upstream.name}@{upstream.version}",
             # Said once, loudly. Position is image-normalised and stays that
             # way; only the hand's own shape is metric.
@@ -424,16 +508,26 @@ class HandPoseConnector(Connector):
             # camera. Position does not come with it — the world landmarks are
             # centred on the hand, so they say what shape it is and nothing about
             # where it was.
-            shape_source = metric if has_world else image
-            wrist = wrist_from(shape_source, convention=track.convention)
-            # Position from the image, which is where the only positional
-            # information exists, and declared normalized so nothing downstream
-            # mistakes a pixel fraction for a metre.
-            wrist[:, :3] = image[:, 0, :]
+            solved = np.asarray(track.poses.get(hand, ()), dtype="float32")
+            if solved.size:
+                # A real pose in metres, recovered by PnP from the hand's own
+                # measured size. This is the only branch a retargeter accepts.
+                wrist = solved
+                wrist_scale, wrist_frame = "metric", "camera"
+            else:
+                shape_source = metric if has_world else image
+                wrist = wrist_from(shape_source, convention=track.convention)
+                # Position from the image, which is where the only positional
+                # information exists, and declared normalized so nothing
+                # downstream mistakes a pixel fraction for a metre.
+                wrist[:, :3] = image[:, 0, :]
+                wrist_scale, wrist_frame = "normalized", "camera"
 
             arrays[f"{hand}_hand"] = image
             arrays[f"{hand}_wrist"] = wrist
             arrays[f"{hand}_confidence"] = confidence
+            if hand in track.residual:
+                arrays[f"{hand}_reprojection"] = np.asarray(track.residual[hand], dtype="float32")
             schema += [
                 hand_channel(
                     f"{hand}_hand",
@@ -446,12 +540,13 @@ class HandPoseConnector(Connector):
                 wrist_channel(
                     f"{hand}_wrist",
                     hand=hand,
-                    # normalized, not unscaled: these are pixel fractions, and no
-                    # arithmetic on them recovers metres. A hand span rescues an
-                    # unscaled metric hand; it cannot rescue an image coordinate.
-                    scale="normalized",
+                    # metric when PnP solved it; otherwise normalized, because
+                    # image landmarks are pixel fractions and no arithmetic on
+                    # them recovers metres. A hand span rescues an unscaled
+                    # metric hand; it cannot rescue an image coordinate.
+                    scale=wrist_scale,
                     rotation_repr="quat_wxyz",
-                    frame="camera",
+                    frame=wrist_frame,
                     rate_hz=rate,
                 ),
                 ChannelSpec(
@@ -463,6 +558,21 @@ class HandPoseConnector(Connector):
                     metadata={"estimator": track.metadata.get("estimator", "unknown")},
                 ),
             ]
+            if hand in track.residual:
+                # The honest confidence for a solved pose. A detector's own score
+                # says it found a hand; this says the pose it implies can
+                # reproduce the pixels it was fitted to.
+                schema.append(
+                    ChannelSpec(
+                        f"{hand}_reprojection",
+                        "scalar",
+                        (),
+                        "float32",
+                        units="px",
+                        rate_hz=rate,
+                        metadata={"method": track.metadata.get("pose_method", "")},
+                    )
+                )
             if has_world:
                 # The half that genuinely is metric: hand shape, in metres,
                 # centred on the hand. The aperture computed from it is a real
@@ -504,10 +614,19 @@ class HandPoseConnector(Connector):
                     **dict(original.meta.extra),
                     "estimator": track.metadata.get("estimator", type(self.estimator).__name__),
                     "keypoints": track.convention,
+                    **{
+                        k: v
+                        for k, v in track.metadata.items()
+                        if k.startswith(("intrinsics", "pose_", "fx", "fy", "resolution"))
+                    },
                     # Two answers, because there are two quantities. The hand's
                     # shape is metres; where it was in the room is not.
-                    "scale": "normalized",
+                    "scale": "metric" if track.poses else "normalized",
                     "shape_scale": "metric" if track.world else "normalized",
+                    # Travels onto every derived episode, because a dataset made
+                    # with non-commercial weights is itself encumbered and
+                    # nothing else in the pipeline would remember.
+                    "estimator_licence": track.licence,
                 },
             ),
             schema=tuple(schema),
@@ -543,7 +662,15 @@ class HandPoseConnector(Connector):
             step = np.linalg.norm(np.diff(wrist, axis=0), axis=1)
             speeds.append(step * float(rate or 1.0))
         motion = float((np.concatenate(speeds) <= self._fast).mean()) if speeds else 1.0
+        pose_quality = {}
+        if track.poses:
+            for hand, poses in track.poses.items():
+                pose_quality[f"{hand}_pose_plausible"] = round(
+                    plausible(np.asarray(poses)[:, :3]), 4
+                )
         return {
+            **pose_quality,
+            "estimator_licence": track.licence,
             "hands_visible": round(visible, 4),
             "motion_ok": round(motion, 4),
             "usable_length": 1.0 if steps >= self._min_steps else 0.0,

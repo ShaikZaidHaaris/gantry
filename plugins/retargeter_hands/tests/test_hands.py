@@ -494,3 +494,35 @@ def test_image_coordinates_are_refused_separately_from_unscaled():
     # A measured span does not change the answer, which is the point.
     with_span = HandToArm(mount=Mount.aligned(), hand=HAND)
     assert not with_span.accepts(image, TARGET).ok
+
+
+def test_unsolved_frames_are_not_counted_as_out_of_reach():
+    """A frame the estimator could not solve sits at the origin, inside the arm's
+    inner limit. Counting it as unreachable reports a detection failure as a
+    workspace problem — and the two have opposite fixes: film differently, versus
+    stand closer to the work."""
+    made = retargeter(reach=VIPERX_300)
+    values = np.concatenate([trajectory(6, x=0.4), np.zeros((4, 8))])
+    report = made.reach_report(values, SOURCE)
+
+    # Every frame that produced a pose is reachable; four never produced one.
+    assert report["in_reach"] == 1.0
+    assert report["not_solved"] == pytest.approx(0.4)
+    assert report["steps"] == 6
+
+
+def test_a_clip_where_nothing_solved_says_so_rather_than_scoring_zero():
+    made = retargeter(reach=VIPERX_300)
+    report = made.reach_report(np.zeros((5, 8)), SOURCE)
+    assert report["in_reach"] is None
+    assert report["not_solved"] == 1.0
+    assert "no frame produced a pose" in report["why"]
+
+
+def test_an_explicit_solved_mask_is_honoured():
+    made = retargeter(reach=VIPERX_300)
+    values = trajectory(6, x=0.4)
+    mask = np.array([True, True, False, False, True, False])
+    report = made.reach_report(values, SOURCE, solved=mask)
+    assert report["steps"] == 3
+    assert report["not_solved"] == pytest.approx(0.5)

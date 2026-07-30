@@ -3,21 +3,23 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gantry-connector-handpose"
+name = "gantry-connector-egoactions"
 version = "0.1.0.dev0"
-description = "Another connector's clips, with hands estimated onto them and the lineage kept"
+description = "Estimated hands as robot state and action, ready to write as a training set"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
-dependencies = ["gantry-core", "gantry-semantics-ego", "numpy>=1.24"]
+dependencies = [
+  "gantry-core",
+  "gantry-semantics-ego",
+  "gantry-retargeter-hands",
+  "numpy>=1.24",
+]
 
 [project.optional-dependencies]
-mediapipe = ["mediapipe>=0.10"]
-pnp = ["opencv-python-headless>=4.8"]
-metric = ["mediapipe>=0.10", "opencv-python-headless>=4.8"]
 dev = ["pytest>=7.4"]
 
 [project.entry-points."gantry.connectors"]
-handpose = "gantry_connector_handpose:HandPoseConnector"
+egoactions = "gantry_connector_egoactions:EgoActionConnector"
 
 [tool.setuptools.packages.find]
 where = ["src"]

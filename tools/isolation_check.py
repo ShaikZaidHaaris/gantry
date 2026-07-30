@@ -49,6 +49,28 @@ def declared(plugin: Path, *, include_dev: bool) -> list[str]:
     return [re.split(r"[><=\[;\s]", name)[0].strip() for name in names]
 
 
+def closure(plugin: Path, siblings: dict[str, Path]) -> list[Path]:
+    """Every local sibling this plugin needs, transitively.
+
+    Direct dependencies are not enough. A plugin that declares one sibling which
+    itself declares another gets the second one fetched from PyPI, where it does
+    not exist, and the check reports an install failure that looks like an
+    undeclared import. That is a false accusation — the declarations were
+    correct and the tool was not walking them far enough.
+    """
+    seen: dict[str, Path] = {}
+    frontier = [plugin]
+    while frontier:
+        current = frontier.pop()
+        for name in declared(current, include_dev=current == plugin):
+            path = siblings.get(name)
+            if path is None or path == plugin or name in seen:
+                continue
+            seen[name] = path
+            frontier.append(path)
+    return list(seen.values())
+
+
 def check(plugin: Path, siblings: dict[str, Path]) -> tuple[bool, str]:
     target = Path("/tmp") / f"gantry-iso-{plugin.name}"
     shutil.rmtree(target, ignore_errors=True)
@@ -56,9 +78,8 @@ def check(plugin: Path, siblings: dict[str, Path]) -> tuple[bool, str]:
     pip = target / "bin" / "pip"
 
     install = ["-e", str(ROOT)]
-    for name in declared(plugin, include_dev=True):
-        if name in siblings and siblings[name] != plugin:
-            install += ["-e", str(siblings[name])]
+    for path in closure(plugin, siblings):
+        install += ["-e", str(path)]
     install += ["-e", f"{plugin}[dev]"]
 
     result = subprocess.run(

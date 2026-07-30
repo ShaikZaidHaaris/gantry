@@ -344,7 +344,13 @@ class HandToArm(Retargeter):
 
     # -- the number worth reporting ----------------------------------------
 
-    def reach_report(self, values: np.ndarray, source: ChannelSpec) -> dict[str, Any]:
+    def reach_report(
+        self,
+        values: np.ndarray,
+        source: ChannelSpec,
+        *,
+        solved: np.ndarray | None = None,
+    ) -> dict[str, Any]:
         """What fraction of this reaching is somewhere the arm can actually go.
 
         Simultaneously a hard limit on the data, a thing the person can fix by
@@ -361,6 +367,25 @@ class HandToArm(Retargeter):
             positions = positions * self._metric_factor(positions)
         placed = self._mount.place(positions)
 
+        # A frame the estimator could not solve sits at the origin, which is
+        # inside the arm's inner limit — so counting it as out of reach reports a
+        # detection failure as a workspace problem. They need different fixes
+        # (film differently versus stand closer), and conflating them is the same
+        # error as scoring an abstention as a loss.
+        if solved is None:
+            solved = np.any(np.asarray(values, dtype=float)[:, :3] != 0.0, axis=1)
+        solved = np.asarray(solved, dtype=bool)
+        placed = placed[solved]
+        if not len(placed):
+            return {
+                "measured": True,
+                "arm": self._reach.name or "unnamed",
+                "in_reach": None,
+                "steps": 0,
+                "not_solved": 1.0,
+                "why": "no frame produced a pose to place",
+            }
+
         distance = np.linalg.norm(placed, axis=1)
         too_far = distance > self._reach.radius
         too_near = distance < self._reach.inner
@@ -371,8 +396,11 @@ class HandToArm(Retargeter):
         return {
             "measured": True,
             "arm": self._reach.name or "unnamed",
+            # Over the frames that produced a pose. The rest are reported
+            # separately rather than folded in as failures.
             "in_reach": round(float(holds.mean()), 4),
             "steps": int(len(placed)),
+            "not_solved": round(1.0 - float(solved.mean()), 4),
             "why": {
                 "too_far": round(float(too_far.sum()) / steps, 4),
                 "too_close_to_the_base": round(float(too_near.sum()) / steps, 4),
