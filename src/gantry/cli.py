@@ -426,6 +426,114 @@ def cmd_history(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_annotate(args: argparse.Namespace) -> int:
+    """Write a scoring page: one video per trial, the rubric verbatim, three buttons.
+
+    The output is a directory you can zip and hand to somebody who has never
+    installed any of this. No server, because a scoring tool that needs one is a
+    scoring tool nobody uses on a Friday afternoon.
+    """
+    from .resolve import Registry
+
+    registry = Registry()
+    registry.discover()
+    try:
+        source = registry.get("task", args.task_source).build({"path": args.tasks})
+        task = source.task(args.task)
+    except Exception as error:  # noqa: BLE001 - reported, not raised
+        print(f"cannot read task {args.task!r} from {args.tasks!r}: {error}")
+        return 1
+
+    videos = sorted(Path(args.videos).glob(args.pattern)) if args.videos else []
+    if not videos:
+        print(f"no video matched {args.pattern!r} under {args.videos!r}")
+        print("  the sweep writes these when use_image_obs is on")
+        return 1
+    if args.limit:
+        videos = videos[: args.limit]
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    trials = []
+    for video in videos:
+        # Referenced relative to the page so the directory stays movable.
+        target = out / video.name
+        if video.resolve() != target.resolve():
+            target.write_bytes(video.read_bytes())
+        trials.append({"trial": video.stem, "video": video.name})
+
+    try:
+        scorer = registry.get("scorer", args.scorer).factory
+        page = scorer.annotate(trials, task, out / "index.html", rater=args.rater or "")
+    except KeyError:
+        print(f"no scorer named {args.scorer!r}; installed: "
+              f"{list(registry.names('scorer')) or 'none'}")
+        return 1
+    except GantryError as error:
+        print(f"{args.scorer!r}: {error}")
+        return 1
+    print(f"wrote {page} for {len(trials)} trial(s)")
+    print()
+    print(f"  open it:   open {page}")
+    print(f"  rubric(s): {len(task.success)} criterion/criteria, printed verbatim")
+    print(f"  when done: save {args.lines} beside the page, then")
+    print(f"             gantry calibrate {out / args.lines} --against machine")
+    return 0
+
+
+def cmd_calibrate(args: argparse.Namespace) -> int:
+    """Measure whether a judge agrees with people, and say what follows.
+
+    The number that makes cheap judgement safe, and the refusal that makes the
+    number matter: a judge below the floor has its findings blocked rather than
+    reported with a caveat, because a caveat gets dropped the first time somebody
+    quotes the figure.
+    """
+    from .resolve import Registry
+
+    registry = Registry()
+    registry.discover()
+    try:
+        scorer = registry.get("scorer", args.scorer).factory
+    except KeyError:
+        print(f"no scorer named {args.scorer!r}")
+        return 1
+
+    labels: dict[str, Any] = {}
+    for path in args.sessions:
+        try:
+            judge, judgements = scorer.recorded_labels(path)
+        except GantryError as error:
+            print(f"{path}: {error}")
+            return 1
+        labels[judge] = judgements
+
+    if args.machine:
+        labels["machine"] = json.loads(Path(args.machine).read_text())
+
+    try:
+        module = registry.get("feedback", "calibrate").build(
+            {"corpus": labels, "reference": args.reference}
+        )
+    except KeyError:
+        print("no feedback module named 'calibrate' is installed")
+        return 1
+    calibration = module
+    report = calibration.analyse([])
+    for finding in report:
+        print(f"[{finding.code}] {finding.summary}")
+        if finding.prescription:
+            print(f"  -> {finding.prescription}")
+    if args.against:
+        gate = calibration.gate(args.against)
+        print()
+        print(f"gate on {args.against!r}: {'PASSES' if gate.ok else 'REFUSED'}")
+        for reason in gate.reasons:
+            print(f"  [{reason.code}] {reason.message}")
+        return 0 if gate.ok else 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gantry",
@@ -493,6 +601,33 @@ def build_parser() -> argparse.ArgumentParser:
     linked.add_argument("--rewrite-plan", help="translate this plan into the target's names")
     linked.add_argument("--rewrite-plan-out")
     linked.set_defaults(func=cmd_relink)
+
+    annotate = subparsers.add_parser(
+        "annotate", help="write a page for a person to score trials against the rubric"
+    )
+    annotate.add_argument("task", help="which task's rubric to show")
+    annotate.add_argument("--tasks", required=True, help="directory of task files")
+    annotate.add_argument("--task-source", default="declared")
+    annotate.add_argument("--videos", required=True, help="directory holding the videos")
+    annotate.add_argument("--pattern", default="*.mp4")
+    annotate.add_argument("-o", "--out", required=True)
+    annotate.add_argument("--limit", type=int, help="score only the first N")
+    annotate.add_argument("--rater", help="prefill the rater name")
+    annotate.add_argument("--scorer", default="human", help="which judge's surface to build")
+    annotate.add_argument("--lines", default="judgements.jsonl")
+    annotate.set_defaults(func=cmd_annotate)
+
+    calibrate = subparsers.add_parser(
+        "calibrate", help="whether a judge agrees with people well enough to be believed"
+    )
+    calibrate.add_argument("sessions", nargs="+", help="judgements.jsonl file(s)")
+    calibrate.add_argument("--machine", help="JSON of {trial: {criterion: passed}}")
+    calibrate.add_argument("--scorer", default="human", help="which scorer wrote the sessions")
+    calibrate.add_argument("--reference", help="the judge others are measured against")
+    calibrate.add_argument(
+        "--against", help="gate this judge; exits nonzero if it is uncalibrated"
+    )
+    calibrate.set_defaults(func=cmd_calibrate)
 
     ci = subparsers.add_parser(
         "ci", help="compare a run against the pinned baseline; nonzero on regression"

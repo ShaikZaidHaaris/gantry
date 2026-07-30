@@ -38,6 +38,10 @@ from gantry.spine import PLANES, SPINE_CONTRACT
 #: Every contract, pinned. Moving one is allowed and must be recorded here in
 #: the same commit, which is what makes it a decision rather than a drift.
 #:
+#: scorer@1.1 added ``annotate`` and ``recorded_labels``. Driving a scoring
+#: workflow used to mean importing a particular scorer, which gave core a
+#: favourite judge. Both default to refusing.
+#:
 #: spine@1.2 gave EpisodeMeta ``derived_from``. A format conversion renumbers
 #: everything, so anything measured about a demonstration in the collection it
 #: came from could not be acted on in the copy a trainer reads. Additive, with
@@ -57,7 +61,7 @@ FROZEN_CONTRACTS = {
     "evaluator": (EVALUATOR_CONTRACT, "1.1"),
     "feedback": (FEEDBACK_CONTRACT, "1.0"),
     "curation": (CURATION_CONTRACT, "1.0"),
-    "scorer": (SCORER_CONTRACT, "1.0"),
+    "scorer": (SCORER_CONTRACT, "1.1"),
 }
 
 

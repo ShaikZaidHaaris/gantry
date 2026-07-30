@@ -43,7 +43,7 @@ demonstrations succeed.** Sixteen percent.
 
 ## The idea
 
-Nine planes, each an independent axis of variation. A plugin implements one contract, declares
+Ten planes, each an independent axis of variation. A plugin implements one contract, declares
 what it needs and what it provides, and never learns anything about the others.
 
 | Plane | What it is | Shipped |
@@ -51,9 +51,10 @@ what it needs and what it provides, and never learns anything about the others.
 | `dataset` | where episodes come from | `lerobot` · `robomimic` · `csv` · `evallog` |
 | `task` | what is being attempted, and how anyone decides it was done | `declared` |
 | `curation` | what to do to the data, said precisely enough to be wrong | `labels` · `collect` |
+| `scorer` | who decides whether a trial succeeded, and on what evidence | `machine` · `human` |
 | `policy` | anything that turns observations into actions | `gr00t` · `served` · `replay` · `constant` · `noisy_replay` |
 | `evaluation` | running a policy and recording what happened | `robosuite` · `libero` · `gym` · `offline` · `waypoint` |
-| `feedback` | records in, findings out | `screen` · `compare` · `funnel` · `attribution` · `harden` · `protocol` |
+| `feedback` | records in, findings out | `screen` · `compare` · `funnel` · `attribution` · `harden` · `protocol` · `verify` · `power` · `rank` · `calibrate` |
 | `embodiment` | what a robot is, physically | `declared` |
 | `adapter` | one correct answer: units, rates, rotations | `unit_convert` · `resample` · `rotation` · `permute` |
 | `retargeter` | declared-judgement conversions between bodies | `pose_to_position` |
@@ -218,6 +219,72 @@ actually work, on which tasks.**
   assemble_square_nut  held: -         refuted: labels
 ```
 
+## The feedback layer
+
+Eight planes describe or measure, one prescribes. This is the one that decides
+what a measurement *means* — and the only part willing to say you cannot tell yet.
+
+**It refuses before the money is spent.** Sizing reads what a task has actually
+produced before, so the refusal carries a number:
+
+```
+20 trials for +0.05 -> REFUSED
+  separating a +0.050 change from a baseline of 61% needs about 55 paired
+  trials, and 20 are planned
+  hint: run 55, or ask about an effect this budget can see — at 20 that is +0.140
+```
+
+The baseline comes from history rather than from whoever is typing, because an
+invented rate produces an invented trial count and the invented count is always
+comfortably below the budget already planned.
+
+**It aggregates a matrix without letting one task decide.** IQM with a stratified
+bootstrap, a performance profile, and a compact letter display — and a refusal
+when the matrix is mostly floor:
+
+```
+mh_official 0.620 [a]; ph_official 0.370 [b]; mg_official 0.010 [c]
+  -> Use mh_official.
+
+[rank.mostly_floor] cohorts sit at the floor on more than half the shared tasks,
+  so an aggregate over all of them is decided by how many tasks were included
+  rather than by performance
+```
+
+**Judging is an axis, not a privilege.** The simulator's predicate used to *be*
+the definition of success, which made "would a person agree" unaskable. Now it is
+one scorer among several, and agreement between them is a measured quantity with
+consequences:
+
+```
+gantry annotate lift_cube --tasks manifests/tasks --videos runs/ -o score/
+# a person watches 12 videos with the rubric printed verbatim beside them
+gantry calibrate score/judgements.jsonl --machine score/machine.json --against machine
+
+[judge.calibrated] machine against zaid: kappa 0.833 over 12 settled judgements
+  (raw agreement 92%)
+  -> machine may stand in for zaid on this task family.
+```
+
+Below κ=0.67 the gate **refuses** that judge's findings rather than reporting them
+with a caveat, because a caveat gets dropped the first time somebody quotes the
+number. And chance correction is not optional: on a task solved 5% of the time,
+two judges who both say "failed" every time agree 95% of the time and have
+established nothing.
+
+**It gates every checkpoint.** `gantry ci` pairs a candidate against a pinned
+baseline and exits nonzero only on a significant drop — a gate that blocks on
+noise is switched off within a week and then protects nothing.
+
+```
+paired on 50 shared scene(s): won 5, lost 0, p=0.0625
+threshold p<0.0167 (3 run(s) recorded on this task)
+Up +10.0%.
+```
+
+The threshold tightens as a task accumulates runs, from the attempt count history
+keeps: the tenth checkpoint is not making the first one's claim.
+
 ## GR00T N1.7
 
 `plugins/policy_gr00t` speaks GR00T's inference protocol — ZeroMQ, msgpack — and **never
@@ -246,11 +313,11 @@ plausible numbers.
 ```
 src/gantry/          core — depends on numpy and nothing else
   spine/               what an episode, a run, a channel and a verdict are
-  contracts/           the nine plane interfaces
+  contracts/           the ten plane interfaces
   conformance/         one kit per contract, returning verdicts, importing no test framework
   resolve/             binding, adapters, retargeters, requirements
   isolate.py           subprocess boundary for conflicting dependencies
-plugins/             25 plugins, each installable on its own
+plugins/             30 plugins, each installable on its own
 docs/                writing-a-plugin.md
 manifests/           a run described as a file, so it can be committed and diffed
 reference/           earlier implementations, kept to check this one against
@@ -262,7 +329,7 @@ ARCHITECTURE.md      the whole design, contracts first
 ```bash
 python -m pytest tests --ignore=tests/integration   # core alone, no plugins
 python -m pytest                                   # 285, plugins installed
-python -m pytest plugins/*/tests                   # 673 across 25 plugins
+python -m pytest plugins/*/tests                   # 776 across 30 plugins
 python tools/isolation_check.py       # each plugin alone, in a fresh venv
 ```
 
@@ -272,7 +339,7 @@ never mentions and nobody finds out until someone installs it alone. This builds
 interpreter per plugin and installs only core, that plugin, and what it actually declares:
 
 ```
-25/25 plugins install and pass on their own
+30/30 plugins install and pass on their own
 ```
 
 CI runs core on four Python versions with no plugin present, every plugin in isolation, and
@@ -280,7 +347,7 @@ everything together.
 
 ## Status
 
-Working: the nine planes, 25 plugins, 960 tests. Verified against real LeRobot and
+Working: the ten planes, 30 plugins, 1063 tests. Verified against real LeRobot and
 RoboMimic data; against a GR00T N1.7 checkpoint fine-tuned on this data and served over its
 real protocol; and in closed loop against MuJoCo, where replaying recorded actions into the
 rebuilt world lifts the cube 3/3, which is the check that proves the wiring rather than

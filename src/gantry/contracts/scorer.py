@@ -52,9 +52,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
+from ..errors import ConfigError
 from ..spine import Descriptor, Verdict
 
-SCORER_CONTRACT = "scorer@1.0"
+#: 1.1 added ``annotate`` and ``recorded_labels``. Producing a surface for a
+#: judge to work on, and reading its answers back, are scorer responsibilities —
+#: and until they were on the contract, anything that wanted to drive a scoring
+#: workflow had to import a particular scorer by name, which gave core a
+#: favourite judge. Both default to refusing, so a scorer that only judges
+#: in-process is unaffected and says so.
+SCORER_CONTRACT = "scorer@1.1"
 
 #: Kinds of evidence a scorer may ask for. Open vocabulary — a scorer naming
 #: something not listed here is asking for evidence nobody produces yet, which
@@ -212,6 +219,39 @@ class Scorer(ABC):
         """Check the evidence, then judge. The path callers should use."""
         self.check_evidence(evidence).raise_if_refused(f"{self.name} cannot judge")
         return self.judge(evidence, task)
+
+    @classmethod
+    def annotate(
+        cls, trials: Sequence[Mapping[str, Any]], task: Any, path: str, **options: Any
+    ) -> Any:
+        """Produce whatever surface this judge needs in order to work.
+
+        A person needs a page with videos and the rubric on it; a model needs a
+        prompt; a predicate needs nothing at all. A classmethod because the
+        surface is a property of the kind of judge rather than of any instance —
+        the thing being built is what a judge will later be constructed *from*.
+
+        Refuses by default. A scorer that judges in-process has no surface to
+        produce, and silently returning nothing would leave a caller believing a
+        page exists.
+        """
+        raise ConfigError(
+            f"{cls.__name__} judges in-process and has no annotation surface to "
+            "produce; a scorer that needs one implements annotate"
+        )
+
+    @classmethod
+    def recorded_labels(cls, path: str) -> tuple[str, Mapping[str, Mapping[str, Any]]]:
+        """A judge's name and its recorded verdicts, read off disk.
+
+        ``(judge, {trial: {criterion: passed}})`` — the shape agreement is
+        computed from. Here rather than in whatever module wrote the file so
+        that comparing two judges never requires importing either of them.
+        """
+        raise ConfigError(
+            f"{cls.__name__} does not record its judgements to a file; a scorer "
+            "that does implements recorded_labels"
+        )
 
     def overall(self, judgements: Sequence[Judgement]) -> bool | None:
         """Did the trial succeed, given every criterion?
