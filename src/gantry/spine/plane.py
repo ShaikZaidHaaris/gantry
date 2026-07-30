@@ -127,6 +127,13 @@ for _plane in (
         cardinality=MANY,
     ),
     Plane(
+        "scorer",
+        "who decides whether a trial succeeded, given what evidence",
+        contract="scorer@1.0",
+        entry_point_group="gantry.scorers",
+        cardinality=MANY,
+    ),
+    Plane(
         "curation",
         "what to do to the data, said precisely enough to be applied and to be "
         "found wrong",

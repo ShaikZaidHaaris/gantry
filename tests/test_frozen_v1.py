@@ -28,6 +28,7 @@ from gantry.contracts.embodiment import EMBODIMENT_CONTRACT, Retargeter
 from gantry.contracts.evaluator import EVALUATOR_CONTRACT, Evaluator
 from gantry.contracts.feedback import FEEDBACK_CONTRACT, FeedbackModule
 from gantry.contracts.policy import POLICY_CONTRACT, Policy
+from gantry.contracts.scorer import SCORER_CONTRACT
 from gantry.spine import PLANES, SPINE_CONTRACT
 
 # --------------------------------------------------------------------------
@@ -56,6 +57,7 @@ FROZEN_CONTRACTS = {
     "evaluator": (EVALUATOR_CONTRACT, "1.1"),
     "feedback": (FEEDBACK_CONTRACT, "1.0"),
     "curation": (CURATION_CONTRACT, "1.0"),
+    "scorer": (SCORER_CONTRACT, "1.0"),
 }
 
 
@@ -83,6 +85,9 @@ def test_the_core_planes_are_frozen():
         # hardware" both unsayable. It is a plane because it is a thing you
         # author once and stage many ways.
         "task",
+        # Added deliberately: judging used to be one privileged path — the
+        # simulator's predicate — which made "would a person agree" unaskable.
+        "scorer",
         # Added deliberately: the only plane whose output is an instruction
         # rather than a description. It is separate from feedback because a
         # signal that scores its own effect is the Goodhart machine, and the
