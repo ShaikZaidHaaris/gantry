@@ -18,11 +18,20 @@ from gantry.errors import ConfigError
 from gantry.spine import ChannelSpec, EpisodeLabels, StageEvent, episode_from_arrays
 
 STATE = ChannelSpec(
-    "observation.state", "vector", (4,), "float32", rate_hz=20.0,
+    "observation.state",
+    "vector",
+    (4,),
+    "float32",
+    rate_hz=20.0,
     dim_labels=("x", "y", "z", "gripper"),
 )
 ACTION = ChannelSpec(
-    "action", "vector", (3,), "float32", rate_hz=20.0, dim_labels=("dx", "dy", "dz"),
+    "action",
+    "vector",
+    (3,),
+    "float32",
+    rate_hz=20.0,
+    dim_labels=("dx", "dy", "dz"),
 )
 
 
@@ -64,7 +73,9 @@ def test_the_numbers_survive(tmp_path, plain):
     write_episodes(plain, tmp_path / "out")
     back = LeRobotConnector(tmp_path / "out").open("episode_000000")
     assert np.allclose(back.array("action"), plain[0].array("action"), atol=1e-6)
-    assert np.allclose(back.array("observation.state"), plain[0].array("observation.state"), atol=1e-6)
+    assert np.allclose(
+        back.array("observation.state"), plain[0].array("observation.state"), atol=1e-6
+    )
 
 
 def test_dimension_labels_survive_as_spans(tmp_path, plain):
@@ -81,18 +92,29 @@ def test_dimension_labels_survive_as_spans(tmp_path, plain):
 
 def test_a_multi_column_field_round_trips_as_one_span(tmp_path):
     wide = ChannelSpec(
-        "observation.state", "vector", (4,), "float32", rate_hz=20.0,
+        "observation.state",
+        "vector",
+        (4,),
+        "float32",
+        rate_hz=20.0,
         dim_labels=("x", "y", "gripper.0", "gripper.1"),
     )
     record = episode_from_arrays(
-        {"observation.state": np.zeros((5, 4), dtype="float32"),
-         "action": np.zeros((5, 3), dtype="float32")},
-        (wide, ACTION), id="d0", source="f", task="t",
+        {
+            "observation.state": np.zeros((5, 4), dtype="float32"),
+            "action": np.zeros((5, 3), dtype="float32"),
+        },
+        (wide, ACTION),
+        id="d0",
+        source="f",
+        task="t",
     )
     write_episodes([record], tmp_path / "out")
     spans = json.loads((tmp_path / "out" / "meta" / "modality.json").read_text())["state"]
     assert spans["gripper"] == {"start": 2, "end": 4}
-    labels = {s.name: s.dim_labels for s in LeRobotConnector(tmp_path / "out").schema("episode_000000")}
+    labels = {
+        s.name: s.dim_labels for s in LeRobotConnector(tmp_path / "out").schema("episode_000000")
+    }
     assert labels["observation.state"] == ("x", "y", "gripper.0", "gripper.1")
 
 
@@ -158,7 +180,10 @@ def test_images_are_reported_as_dropped_rather_than_half_written(tmp_path):
             "action": np.zeros((3, 3), dtype="float32"),
             "observation.images.top": np.zeros((3, 4, 4, 3), dtype="uint8"),
         },
-        (STATE, ACTION, camera), id="d0", source="f", task="t",
+        (STATE, ACTION, camera),
+        id="d0",
+        source="f",
+        task="t",
     )
     losses = {loss.what: loss.detail for loss in survey([record])}
     assert "observation.images.top" in losses["channels"]

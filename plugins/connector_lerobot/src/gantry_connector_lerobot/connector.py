@@ -207,9 +207,7 @@ class LeRobotConnector(Connector):
         episodes: dict[str, _Episode] = {}
         for entry in self._jsonl("episodes.jsonl"):
             index = int(entry["episode_index"])
-            relative = template.format(
-                episode_chunk=index // chunk_size, episode_index=index
-            )
+            relative = template.format(episode_chunk=index // chunk_size, episode_index=index)
             path = self._root / relative
             if not path.exists():
                 continue

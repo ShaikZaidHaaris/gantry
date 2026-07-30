@@ -234,3 +234,62 @@ def test_a_source_with_no_hands_is_refused_by_name():
 def test_the_connector_conforms():
     verdict = check_connector(made())
     assert verdict.ok, verdict.explain()
+
+
+# -- holding an idle arm -----------------------------------------------------
+
+
+class OneHanded(FakeHands):
+    """The common real case: one hand works, the other is out of frame."""
+
+    def open(self, episode_id):
+        e = super().open(episode_id)
+        arrays = {n: e.array(n) for n in e.channel_names}
+        right = arrays["right_wrist"].copy()
+        right[5:] = 0.0  # the right hand leaves the frame and never returns
+        arrays["right_wrist"] = right
+        return EpisodeRecord(
+            meta=e.meta, schema=e.schema, source=ArraySource(arrays), labels=e.labels
+        )
+
+
+def test_strict_mode_keeps_only_steps_where_every_hand_solved():
+    """The brutal reading, and the default. On real ego footage each hand solves
+    in roughly half the frames and the intersection was 8%."""
+    c = made(source=OneHanded())
+    with pytest.raises(ConfigError, match="filming problem"):
+        c.open("egoactions/handpose/ego/0")
+
+
+def test_holding_an_idle_arm_recovers_the_one_handed_footage():
+    """A person working one-handed leaves the other still, so a bimanual robot
+    imitating them should too. A claim about the world, not a convenience."""
+    c = made(source=OneHanded(), hold_missing=True)
+    e = c.open("egoactions/handpose/ego/0")
+
+    assert e.array(STATE).shape == (STEPS - 1, 14)
+    annotations = e.labels.annotations
+    assert annotations["both_hands_solved"] == pytest.approx(5 / STEPS)
+    assert annotations["held_idle_arm"]["right"] == pytest.approx(15 / STEPS)
+    assert annotations["held_idle_arm"]["left"] == 0.0
+
+
+def test_a_held_arm_stays_exactly_where_it_was():
+    """Forward fill, not interpolation. A held arm is a claim that it stayed put,
+    which is checkable against the footage; interpolating across a gap invents
+    motion that may not have happened."""
+    c = made(source=OneHanded(), hold_missing=True)
+    state = c.open("egoactions/handpose/ego/0").array(STATE)
+    right = state[:, 7:]
+    assert np.allclose(right[5:], right[4]), "the idle arm drifted"
+
+
+def test_holding_is_off_by_default_and_declared_when_on():
+    assert made().descriptor().metadata["hold_missing"] is False
+    assert made(hold_missing=True).descriptor().metadata["hold_missing"] is True
+
+
+def test_frames_before_any_hand_was_seen_cannot_be_held_and_are_dropped():
+    c = made(source=FakeHands(unsolved=(0, 1, 2)), hold_missing=True)
+    e = c.open("egoactions/handpose/ego/0")
+    assert e.array(STATE).shape[0] == STEPS - 3 - 1

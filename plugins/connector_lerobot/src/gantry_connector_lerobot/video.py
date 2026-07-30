@@ -106,8 +106,7 @@ class VideoSource:
                         frames[position] = frame.to_ndarray(format=PIXEL_FORMAT)
         except (OSError, ValueError) as error:
             raise ComponentError(
-                f"{self._name}: could not decode {self._path.name}: "
-                f"{type(error).__name__}: {error}"
+                f"{self._name}: could not decode {self._path.name}: {type(error).__name__}: {error}"
             ) from error
 
         missing = [index for index in range(start, stop) if index not in frames]
@@ -196,7 +195,10 @@ class MultiSource:
         columns = [name for name in wanted if name not in self._videos]
         out = self._table.read(columns, start, stop) if columns else {}
         if any(name in self._videos for name in wanted):
-            first, last = max(0, start), self.num_steps if stop is None else min(stop, self.num_steps)
+            first, last = (
+                max(0, start),
+                self.num_steps if stop is None else min(stop, self.num_steps),
+            )
             for name in wanted:
                 if name in self._videos:
                     out[name] = self._videos[name].read(first, last)

@@ -62,7 +62,9 @@ def write_video(
     return path
 
 
-def with_video(root: Path, *, episodes: int = 3, steps: int = 12, frames: int | None = None) -> Path:
+def with_video(
+    root: Path, *, episodes: int = 3, steps: int = 12, frames: int | None = None
+) -> Path:
     build_dataset(root, episodes=episodes, steps=steps)
     for index in range(episodes):
         write_video(
@@ -218,9 +220,7 @@ def test_a_short_video_is_refused_rather_than_silently_misaligned(tmp_path):
 
 def test_a_video_of_the_wrong_size_is_refused(tmp_path):
     root = with_video(tmp_path / "small", episodes=1, steps=6)
-    write_video(
-        root / "videos" / "chunk-000" / CAMERA / "episode_000000.mp4", frames=6, size=64
-    )
+    write_video(root / "videos" / "chunk-000" / CAMERA / "episode_000000.mp4", frames=6, size=64)
     episode = LeRobotConnector(root).open("episode_000000")
     with pytest.raises(ComponentError, match="declares"):
         episode.array(CAMERA)
@@ -255,9 +255,7 @@ def test_video_can_be_turned_off(dataset):
     assert connector.video_unavailable == "video=False"
 
 
-def test_without_a_decoder_the_cameras_stay_out_and_say_which_problem_it_is(
-    dataset, monkeypatch
-):
+def test_without_a_decoder_the_cameras_stay_out_and_say_which_problem_it_is(dataset, monkeypatch):
     """The default install has no ffmpeg bindings, and that is a different
     problem from a dataset with no cameras. Both leave the schema the same, so
     the descriptor is the only place the difference can be told."""

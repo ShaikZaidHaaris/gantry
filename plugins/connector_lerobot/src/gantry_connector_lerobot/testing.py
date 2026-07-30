@@ -51,8 +51,12 @@ def build_dataset(root: Path, *, episodes: int = 3, steps: int = 12, version: st
                         "shape": [7],
                         "names": {
                             "motors": [
-                                "x", "y", "z",
-                                "axis_angle1", "axis_angle2", "axis_angle3",
+                                "x",
+                                "y",
+                                "z",
+                                "axis_angle1",
+                                "axis_angle2",
+                                "axis_angle3",
                                 "gripper",
                             ]
                         },
@@ -82,9 +86,7 @@ def build_dataset(root: Path, *, episodes: int = 3, steps: int = 12, version: st
                 "observation.state": pa.array(
                     rng.normal(size=(steps, 4)).tolist(), pa.list_(pa.float32(), 4)
                 ),
-                "action": pa.array(
-                    rng.normal(size=(steps, 7)).tolist(), pa.list_(pa.float32(), 7)
-                ),
+                "action": pa.array(rng.normal(size=(steps, 7)).tolist(), pa.list_(pa.float32(), 7)),
                 "timestamp": pa.array(np.arange(steps) / 20.0, pa.float32()),
                 "frame_index": pa.array(np.arange(steps), pa.int64()),
                 "episode_index": pa.array([index] * steps, pa.int64()),

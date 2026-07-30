@@ -100,8 +100,12 @@ class WriteReport:
         return "\n".join([head, *(f"  dropped {loss}" for loss in self.losses)])
 
 
-def survey(episodes: Sequence[EpisodeRecord]) -> tuple[Loss, ...]:
-    """What this format cannot carry from these episodes. Cheap; reads nothing."""
+def survey(episodes: Sequence[EpisodeRecord], *, videos: bool = False) -> tuple[Loss, ...]:
+    """What this format cannot carry from these episodes. Cheap; reads nothing.
+
+    ``videos`` says image channels will be encoded rather than dropped, so they
+    stop counting as a loss. Anything else non-numeric still does.
+    """
     losses: list[Loss] = []
     if not episodes:
         return ()
@@ -118,23 +122,69 @@ def survey(episodes: Sequence[EpisodeRecord]) -> tuple[Loss, ...]:
     staged = sum(1 for e in episodes if e.labels.stage_events)
     if staged:
         names = sorted({s for e in episodes for s in e.labels.stages})
-        losses.append(
-            Loss("stage_events", f"{staged} episode(s) reach milestones {names}")
-        )
+        losses.append(Loss("stage_events", f"{staged} episode(s) reach milestones {names}"))
+    kinds = {"image"} if videos else set()
     unwritable = sorted(
-        {spec.name for e in episodes for spec in e.schema if spec.kind not in NUMERIC_KINDS}
+        {
+            spec.name
+            for e in episodes
+            for spec in e.schema
+            if spec.kind not in NUMERIC_KINDS and spec.kind not in kinds
+        }
     )
     if unwritable:
         losses.append(
             Loss(
                 "channels",
-                f"{unwritable} are not numeric columns; encoding video is a separate job",
+                f"{unwritable} are not numeric columns"
+                + ("" if videos else "; pass videos=True to encode image channels"),
             )
         )
     annotations = sorted({key for e in episodes for key in e.labels.annotations})
     if annotations:
         losses.append(Loss("annotations", f"per-episode notes {annotations}"))
     return tuple(losses)
+
+
+def encode_video(
+    frames: np.ndarray, target: "os.PathLike[str] | str", *, fps: float, crf: int = 23
+) -> int:
+    """One episode's frames as an h264 file, in the layout LeRobot expects.
+
+    Separated from the column writing because it is a genuinely different
+    operation with a genuinely different dependency, and because a half-written
+    video is worse than an absent one: a dataset whose parquet says 300 steps and
+    whose video holds 40 trains a policy on frames misaligned with their actions,
+    which is unrecoverable and looks like a hard task.
+    """
+    try:
+        import av
+    except ImportError as error:  # pragma: no cover - needs the extra
+        raise ConfigError(
+            "writing video needs an encoder: pip install 'gantry-connector-lerobot[video]'"
+        ) from error
+    array = np.asarray(frames)
+    if array.ndim != 4 or array.shape[-1] not in (1, 3):
+        raise ConfigError(f"expected (steps, h, w, 3) frames to encode, got {array.shape}")
+    target = Path(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    height, width = int(array.shape[1]), int(array.shape[2])
+    with av.open(str(target), "w") as container:
+        stream = container.add_stream("libx264", rate=int(round(fps)) or 1)
+        stream.width, stream.height = width, height
+        stream.pix_fmt = "yuv420p"
+        stream.options = {"crf": str(crf)}
+        for frame in array:
+            image = np.repeat(frame, 3, axis=-1) if frame.shape[-1] == 1 else frame
+            container.mux(
+                stream.encode(
+                    av.VideoFrame.from_ndarray(
+                        np.ascontiguousarray(image.astype("uint8")), format="rgb24"
+                    )
+                )
+            )
+        container.mux(stream.encode())
+    return len(array)
 
 
 def write_episodes(
@@ -144,6 +194,7 @@ def write_episodes(
     fps: float | None = None,
     robot_type: str | None = None,
     accept_loss: bool = False,
+    videos: bool = False,
 ) -> WriteReport:
     """Write ``episodes`` as a LeRobot v2.1 dataset at ``path``.
 
@@ -158,7 +209,7 @@ def write_episodes(
     if not episodes:
         raise ConfigError("nothing to write")
 
-    losses = survey(episodes)
+    losses = survey(episodes, videos=videos)
     if losses and not accept_loss:
         raise ConfigError(
             "writing these episodes as LeRobot would drop:\n"
@@ -177,13 +228,38 @@ def write_episodes(
         raise ConfigError("no numeric channels to write; a LeRobot dataset needs columns")
     rate = float(fps if fps is not None else _rate_of(written) or 0.0)
 
+    cameras = [spec for spec in episodes[0].schema if spec.kind == "image"] if videos else []
     tasks = _tasks(episodes)
     total_frames = 0
+    total_videos = 0
     lines: list[str] = []
+    stat_lines: list[str] = []
     for index, episode in enumerate(episodes):
         steps = len(episode)
         table = _table(pa, episode, written, index, total_frames, rate, tasks)
         pq.write_table(table, root / "data" / "chunk-000" / f"episode_{index:06d}.parquet")
+        for camera in cameras:
+            frames = episode.array(camera.name)
+            if len(frames) != steps:
+                raise ConfigError(
+                    f"{episode.meta.id}: {camera.name} has {len(frames)} frames for "
+                    f"{steps} rows. A video misaligned with its actions trains a "
+                    "policy on the wrong frames, which is unrecoverable and looks "
+                    "like a hard task"
+                )
+            encode_video(
+                frames,
+                root
+                / "videos"
+                / "chunk-000"
+                / _camera_key(camera.name)
+                / f"episode_{index:06d}.mp4",
+                fps=rate or 1.0,
+            )
+            total_videos += 1
+        stat_lines.append(
+            json.dumps({"episode_index": index, "stats": _stats(episode, written, cameras)})
+        )
         lines.append(
             json.dumps(
                 {
@@ -203,12 +279,13 @@ def write_episodes(
         total_frames += steps
 
     (root / "meta" / "episodes.jsonl").write_text("\n".join(lines) + "\n")
+    (root / "meta" / "episodes_stats.jsonl").write_text("\n".join(stat_lines) + "\n")
     (root / "meta" / "tasks.jsonl").write_text(
         "".join(json.dumps({"task_index": i, "task": t}) + "\n" for t, i in tasks.items())
     )
     (root / "meta" / "info.json").write_text(
         json.dumps(
-            _info(written, episodes, total_frames, rate, robot_type, tasks), indent=2
+            _info(written, episodes, total_frames, rate, robot_type, tasks, cameras), indent=2
         )
     )
     modality = _modality(written)
@@ -282,8 +359,81 @@ def _arrow(pa: Any, dtype: str) -> Any:
     return pa.float32()
 
 
-def _info(specs, episodes, frames: int, rate: float, robot_type, tasks) -> dict[str, Any]:
+def _stats(episode, specs, cameras) -> dict[str, Any]:
+    """Per-episode min/max/mean/std/count for every feature.
+
+    v2.1 readers require these and will go to the Hub for them if they are
+    absent, which for a local dataset means a 404 rather than a useful error.
+    Written here because this is the only place that has the arrays.
+
+    Image statistics are per channel over pixels, normalised to [0, 1], which is
+    the convention the format uses and not an obvious one — a reader that
+    expected 0-255 would silently mis-normalise every frame.
+    """
+    out: dict[str, Any] = {}
+    for spec in specs:
+        values = np.asarray(episode.array(spec.name), dtype="float64").reshape(len(episode), -1)
+        out[spec.name] = {
+            "min": values.min(axis=0).tolist(),
+            "max": values.max(axis=0).tolist(),
+            "mean": values.mean(axis=0).tolist(),
+            "std": values.std(axis=0).tolist(),
+            "count": [int(len(values))],
+        }
+    for spec in cameras:
+        frames = np.asarray(episode.array(spec.name), dtype="float64") / 255.0
+        flat = frames.reshape(-1, frames.shape[-1])
+        out[_camera_key(spec.name)] = {
+            "min": [[[v]] for v in flat.min(axis=0)],
+            "max": [[[v]] for v in flat.max(axis=0)],
+            "mean": [[[v]] for v in flat.mean(axis=0)],
+            "std": [[[v]] for v in flat.std(axis=0)],
+            "count": [int(len(frames))],
+        }
+    steps = len(episode)
+    for name in BOOKKEEPING:
+        column = {
+            "timestamp": np.arange(steps, dtype="float64"),
+            "frame_index": np.arange(steps, dtype="float64"),
+            "episode_index": np.zeros(steps),
+            "index": np.arange(steps, dtype="float64"),
+            "task_index": np.zeros(steps),
+        }[name]
+        out[name] = {
+            "min": [float(column.min())],
+            "max": [float(column.max())],
+            "mean": [float(column.mean())],
+            "std": [float(column.std())],
+            "count": [steps],
+        }
+    return out
+
+
+def _camera_key(name: str) -> str:
+    """LeRobot names camera features observation.images.<x>; ours may already."""
+    return name if name.startswith("observation.images.") else f"observation.images.{name}"
+
+
+def _info(
+    specs, episodes, frames: int, rate: float, robot_type, tasks, cameras=()
+) -> dict[str, Any]:
     features: dict[str, Any] = {}
+    for spec in cameras:
+        features[_camera_key(spec.name)] = {
+            "dtype": "video",
+            "shape": list(spec.shape),
+            "names": ["height", "width", "channel"],
+            "info": {
+                "video.fps": rate,
+                "video.height": int(spec.shape[0]),
+                "video.width": int(spec.shape[1]),
+                "video.channels": int(spec.shape[2]),
+                "video.codec": "h264",
+                "video.pix_fmt": "yuv420p",
+                "video.is_depth_map": False,
+                "has_audio": False,
+            },
+        }
     for spec in specs:
         features[spec.name] = {
             "dtype": str(np.dtype(spec.dtype)),
@@ -301,7 +451,7 @@ def _info(specs, episodes, frames: int, rate: float, robot_type, tasks) -> dict[
         "total_episodes": len(episodes),
         "total_frames": frames,
         "total_tasks": len(tasks),
-        "total_videos": 0,
+        "total_videos": len(cameras) * len(episodes),
         "total_chunks": 1,
         "chunks_size": CHUNK_SIZE,
         "fps": rate,

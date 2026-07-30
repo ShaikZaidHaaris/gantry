@@ -24,8 +24,6 @@ REAL = Path("/tmp/gantry-real/lift_lerobot/ph")
 real_only = pytest.mark.skipif(not REAL.exists(), reason="no real LeRobot dataset present")
 
 
-
-
 @pytest.fixture
 def dataset(tmp_path):
     return build_dataset(tmp_path / "lift")
@@ -47,15 +45,19 @@ def test_the_schema_comes_from_the_declared_features(dataset):
 
 
 def test_the_frame_rate_is_carried_through(dataset):
-    assert all(
-        spec.rate_hz == 20.0 for spec in LeRobotConnector(dataset).schema("episode_000000")
-    )
+    assert all(spec.rate_hz == 20.0 for spec in LeRobotConnector(dataset).schema("episode_000000"))
 
 
 def test_per_dimension_names_become_labels(dataset):
     schema = {spec.name: spec for spec in LeRobotConnector(dataset).schema("episode_000000")}
     assert schema["action"].dim_labels == (
-        "x", "y", "z", "axis_angle1", "axis_angle2", "axis_angle3", "gripper",
+        "x",
+        "y",
+        "z",
+        "axis_angle1",
+        "axis_angle2",
+        "axis_angle3",
+        "gripper",
     )
 
 
@@ -204,7 +206,14 @@ def test_duplicate_names_in_info_json_are_rescued_by_the_modality_sidecar():
     names = connector.info["features"]["observation.state"]["names"]["motors"]
     assert len(names) != len(set(names)), "info.json alone could not address these"
     assert schema["observation.state"].dim_labels == (
-        "x", "y", "z", "roll", "pitch", "yaw", "gripper.0", "gripper.1",
+        "x",
+        "y",
+        "z",
+        "roll",
+        "pitch",
+        "yaw",
+        "gripper.0",
+        "gripper.1",
     )
     assert schema["action"].dim_labels is not None
 
@@ -246,9 +255,7 @@ def test_a_bad_sidecar_leaves_nothing_when_info_json_is_no_better(dataset):
 
 def test_a_sidecar_tiling_the_width_names_every_element(dataset):
     (dataset / "meta" / "modality.json").write_text(
-        json.dumps(
-            {"state": {"pos": {"start": 0, "end": 3}, "grip": {"start": 3, "end": 4}}}
-        )
+        json.dumps({"state": {"pos": {"start": 0, "end": 3}, "grip": {"start": 3, "end": 4}}})
     )
     schema = {s.name: s for s in LeRobotConnector(dataset).schema("episode_000000")}
     assert schema["observation.state"].dim_labels == ("pos.0", "pos.1", "pos.2", "grip")

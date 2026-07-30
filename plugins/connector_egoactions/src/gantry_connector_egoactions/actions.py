@@ -65,6 +65,27 @@ ACTION = "action"
 MIN_STEPS = 8
 
 
+def _hold(arm: np.ndarray, solved: np.ndarray) -> tuple[np.ndarray, float]:
+    """Carry the last solved pose forward through gaps.
+
+    Forward fill and not interpolation: a held arm is a claim that it stayed
+    where it was, which is true of an idle arm and is checkable against the
+    footage. Interpolating between two solved poses across a gap invents motion
+    that may not have happened, and puts it in the training set looking exactly
+    like motion that did.
+    """
+    out = np.array(arm, dtype="float32", copy=True)
+    filled = 0
+    last: np.ndarray | None = None
+    for index in range(len(out)):
+        if solved[index]:
+            last = out[index].copy()
+        elif last is not None:
+            out[index] = last
+            filled += 1
+    return out, filled / max(1, len(out))
+
+
 class EgoActionConnector(Connector):
     """Hands from an upstream connector, as one arm's or two arms' state and action."""
 
@@ -80,6 +101,7 @@ class EgoActionConnector(Connector):
         control_mode: str = "eef_abs_pose",
         min_steps: int = MIN_STEPS,
         keep_video: bool = True,
+        hold_missing: bool = False,
     ):
         """``retargeter`` is one, or one per hand.
 
@@ -106,6 +128,7 @@ class EgoActionConnector(Connector):
         self._control_mode = control_mode
         self._min_steps = int(min_steps)
         self._keep_video = bool(keep_video)
+        self._hold_missing = bool(hold_missing)
         self._per_arm = arm_command("arm", rotation_repr=rotation_repr, control_mode=control_mode)
         self._cache: dict[str, EpisodeRecord] = {}
         self._dropped: dict[str, dict[str, Any]] = {}
@@ -159,6 +182,7 @@ class EgoActionConnector(Connector):
             width=self.width,
             control_mode=self._control_mode,
             action_convention="action[t] is state[t+1]",
+            hold_missing=self._hold_missing,
             # Carried forward, because a training set built through
             # non-commercial weights is itself encumbered.
             estimator_licence=upstream.metadata.get("licence", "unknown"),
@@ -186,7 +210,8 @@ class EgoActionConnector(Connector):
         rate = original.channel(self._video).rate_hz if original.has(self._video) else None
 
         per_arm: dict[str, np.ndarray] = {}
-        solved = np.ones(len(original), dtype=bool)
+        per_hand_solved: dict[str, np.ndarray] = {}
+        held: dict[str, float] = {}
         for hand in self._hands:
             wrist, aperture = f"{hand}_wrist", f"{hand}_aperture"
             for needed in (wrist, aperture):
@@ -209,19 +234,42 @@ class EgoActionConnector(Connector):
             )
             verdict = self._retargeters[hand].accepts(source, self._per_arm)
             verdict.raise_if_refused(f"{episode_id}: {hand} hand cannot be retargeted")
-            per_arm[hand] = self._retargeters[hand].apply(values, source, self._per_arm)
-            # A frame with no pose is at the origin. Both hands must have one for
-            # a bimanual step to be real.
-            solved &= np.any(original.array(wrist)[:, :3] != 0.0, axis=1)
+            arm = self._retargeters[hand].apply(values, source, self._per_arm)
+            # A frame with no pose is at the origin.
+            ok = np.any(original.array(wrist)[:, :3] != 0.0, axis=1)
+            per_hand_solved[hand] = ok
+            if self._hold_missing:
+                arm, filled = _hold(arm, ok)
+                held[hand] = filled
+            per_arm[hand] = arm
+
+        # Requiring every hand simultaneously is the strict reading and it is
+        # brutal: measured on real ego footage, each hand solves in roughly half
+        # the frames and the intersection was 8%. Holding an idle arm at its last
+        # pose is the alternative, and it is a claim about the world rather than a
+        # convenience — a person working one-handed leaves the other still, so a
+        # bimanual robot imitating them should too. Declared, recorded, and off by
+        # default so nobody gets it without asking.
+        any_hand = np.any(np.stack(list(per_hand_solved.values())), axis=0)
+        every_hand = np.all(np.stack(list(per_hand_solved.values())), axis=0)
+        if self._hold_missing:
+            # A frame before *any* hand was ever seen cannot be filled from
+            # anything, so it goes.
+            seen = np.maximum.accumulate(any_hand.astype(int)).astype(bool)
+            solved = any_hand | (seen & np.roll(seen, 1))
+            solved[0] = any_hand[0]
+        else:
+            solved = every_hand
 
         merged = assemble(per_arm, self._channel(STATE, rate))
         kept = merged[solved]
         if len(kept) < self._min_steps + 1:
             raise ConfigError(
-                f"{episode_id}: only {len(kept)} of {len(merged)} steps produced a "
-                f"pose for every hand, which is below the {self._min_steps} needed "
-                "for an episode with motion in it. This is a filming problem rather "
-                "than a bug — the hands were not in frame"
+                f"{episode_id}: only {len(kept)} of {len(merged)} steps are usable "
+                f"({', '.join(f'{h} {int(v.sum())}' for h, v in per_hand_solved.items())} "
+                f"solved), which is below the {self._min_steps} needed for an episode "
+                "with motion in it. This is a filming problem rather than a bug — the "
+                "hands were not in frame"
             )
 
         # action[t] = state[t+1]. The final state has no successor, so it goes
@@ -238,6 +286,8 @@ class EgoActionConnector(Connector):
             "steps_in": int(len(merged)),
             "steps_out": int(len(state)),
             "dropped_unsolved": round(1.0 - float(solved.mean()), 4),
+            "both_hands_solved": round(float(every_hand.mean()), 4),
+            **({"held_idle_arm": {h: round(v, 4) for h, v in held.items()}} if held else {}),
         }
         annotations = dict(original.labels.annotations)
         return EpisodeRecord(
