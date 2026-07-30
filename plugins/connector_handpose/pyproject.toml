@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-connector-handpose"
+version = "0.1.0.dev0"
+description = "Another connector's clips, with hands estimated onto them and the lineage kept"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["gantry-core", "gantry-semantics-ego", "numpy>=1.24"]
+
+[project.optional-dependencies]
+mediapipe = ["mediapipe>=0.10"]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.connectors"]
+handpose = "gantry_connector_handpose:HandPoseConnector"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
