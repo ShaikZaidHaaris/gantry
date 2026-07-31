@@ -391,7 +391,63 @@ class DualArm:
 
     def _observe(self) -> dict[str, np.ndarray]:
         raw = self.env.get_obs()
-        return flatten(raw, keep=self.cameras)
+        flat = flatten(raw, keep=self.cameras)
+        vector = endpose_vector(flat)
+        if vector is not None:
+            flat["endpose.vector"] = vector
+        return flat
+
+
+def endpose_vector(flat: Mapping[str, np.ndarray]) -> np.ndarray | None:
+    """The arms' current poses, laid out exactly like an ``ee`` action.
+
+    RoboTwin publishes ``joint_action.vector`` — the whole qpos state in the
+    order ``qpos`` actions are read — but nothing equivalent for poses. Its
+    endpose arrives as four separate pieces, so a policy controlling in ee space
+    has no single channel describing where the arms currently are, in the space
+    it is commanding.
+
+    This is that channel and it is assembled in the action's own order rather
+    than a convenient one: ``left(xyz+quat) + left gripper``, then right. A state
+    laid out differently from the action is the kind of mismatch that trains and
+    evaluates without complaint and is wrong by a fixed rotation.
+
+    ``None`` when the environment was configured without endpose data, rather
+    than a zero vector that would read as "the arms are at the origin".
+    """
+    pieces: list[np.ndarray] = []
+    for arm in ARMS:
+        pose = flat.get(f"endpose.{arm}_endpose")
+        grip = flat.get(f"endpose.{arm}_gripper")
+        if pose is None or grip is None:
+            return None
+        pieces.append(np.asarray(pose, dtype=float).reshape(-1))
+        pieces.append(np.asarray(grip, dtype=float).reshape(-1))
+    out = np.concatenate(pieces)
+    return out if out.size == width_of("ee") else None
+
+
+def state_spec(name: str = "observation.state") -> ChannelSpec:
+    """What :func:`endpose_vector` produces, described.
+
+    Same encoding and same offsets as an ``ee`` action, because it is the same
+    layout — which is what lets one conversion serve both.
+    """
+    return ChannelSpec(
+        name,
+        "vector",
+        (width_of("ee"),),
+        "float32",
+        semantics="observation.eef_abs_pose",
+        rate_hz=CONTROL_HZ,
+        dim_labels=labels_for("ee"),
+        discriminators=("arms", KEY_ROTATION),
+        metadata={
+            "arms": len(ARMS),
+            KEY_ROTATION: "quat_wxyz",
+            KEY_OFFSET: tuple(index * ACTION_TYPES["ee"] + 3 for index in range(len(ARMS))),
+        },
+    )
 
 
 def flatten(observation: Any, *, keep: Sequence[str] = ()) -> dict[str, np.ndarray]:

@@ -9,10 +9,12 @@ from .robotwin import (
     DualArm,
     RoboTwinEvaluator,
     config_for,
+    endpose_vector,
     flatten,
     for_ego,
     labels_for,
     make_env,
+    state_spec,
     width_of,
 )
 
@@ -22,12 +24,14 @@ __all__ = [
     "CONTROL_HZ",
     "TASKS",
     "config_for",
+    "endpose_vector",
     "VERSION",
     "DualArm",
     "RoboTwinEvaluator",
     "flatten",
     "for_ego",
     "labels_for",
+    "state_spec",
     "make_env",
     "width_of",
 ]

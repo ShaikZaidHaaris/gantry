@@ -13,9 +13,11 @@ from gantry_evaluator_robotwin import (
     ACTION_TYPES,
     TASKS,
     RoboTwinEvaluator,
+    endpose_vector,
     flatten,
     for_ego,
     labels_for,
+    state_spec,
     width_of,
 )
 
@@ -438,3 +440,45 @@ def test_success_detected_mid_motion_is_not_lost_when_the_object_settles_back():
     )
     record = made.run(Chunker(16), made.task_for(scenes=1), Protocol())
     assert record.episodes[0].labels.success is True
+
+
+# -- the state, in the space being commanded ------------------------------------
+
+
+def test_the_arms_current_pose_is_published_in_the_actions_own_layout():
+    """RoboTwin publishes joint_action.vector -- the qpos state in the order
+    qpos actions are read -- but nothing equivalent for poses. A policy
+    controlling in ee space otherwise has no single channel saying where the
+    arms are, in the space it is commanding."""
+    made = evaluator(win_at=2)
+    record = made.run(Chunker(16), made.task_for(scenes=1), Protocol())
+    state = record.episodes[0].array("endpose.vector")
+    assert state.shape[1] == 16
+
+
+def test_the_state_is_assembled_in_the_action_order_not_a_convenient_one():
+    """A state laid out differently from the action trains and evaluates without
+    complaint and is wrong by a fixed rotation."""
+    flat = flatten(FakeTask().get_obs(), keep=())
+    flat["endpose.left_endpose"] = np.arange(7, dtype=float)
+    flat["endpose.left_gripper"] = np.array([0.5])
+    flat["endpose.right_endpose"] = np.arange(100, 107, dtype=float)
+    flat["endpose.right_gripper"] = np.array([0.9])
+    vector = endpose_vector(flat)
+    assert np.allclose(vector[:7], np.arange(7))
+    assert vector[7] == 0.5
+    assert np.allclose(vector[8:15], np.arange(100, 107))
+    assert vector[15] == 0.9
+    assert list(state_spec().dim_labels) == list(labels_for("ee"))
+
+
+def test_no_endpose_data_gives_nothing_rather_than_a_vector_of_zeros():
+    """Which would read as 'the arms are at the origin'."""
+    assert endpose_vector({}) is None
+
+
+def test_the_state_and_the_action_share_an_encoding_so_one_conversion_serves_both():
+    action = evaluator(action_type="ee").action()
+    state = state_spec()
+    assert state.metadata["rotation_repr"] == action.metadata["rotation_repr"]
+    assert state.metadata["rotation_offset"] == action.metadata["rotation_offset"]
