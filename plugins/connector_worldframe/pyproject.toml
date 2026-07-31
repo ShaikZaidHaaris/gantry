@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-connector-worldframe"
+version = "0.1.0.dev0"
+description = "Camera-frame hands placed in a fixed world frame, given the camera's own motion"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["gantry-core", "gantry-connector-handpose", "numpy>=1.24"]
+
+[project.optional-dependencies]
+# COLMAP is BSD and commercially usable. The binary is installed separately;
+# pycolmap is only needed to drive it from Python.
+colmap = ["pycolmap>=0.6"]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.connectors"]
+worldframe = "gantry_connector_worldframe:WorldFrameConnector"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

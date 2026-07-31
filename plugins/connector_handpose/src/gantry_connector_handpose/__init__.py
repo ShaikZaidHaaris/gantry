@@ -6,6 +6,20 @@ can actually use. Both are Apache-2.0, which is the reason they are here rather
 than the better-reconstructing research models — see :mod:`.pnp`.
 """
 
+from .depth import (
+    FAR,
+    NEAR,
+    PATCH,
+    Depth,
+    DepthMaps,
+    agreement,
+    constant,
+    depth_anything,
+    lift,
+    sample,
+    unproject,
+    zoedepth,
+)
 from .handpose import (
     FAST,
     FOUND,
@@ -34,9 +48,33 @@ from .pnp import (
     solve,
     solve_sequence,
 )
+from .rtm import (
+    BACKENDS,
+    CONFIDENT,
+    rtm_with_depth,
+    rtm_with_mediapipe,
+    rtmpose,
+)
 
 __all__ = [
+    "BACKENDS",
+    "CONFIDENT",
+    "Depth",
+    "DepthMaps",
+    "FAR",
     "FAST",
+    "NEAR",
+    "PATCH",
+    "agreement",
+    "constant",
+    "depth_anything",
+    "lift",
+    "rtm_with_depth",
+    "rtm_with_mediapipe",
+    "rtmpose",
+    "sample",
+    "unproject",
+    "zoedepth",
     "FOUND",
     "HANDS",
     "JOINTS",
