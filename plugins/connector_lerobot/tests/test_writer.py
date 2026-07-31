@@ -217,3 +217,85 @@ def test_any_connector_can_be_the_source(tmp_path):
     assert np.allclose(
         back.open("episode_000000").array("action"), episode(0).array("action"), atol=1e-5
     )
+
+
+def test_what_lerobot_cannot_hold_is_kept_beside_it_and_read_back():
+    """v2.1 records no outcome, no milestones and no annotations, and
+    accept_loss=True says drop them. That is right for a dataset somebody else
+    will read, and it silently destroyed the entire input to the feedback layer
+    the first time a report was generated from a written dataset — it correctly
+    announced that no component had declared a licence and that the footage came
+    from zero locations.
+
+    An extra file in meta/ is ignored by every other LeRobot tool and read back
+    here, which makes the round trip lossless without making the dataset
+    non-standard.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from gantry_connector_lerobot import LeRobotConnector
+
+    from gantry.spine import StageEvent
+
+    specs = [
+        ChannelSpec("observation.state", "vector", (4,), "float32", rate_hz=10.0),
+        ChannelSpec("action", "vector", (4,), "float32", semantics="actuation", rate_hz=10.0),
+    ]
+    original = episode_from_arrays(
+        {
+            "observation.state": np.zeros((5, 4), dtype="float32"),
+            "action": np.zeros((5, 4), dtype="float32"),
+        },
+        specs,
+        id="ego/a",
+        source="ego",
+        task="wash the dishes",
+        embodiment="bimanual_2arm",
+        license="Apache-2.0 (MediaPipe + OpenCV)",
+        labels=EpisodeLabels(
+            success=True,
+            stage_events=(StageEvent("grasped", 2),),
+            annotations={"scene": "kitchen-P04", "hands_visible": 0.93},
+        ),
+    )
+    root = Path(tempfile.mkdtemp()) / "ds"
+    LeRobotConnector.write([original], str(root), fps=10, accept_loss=True)
+
+    assert (root / "meta" / "gantry.jsonl").exists()
+    back = LeRobotConnector(str(root)).open(
+        "ego/a"
+        if "ego/a" in LeRobotConnector(str(root)).episode_ids()
+        else LeRobotConnector(str(root)).episode_ids()[0]
+    )
+    assert back.meta.license == "Apache-2.0 (MediaPipe + OpenCV)"
+    assert back.labels.success is True
+    assert back.labels.annotations["scene"] == "kitchen-P04"
+    assert back.labels.annotations["hands_visible"] == 0.93
+    assert [(s.name, s.step) for s in back.labels.stage_events] == [("grasped", 2)]
+
+
+def test_a_dataset_from_another_producer_has_no_sidecar_and_says_nothing():
+    """Absent rather than assumed. A LeRobot dataset from anywhere else genuinely
+    has no outcome, and inventing one would be worse than not having it."""
+    import tempfile
+    from pathlib import Path
+
+    from gantry_connector_lerobot import LeRobotConnector
+
+    specs = [ChannelSpec("action", "vector", (2,), "float32", semantics="actuation", rate_hz=5.0)]
+    made = episode_from_arrays(
+        {"action": np.zeros((4, 2), dtype="float32")},
+        specs,
+        id="x",
+        source="other",
+        task="do a thing",
+    )
+    root = Path(tempfile.mkdtemp()) / "ds"
+    LeRobotConnector.write([made], str(root), fps=5)
+    (root / "meta" / "gantry.jsonl").unlink()
+
+    back = LeRobotConnector(str(root))
+    episode = back.open(back.episode_ids()[0])
+    assert episode.labels.success is None
+    assert episode.meta.license is None

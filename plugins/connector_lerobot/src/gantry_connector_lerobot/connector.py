@@ -53,6 +53,7 @@ from gantry.spine import (
     EpisodeLabels,
     EpisodeMeta,
     EpisodeRecord,
+    StageEvent,
 )
 
 from .video import MultiSource, VideoSource, available
@@ -432,6 +433,7 @@ class LeRobotConnector(Connector):
     def open(self, episode_id: str) -> EpisodeRecord:
         episode = self._require(episode_id)
         instruction = episode.tasks[0] if episode.tasks else None
+        kept = self._sidecar.get(self._index_of(episode_id), {})
         return EpisodeRecord(
             meta=EpisodeMeta(
                 id=episode_id,
@@ -443,7 +445,12 @@ class LeRobotConnector(Connector):
                 # any other producer, which is why it defaults to empty rather
                 # than to a guess.
                 derived_from=tuple(getattr(episode, "derived_from", ()) or ()),
-                extra={"path": str(episode.path), "tasks": list(episode.tasks)},
+                extra={
+                    "path": str(episode.path),
+                    "tasks": list(episode.tasks),
+                    **dict(kept.get("extra", {})),
+                },
+                license=kept.get("license"),
             ),
             schema=self._schema,
             source=MultiSource(
@@ -454,8 +461,38 @@ class LeRobotConnector(Connector):
                 ),
                 self._sources(episode),
             ),
-            labels=EpisodeLabels(annotations={"tasks": list(episode.tasks)}),
+            labels=EpisodeLabels(
+                # An outcome and per-episode notes that v2.1 has nowhere to put,
+                # read back from the sidecar this package writes. Absent for a
+                # dataset from any other producer, which is the honest default.
+                success=kept.get("success"),
+                stage_events=tuple(
+                    StageEvent(name=str(e["name"]), step=int(e["step"]))
+                    for e in kept.get("stage_events", ())
+                ),
+                annotations={"tasks": list(episode.tasks), **dict(kept.get("annotations", {}))},
+            ),
         )
+
+    def _index_of(self, episode_id: str) -> int:
+        try:
+            return list(self.episode_ids()).index(episode_id)
+        except ValueError:  # pragma: no cover - guarded by _require
+            return -1
+
+    @property
+    def _sidecar(self) -> dict[int, dict]:
+        """What the writer kept beside the dataset, if this package wrote it."""
+        if self.__dict__.get("_sidecar_cache") is None:
+            rows: dict[int, dict] = {}
+            path = self._root / "meta" / "gantry.jsonl"
+            if path.exists():
+                for line in path.read_text().splitlines():
+                    if line.strip():
+                        row = json.loads(line)
+                        rows[int(row.get("episode_index", -1))] = row
+            self.__dict__["_sidecar_cache"] = rows
+        return self.__dict__["_sidecar_cache"]
 
     def _require(self, episode_id: str) -> _Episode:
         try:

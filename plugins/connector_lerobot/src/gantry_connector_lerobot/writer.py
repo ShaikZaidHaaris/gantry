@@ -280,6 +280,7 @@ def write_episodes(
 
     (root / "meta" / "episodes.jsonl").write_text("\n".join(lines) + "\n")
     (root / "meta" / "episodes_stats.jsonl").write_text("\n".join(stat_lines) + "\n")
+    _sidecar(root, episodes)
     (root / "meta" / "tasks.jsonl").write_text(
         "".join(json.dumps({"task_index": i, "task": t}) + "\n" for t, i in tasks.items())
     )
@@ -406,6 +407,61 @@ def _stats(episode, specs, cameras) -> dict[str, Any]:
             "std": [float(column.std())],
             "count": [steps],
         }
+    return out
+
+
+#: Where the things LeRobot cannot hold are kept instead.
+SIDECAR = "meta/gantry.jsonl"
+
+
+def _sidecar(root: Path, episodes: Sequence[EpisodeRecord]) -> None:
+    """Everything this format has nowhere to put, kept beside it.
+
+    LeRobot v2.1 records no per-episode outcome, no milestones and no
+    annotations, and ``accept_loss=True`` says go ahead and drop them. That is
+    the right default for producing a dataset somebody else will read — and it
+    silently destroys the entire input to the feedback layer, which is what
+    happened the first time a report was generated from a written dataset: it
+    correctly announced that no component had declared a licence, that the
+    footage came from zero locations, and that six checks had nothing to read.
+
+    So the loss is real for any other reader and recoverable for this one. An
+    extra file in ``meta/`` is ignored by every LeRobot tool and read back by
+    :class:`LeRobotConnector`, which makes the round trip lossless here without
+    making the dataset non-standard.
+    """
+    lines = []
+    for index, episode in enumerate(episodes):
+        labels = episode.labels
+        meta = episode.meta
+        lines.append(
+            json.dumps(
+                {
+                    "episode_index": index,
+                    "gantry_id": meta.id,
+                    "success": labels.success,
+                    "annotations": _plain(dict(labels.annotations)),
+                    "extra": _plain(dict(meta.extra)),
+                    "license": meta.license,
+                    "derived_from": list(meta.derived_from),
+                    "stage_events": [{"name": s.name, "step": s.step} for s in labels.stage_events],
+                }
+            )
+        )
+    (root / "meta" / "gantry.jsonl").write_text("\n".join(lines) + "\n")
+
+
+def _plain(mapping: dict[str, Any]) -> dict[str, Any]:
+    """JSON-safe, dropping anything that is not. A sidecar that fails to write
+    would take the whole dataset down with it, which is a worse trade than
+    losing an unserialisable value."""
+    out: dict[str, Any] = {}
+    for key, value in mapping.items():
+        try:
+            json.dumps(value)
+        except (TypeError, ValueError):
+            continue
+        out[str(key)] = value
     return out
 
 
