@@ -57,6 +57,9 @@ class Part:
     measured: tuple[float, ...] = ()
     #: Episodes dropped from this part to match another's size, and their frames.
     dropped: tuple[str, ...] = ()
+    #: What identified the groups, or None if nothing did — in which case the
+    #: two halves may share a participant and there is no way to tell.
+    grouped_by: str | None = None
 
     @property
     def frames(self) -> int:
@@ -78,7 +81,31 @@ class Part:
                 else None
             ),
             "dropped_to_match": list(self.dropped),
+            "grouped_by": self.grouped_by,
+            # Said out loud, because "no leakage found" and "leakage not
+            # checkable" look the same in a table.
+            "leakage_checkable": self.grouped_by is not None,
         }
+
+
+#: Metadata keys that identify who or what a clip belongs to, in the order they
+#: are trusted.
+GROUPS = ("participant", "subject", "scene", "session")
+
+
+def grouped_by(episodes: Sequence[Any]) -> str | None:
+    """Which key identifies the groups, or ``None`` if nothing does.
+
+    ``None`` is the case that matters. When no episode says who filmed it, every
+    episode becomes its own group and the leakage check passes trivially -- it
+    has nothing to compare. That is not "no leakage found", it is "leakage not
+    checkable", and the two read identically in a report unless one of them says
+    so.
+    """
+    for key in GROUPS:
+        if any(key in dict(getattr(e.meta, "extra", {}) or {}) for e in episodes):
+            return key
+    return None
 
 
 def group_of(episode: Any) -> str:
@@ -91,7 +118,7 @@ def group_of(episode: Any) -> str:
     than the useful one.
     """
     extra = dict(getattr(episode.meta, "extra", {}) or {})
-    for key in ("participant", "subject", "scene", "session"):
+    for key in GROUPS:
         if key in extra:
             return str(extra[key])
     return str(episode.meta.id)
@@ -131,12 +158,14 @@ class Split:
             value = float(self.measure(episode))
             (above if value >= self.threshold else below).append((episode, value))
 
+        key = grouped_by(episodes)
         parts = {}
         for name, chosen in zip(self.names, (above, below)):
             parts[name] = Part(
                 name=name,
                 episodes=tuple(e for e, _ in chosen),
                 measured=tuple(v for _, v in chosen),
+                grouped_by=key,
             )
         self._check_leakage(parts)
         return parts
@@ -167,8 +196,15 @@ def match_frames(
     teaches a policy that reaching stops halfway. So the count lands near the
     target rather than on it, and how near is reported.
 
-    Refuses if it cannot get within ``tolerance``, because a comparison between
-    halves of visibly different size is a comparison of sizes.
+    Overshooting is allowed when it lands closer. Episodes in a real corpus are
+    all about the same length, so a target rarely falls on an episode boundary:
+    with ~300-frame clips and a target of 2294, seven clips is 2087 and eight is
+    2376, and the second is the better match. Taking only the largest subset
+    that fits under the target would have refused this split for being 9% apart
+    when a 4% match was available.
+
+    Refuses if it still cannot get within ``tolerance``, because a comparison
+    between halves of visibly different size is a comparison of sizes.
     """
     target = min(part.frames for part in parts.values())
     rng = np.random.default_rng(seed)
@@ -185,7 +221,8 @@ def match_frames(
         keep, dropped, total = [], [], 0
         for index in order:
             episode = part.episodes[index]
-            if total + len(episode) <= target:
+            # Keep it if doing so lands nearer the target than stopping here.
+            if abs(total + len(episode) - target) < abs(total - target):
                 keep.append(index)
                 total += len(episode)
             else:
@@ -195,6 +232,7 @@ def match_frames(
             episodes=tuple(part.episodes[i] for i in sorted(keep)),
             measured=tuple(part.measured[i] for i in sorted(keep)) if part.measured else (),
             dropped=tuple(dropped),
+            grouped_by=part.grouped_by,
         )
 
     sizes = [part.frames for part in out.values()]

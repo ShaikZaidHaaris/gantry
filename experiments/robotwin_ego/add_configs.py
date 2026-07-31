@@ -69,15 +69,30 @@ TEMPLATE = '''
 
 def main() -> None:
     text = CONFIG.read_text()
-    arms = ["rt_base", "rt_ego", "rt_shuffled"]
+    arms = [
+        "rt_base",
+        "rt_ego",
+        "rt_shuffled",
+        # A vs B: two contributor cohorts cut from the same corpus on how much
+        # of each clip both hands were actually moving, plus a detached-action
+        # control for each so "this half carried information" stays answerable
+        # separately from "this half beat the other one".
+        "rt_two_handed",
+        "rt_two_handed_shuf",
+        "rt_one_handed",
+        "rt_one_handed_shuf",
+    ]
 
-    already = [arm for arm in arms if f'name="pi05_{arm}"' in text]
-    if already:
-        print(f"already present: {already}")
+    # Only the ones not already there, so this can be run again as arms are
+    # added without rewriting the ones already training.
+    wanted = [arm for arm in arms if f'name="pi05_{arm}"' not in text]
+    if not wanted:
+        print("all present, nothing to add")
         return
+    print(f"already present: {[a for a in arms if a not in wanted]}")
 
     block = "".join(
-        TEMPLATE.format(arm=arm, prompt=PROMPT, steps=STEPS) for arm in arms
+        TEMPLATE.format(arm=arm, prompt=PROMPT, steps=STEPS) for arm in wanted
     )
     # Insert immediately before the pi05_ego entry, which is the last thing in
     # the list and the one these are modelled on.
@@ -95,12 +110,12 @@ def main() -> None:
         "# attributable to the correspondence rather than to the extra frames.\n"
     )
     CONFIG.write_text(text.replace(anchor, header + block.rstrip() + "\n" + anchor, 1))
-    print(f"added {arms} at {STEPS} steps, prompt {PROMPT!r}")
+    print(f"added {wanted} at {STEPS} steps, prompt {PROMPT!r}")
 
     # Prove they parse and resolve before anything spends an hour on the GPU.
     import subprocess
 
-    for arm in arms:
+    for arm in wanted:
         out = subprocess.run(
             ["python", "-c", f"import openpi.training.config as c; c.get_config('pi05_{arm}')"],
             cwd="/home/ubuntu/openpi", capture_output=True, text=True,

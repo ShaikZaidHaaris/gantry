@@ -148,3 +148,38 @@ def test_an_empty_part_is_still_a_part():
     parts = splitter().cut([episode("a", participant="A")])
     assert len(parts["one_handed"]) == 0
     assert parts["one_handed"].frames == 0
+
+
+def test_overshooting_is_allowed_when_it_lands_closer():
+    """Episodes in a real corpus are all about the same length, so a target
+    rarely falls on a boundary. With 300-frame clips and a target of 2294,
+    seven is 2087 and eight is 2376 -- and taking only the largest subset that
+    fits under would refuse a 4% match for being 9% apart."""
+    episodes = [episode(f"hi{i}", steps=300, participant=f"H{i}") for i in range(7)]
+    episodes += [episode("hi_short", steps=194, participant="HS")]
+    episodes += [
+        episode(f"lo{i}", steps=300, left_moving=0.0, participant=f"L{i}") for i in range(10)
+    ]
+
+    parts = match_frames(splitter().cut(episodes))
+    high, low = parts["two_handed"].frames, parts["one_handed"].frames
+    assert high == 2294
+    assert low == 2400  # eight clips, overshooting by less than seven would undershoot
+    assert abs(high - low) / max(high, low) < 0.05
+
+
+def test_a_corpus_that_says_who_filmed_it_can_be_checked_for_leakage():
+    parts = splitter().cut(
+        [episode("a", participant="P01"), episode("b", left_moving=0.0, participant="P02")]
+    )
+    assert parts["two_handed"].summary()["grouped_by"] == "participant"
+    assert parts["two_handed"].summary()["leakage_checkable"] is True
+
+
+def test_a_corpus_that_does_not_say_reports_that_it_cannot_be_checked():
+    """Every episode becomes its own group and the check passes trivially. That
+    is not 'no leakage found', it is 'leakage not checkable', and the two read
+    identically in a table unless one of them says so."""
+    parts = splitter().cut([episode("a"), episode("b", left_moving=0.0)])
+    assert parts["two_handed"].summary()["grouped_by"] is None
+    assert parts["two_handed"].summary()["leakage_checkable"] is False
