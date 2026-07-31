@@ -255,3 +255,141 @@ def test_the_floor_lands_in_the_descriptor_so_a_run_records_its_bar():
     made = PolicyComparison(floor=floor_of(does_nothing=0.4))
     assert made.descriptor().metadata["floor"]["floor"] == 0.4
     assert PolicyComparison().descriptor().metadata["floor"] is None
+
+
+# -- what two arms are paired on ------------------------------------------------
+#
+# This was collapsing every scene in a run into one. scene_of fell back to the
+# part of the episode id before a "#" -- which is the *task*, identical for every
+# scene -- and arm_of keyed a dict on it, so ten scenes became one entry and the
+# other nine were dropped without a word. McNemar then ran on a single pair,
+# which is not a test.
+
+
+def episode_at(scene, success, train_seed=None, annotations=None):
+    extra = {"scene": scene, **(annotations or {})}
+    if train_seed is not None:
+        extra["train_seed"] = train_seed
+    return episode_from_labels(
+        id=f"task#{scene}",
+        source="t",
+        task="t",
+        labels=EpisodeLabels(success=success, annotations=extra),
+    )
+
+
+def test_scenes_are_not_collapsed_into_the_task():
+    from gantry_feedback_compare.compare import scene_of
+
+    bare = [
+        episode_from_labels(
+            id=f"pick_dual_bottles#{i:03d}",
+            source="t",
+            task="t",
+            labels=EpisodeLabels(success=True),
+        )
+        for i in range(3)
+    ]
+    assert len({scene_of(e) for e in bare}) == 3
+
+
+def test_the_recorded_scene_wins_over_the_id():
+    from gantry_feedback_compare.compare import scene_of
+
+    assert scene_of(episode_at("s7", True)) == "s7"
+
+
+def test_several_training_seeds_on_one_scene_are_distinct_units():
+    """Three seeds over ten scenes is thirty paired comparisons rather than ten,
+    which is the cheapest real power available -- but only if the pairing key
+    tells them apart."""
+    from gantry_feedback_compare.compare import unit_of
+
+    units = {unit_of(episode_at("s0", True, train_seed=s)) for s in (0, 1, 2)}
+    assert len(units) == 3
+
+
+def test_two_outcomes_for_one_unit_are_refused_not_silently_resolved():
+    """Keeping the last is how a three-seed run quietly becomes a one-seed run."""
+    from gantry_feedback_compare.compare import arm_of
+
+    from gantry.contracts.feedback import Cohort
+    from gantry.errors import ConfigError
+
+    cohort = Cohort(name="a", episodes=(episode_at("s0", True), episode_at("s0", False)))
+    with pytest.raises(ConfigError, match="record `train_seed`"):
+        arm_of(cohort)
+
+
+def test_a_rollout_writes_down_the_scene_it_attempted():
+    """Nothing else in the record identifies it: an episode id is a convention,
+    and a module that parses one is a rename away from pairing everything with
+    everything."""
+    import numpy as np
+
+    from gantry.contracts.evaluator import Protocol, Scene, TaskSpec
+    from gantry.contracts.policy import Policy, policy_descriptor
+    from gantry.resolve import requires_channels
+    from gantry.rollout import ClosedLoop, Step
+    from gantry.spine import ChannelSpec
+
+    class World:
+        def begin(self, scene):
+            self.n = 0
+            return {"c": np.zeros(1)}
+
+        def advance(self, action):
+            self.n += 1
+            return Step(observation={"c": np.zeros(1)}, reward=0.0, done=True, success=True)
+
+        def close(self):
+            pass
+
+    class Suite(ClosedLoop):
+        embodiment = "e"
+
+        def descriptor(self):
+            from gantry.contracts.evaluator import evaluator_descriptor
+
+            return evaluator_descriptor(
+                name="s",
+                version="0.1",
+                stage_events=False,
+                outcomes=True,
+                seedable=True,
+                closed_loop=True,
+                hosts_embodiment=False,
+            )
+
+        def action(self):
+            return ChannelSpec("action", "vector", (2,), "float32", semantics="actuation")
+
+        def world_for(self, scene):
+            return World()
+
+        def task_for(self, name="t", scenes=2, horizon=None):
+            return TaskSpec(name, scenes=tuple(Scene(id=f"s{i}", seed=i) for i in range(scenes)))
+
+    class P(Policy):
+        def descriptor(self):
+            return policy_descriptor(
+                name="p", version="0.1", horizon=1, chunk=1, deterministic=True
+            )
+
+        def action_spec(self):
+            return ChannelSpec("action", "vector", (2,), "float32", semantics="actuation")
+
+        def observes(self):
+            return requires_channels("p", "policy")
+
+        def reset(self, context):
+            pass
+
+        def act(self, observation):
+            return np.zeros((1, 2), dtype="float32")
+
+    task = TaskSpec("t", scenes=(Scene(id="alpha", seed=7), Scene(id="beta", seed=9)))
+    record = Suite().run(P(), task, Protocol())
+    scenes = [e.labels.annotations["scene"] for e in record.episodes]
+    assert scenes == ["alpha", "beta"]
+    assert record.episodes[0].labels.annotations["scene_seed"] == 7

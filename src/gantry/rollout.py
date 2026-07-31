@@ -433,6 +433,15 @@ class ClosedLoop(Evaluator):
         identifier = f"{scene.id}#{epoch}" if protocol.epochs > 1 else scene.id
         annotations: dict[str, Any] = {
             "epoch": epoch,
+            # The scene attempted. Written down because every paired comparison
+            # needs it and nothing else in the record identifies it: an episode
+            # id is a convention, and a module that has to parse one is one
+            # rename away from silently pairing everything with everything.
+            "scene": scene.id,
+            # The scene's own seed, which is what makes an arrangement
+            # reproducible. Not the training seed -- that belongs to the policy
+            # and is not knowable from here.
+            "scene_seed": scene.seed,
             "steps": trial.steps,
             "instruction": scene.instruction,
             "truncated": trial.truncated,

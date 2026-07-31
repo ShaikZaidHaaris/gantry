@@ -77,18 +77,51 @@ class Arm:
 
 
 def scene_of(episode: Any) -> str:
-    """The scene attempted, so two arms can be paired on it."""
+    """The scene attempted, so two arms can be paired on it.
+
+    The recorded annotation first. The fallback is the whole episode id, not
+    the part before a ``#`` — that prefix is the *task*, which is identical for
+    every scene in a run, so pairing on it silently collapsed ten scenes into
+    one and threw nine away.
+    """
     annotations = episode.labels.annotations
     for key in ("scene", "scene_id", "initial_state"):
         if key in annotations:
             return str(annotations[key])
-    return episode.meta.id.split("#", 1)[0]
+    return str(episode.meta.id)
+
+
+def unit_of(episode: Any) -> str:
+    """What two arms are paired on.
+
+    The scene, and the training seed where a run recorded one. Several
+    checkpoints of the same dataset evaluated on the same scenes are the cheapest
+    real power available -- three seeds over ten scenes is thirty paired
+    comparisons rather than ten -- but only if the pairing key distinguishes
+    them. Keyed on the scene alone they are duplicates.
+    """
+    annotations = episode.labels.annotations
+    seed = annotations.get("train_seed", annotations.get("checkpoint"))
+    scene = scene_of(episode)
+    return f"{seed}/{scene}" if seed is not None else scene
 
 
 def arm_of(cohort: Cohort) -> Arm | None:
-    scored = {
-        scene_of(e): bool(e.labels.success) for e in cohort.episodes if e.labels.success is not None
-    }
+    scored: dict[str, bool] = {}
+    for episode in cohort.episodes:
+        if episode.labels.success is None:
+            continue
+        unit = unit_of(episode)
+        if unit in scored:
+            # Two outcomes for one pairing unit. Keeping the last is how a
+            # three-seed run quietly becomes a one-seed run, so it is refused
+            # rather than resolved.
+            raise ConfigError(
+                f"{cohort.name}: two episodes both claim {unit!r}. A paired comparison "
+                "needs one outcome per unit; if these are different training seeds, "
+                "record `train_seed` on each so they can be told apart"
+            )
+        scored[unit] = bool(episode.labels.success)
     if not scored:
         return None
     policy = cohort.provenance.component("policy") if cohort.provenance else None
