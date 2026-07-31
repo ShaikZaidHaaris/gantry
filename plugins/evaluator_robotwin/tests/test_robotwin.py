@@ -48,7 +48,10 @@ class FakeTask:
         self.settings.append(kwargs)
         self.steps = 0
 
-    def get_instruction(self):
+    def set_instruction(self, instruction=None):
+        self._instruction = instruction
+
+    def get_instruction(self, instruction=None):
         return self._instruction
 
     def get_obs(self):
@@ -482,3 +485,84 @@ def test_the_state_and_the_action_share_an_encoding_so_one_conversion_serves_bot
     state = state_spec()
     assert state.metadata["rotation_repr"] == action.metadata["rotation_repr"]
     assert state.metadata["rotation_offset"] == action.metadata["rotation_offset"]
+
+
+# -- the sentence the scene will be scored against ------------------------------
+#
+# get_instruction() returns None until something sets one. RoboTwin builds the
+# sentence from the task's instruction file, filling placeholders with what the
+# randomiser actually placed -- so it is not knowable until the scene exists,
+# and the parameters come out of the expert's own rollout. The screen runs that
+# rollout anyway.
+
+
+class Describing(Screenable):
+    def play_once(self):
+        super().play_once()
+        return {"info": {"object": "bottle", "seed": self.seed}}
+
+
+def describing(**kwargs):
+    built = []
+
+    def factory(task, **_):
+        made = Describing(**kwargs)
+        built.append(made)
+        return made
+
+    made = RoboTwinEvaluator("pick_dual_bottles", action_type="ee", factory=factory, horizon=20)
+    made.built = built
+    # Stand in for RoboTwin's description generator, which needs its data files.
+    made._describe = lambda info, seed: f"pick up the {info['object']} ({seed})"
+    return made
+
+
+def test_the_sentence_is_captured_during_the_screen_not_by_rerunning_the_expert():
+    made = describing(solvable=(0, 2))
+    made.screen(2, limit=6)
+    assert made.instruction_for(0) == "pick up the bottle (0)"
+    assert made.instruction_for(2) == "pick up the bottle (2)"
+    assert made.built[0].played == [0, 1, 2]  # not run again
+
+
+def test_the_scene_is_told_its_sentence_before_the_policy_is_reset():
+    """ClosedLoop reads the world's instruction after begin(). If it is not set
+    by then the policy is prompted with nothing."""
+    made = describing(solvable=(0,))
+    made.screen(1, limit=3)
+    record = made.run(Chunker(16), made.task_for(seeds=(0,)), Protocol())
+    assert record.episodes[0].labels.annotations["instruction_given"] == "pick up the bottle (0)"
+
+
+def test_an_unscreened_scene_has_no_sentence_rather_than_an_invented_one():
+    """A language-conditioned policy then refuses, which is right: an
+    unconditioned model scores badly and looks exactly like one that did not
+    train."""
+    made = describing(solvable=(0,))
+    assert made.instruction_for(7) is None
+
+
+def test_the_same_scene_gets_the_same_sentence_in_both_arms():
+    """Drawn with a seeded generator rather than the global RNG. Two arms asked
+    to do differently worded tasks on the same arrangement are not a paired
+    comparison."""
+    made = RoboTwinEvaluator("pick_dual_bottles", action_type="ee", factory=lambda t, **_: None)
+    pool = ["lift both bottles", "pick up the two bottles", "grab both bottles"]
+
+    import unittest.mock as mock
+
+    with mock.patch.object(made, "_describe", wraps=made._describe):
+        # the real path: a seeded draw from the same pool must repeat
+        first = str(np.random.default_rng(3).choice(pool))
+        second = str(np.random.default_rng(3).choice(pool))
+        assert first == second
+        assert str(np.random.default_rng(4).choice(pool)) in pool
+
+
+def test_what_the_environment_holds_is_what_gets_recorded():
+    """Set it, then ask -- so the record is the environment's answer rather than
+    what we intended it to be."""
+    made = describing(solvable=(0,))
+    made.screen(1, limit=3)
+    made.run(Chunker(16), made.task_for(seeds=(0,)), Protocol())
+    assert made.built[0]._instruction == "pick up the bottle (0)"

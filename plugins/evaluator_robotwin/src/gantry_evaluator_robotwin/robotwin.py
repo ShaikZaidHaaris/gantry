@@ -53,10 +53,22 @@ out is then a fact somebody can look at, not a silent filter.
 
 The instruction comes from the environment
 ------------------------------------------
-``get_instruction()`` returns the language goal, and RoboTwin varies it. A
-policy handed a different sentence than the one the environment is scoring
-against is being tested on a mismatch that shows up only as a low number, so
-whatever sentence was actually used is recorded on every episode.
+``get_instruction()`` returns the language goal, and it returns ``None`` until
+something sets one. RoboTwin builds the sentence from the task's own
+instruction file, filling placeholders with what the randomiser actually placed
+-- so the goal is not knowable until the scene exists, and the parameters come
+out of the expert's own rollout.
+
+The screen already runs that rollout, so the parameters are captured there and
+the sentence is generated the same way RoboTwin generates it. Which one is
+drawn from the pool is seeded by the scene rather than by the global RNG:
+otherwise the two arms of a paired comparison are asked to do differently
+worded tasks on the same arrangement, and the difference between them stops
+being attributable to the thing being tested.
+
+A policy handed a different sentence than the one the environment is scoring
+against is tested on a mismatch that shows up only as a low number, so whatever
+sentence was actually used is recorded on every episode.
 """
 
 from __future__ import annotations
@@ -326,6 +338,8 @@ class DualArm:
         self.action_type = action_type
         self.cameras = tuple(cameras)
         self.instruction: str | None = None
+        #: Set per scene by the evaluator, from what the expert's rollout saw.
+        self.planned: str | None = None
 
     # -- the world ---------------------------------------------------------
 
@@ -343,11 +357,15 @@ class DualArm:
             )
         elif callable(getattr(self.env, "reset", None)):  # pragma: no cover
             self.env.reset()
-        # Asked rather than assumed: RoboTwin varies the sentence, and a policy
-        # given the nominal instruction while the environment scores a different
-        # one is being tested on a mismatch that reads as poor performance.
+        # The environment holds no sentence until one is set, and setting it is
+        # how RoboTwin's own loop works. Set it before asking, then ask -- so
+        # what is recorded is what the environment holds, not what we intended
+        # it to hold.
+        if self.planned and callable(getattr(self.env, "set_instruction", None)):
+            self.env.set_instruction(instruction=self.planned)
         getter = getattr(self.env, "get_instruction", None)
-        self.instruction = str(getter()) if callable(getter) else scene.instruction
+        spoken = getter() if callable(getter) else None
+        self.instruction = str(spoken) if spoken else (self.planned or scene.instruction)
         return self._observe()
 
     def advance(self, action: np.ndarray) -> Step:
@@ -496,6 +514,7 @@ class RoboTwinEvaluator(ClosedLoop):
         action_type: str,
         embodiment: str = "aloha-agilex",
         name: str = "robotwin",
+        instruction_type: str = "seen",
         cameras: Sequence[str] = ("head_camera", "left_camera", "right_camera"),
         factory: Callable[..., Any] = make_env,
         horizon: int = 400,
@@ -513,6 +532,7 @@ class RoboTwinEvaluator(ClosedLoop):
         self._action_type = action_type
         self._embodiment = embodiment
         self._name = name
+        self._instruction_type = str(instruction_type)
         self._cameras = tuple(cameras)
         self.observes = None
         self._factory = factory
@@ -521,6 +541,8 @@ class RoboTwinEvaluator(ClosedLoop):
         self._world: DualArm | None = None
         #: (first seed tried, one past the last, the ones the expert solved).
         self._screened: tuple[int, int, tuple[int, ...]] | None = None
+        #: The sentence each screened scene will be scored against.
+        self._instructions: dict[int, str] = {}
 
     # -- contract ----------------------------------------------------------
 
@@ -674,9 +696,17 @@ class RoboTwinEvaluator(ClosedLoop):
         while len(solved) < count and seed < ceiling:
             try:
                 env.setup_demo(now_ep_num=seed, seed=seed, is_test=True, **self._settings(env))
-                env.play_once()
+                episode = env.play_once()
                 if bool(getattr(env, "plan_success", True)) and world._success():
                     solved.append(seed)
+                    # The expert's rollout is the only place the placeholders
+                    # get filled, and it has just been run. Taking the sentence
+                    # now costs nothing; taking it later costs another rollout.
+                    info = (episode or {}).get("info") if isinstance(episode, Mapping) else None
+                    if info is not None:
+                        sentence = self._describe(info, seed)
+                        if sentence:
+                            self._instructions[seed] = sentence
             except Exception:
                 # An expert failure is a property of the arrangement, which is
                 # what is being measured here. It is not this run's error.
@@ -703,7 +733,46 @@ class RoboTwinEvaluator(ClosedLoop):
         return self._world
 
     def world_for(self, scene: Scene) -> DualArm:
-        return self.world
+        world = self.world
+        world.planned = self._instructions.get(int(scene.seed or 0))
+        return world
+
+    def instruction_for(self, seed: int) -> str | None:
+        """The sentence this scene will be scored against, if it is known.
+
+        Known only for screened seeds, because the placeholders are filled from
+        what the randomiser actually placed and that comes out of the expert's
+        rollout. Unscreened, this is ``None`` and a language-conditioned policy
+        will refuse rather than run unconditioned -- which is the right outcome:
+        an unconditioned model scores badly and looks exactly like a checkpoint
+        that did not train.
+        """
+        return self._instructions.get(int(seed))
+
+    def _describe(self, info: Any, seed: int) -> str | None:
+        """One sentence for this arrangement, RoboTwin's own way.
+
+        Drawn with a seeded generator rather than the global RNG so that scene
+        *k* gets the same sentence in every run. Two arms of a paired comparison
+        asked to do differently worded tasks on the same arrangement are no
+        longer a paired comparison.
+        """
+        try:
+            from description.utils.generate_episode_instructions import (
+                generate_episode_descriptions,
+            )
+        except ImportError:  # pragma: no cover - needs the simulator
+            return None
+        try:
+            results = generate_episode_descriptions(self._task, [info], 100)
+        except Exception:  # pragma: no cover - a task with no instruction file
+            return None
+        if not results:
+            return None
+        pool = list(results[0].get(self._instruction_type) or [])
+        if not pool:
+            return None
+        return str(np.random.default_rng(seed).choice(pool))
 
     def close(self) -> None:
         if self._world is not None:
