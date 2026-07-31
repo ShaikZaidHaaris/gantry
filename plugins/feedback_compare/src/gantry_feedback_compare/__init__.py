@@ -5,6 +5,7 @@ from .compare import (
     MATERIAL,
     VERSION,
     Arm,
+    Floor,
     PolicyComparison,
     arm_of,
     paired_counts,
@@ -12,6 +13,7 @@ from .compare import (
 )
 
 __all__ = [
+    "Floor",
     "HELD",
     "MATERIAL",
     "VERSION",

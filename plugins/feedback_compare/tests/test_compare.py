@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import pytest
-from gantry_feedback_compare import PolicyComparison, paired_counts, scene_of
+from gantry_feedback_compare import Floor, PolicyComparison, paired_counts, scene_of
 
 from gantry.conformance import check_feedback
 from gantry.contracts.feedback import Cohort
+from gantry.errors import ConfigError
 from gantry.spine import ComponentRef, EpisodeLabels, IncompatibleError, Provenance
 from gantry.spine.episode import episode_from_labels
 
@@ -16,7 +17,8 @@ RIG = ComponentRef("evaluation", "robosuite", "1.0")
 def arm(name, outcomes, *, policy="p", evaluation=RIG, offset=0, trained_on=None):
     episodes = tuple(
         episode_from_labels(
-            id=f"scene-{i + offset:02d}", source=name,
+            id=f"scene-{i + offset:02d}",
+            source=name,
             labels=EpisodeLabels(success=won),
         )
         for i, won in enumerate(outcomes)
@@ -25,7 +27,8 @@ def arm(name, outcomes, *, policy="p", evaluation=RIG, offset=0, trained_on=None
     if trained_on:
         protocol["trained_on"] = trained_on
     return Cohort(
-        name, episodes,
+        name,
+        episodes,
         provenance=Provenance(
             components=(ComponentRef("policy", policy, "1.0"), evaluation),
             protocol=protocol,
@@ -84,8 +87,10 @@ def test_the_training_set_is_context_not_a_conclusion(arms):
 
 
 def test_a_small_difference_is_reported_without_a_prescription():
-    close = [arm("a", [True] * 5 + [False] * 5, policy="a"),
-             arm("b", [True] * 4 + [False] * 6, policy="b")]
+    close = [
+        arm("a", [True] * 5 + [False] * 5, policy="a"),
+        arm("b", [True] * 4 + [False] * 6, policy="b"),
+    ]
     (finding,) = PolicyComparison().run(close).findings
     assert finding.severity == "weak"
     assert finding.prescription is None
@@ -109,8 +114,9 @@ def test_all_zero_ranks_nothing_and_says_why():
 
 
 def test_a_different_world_is_refused(arms):
-    other = arm("mg", [True] * 10, policy="ft-mg",
-                evaluation=ComponentRef("evaluation", "libero", "1.0"))
+    other = arm(
+        "mg", [True] * 10, policy="ft-mg", evaluation=ComponentRef("evaluation", "libero", "1.0")
+    )
     verdict = PolicyComparison().check_inputs([arms[0], other])
     assert "feedback.incomparable" in verdict.codes()
     with pytest.raises(IncompatibleError, match="differ on"):
@@ -126,8 +132,11 @@ def test_comparing_one_policy_against_itself_is_noted():
 
 def test_cohorts_without_outcomes_are_refused():
     empty = [
-        Cohort(n, (episode_from_labels(id="s", source=n, labels=EpisodeLabels()),),
-               provenance=Provenance(components=(ComponentRef("policy", n, "1"), RIG)))
+        Cohort(
+            n,
+            (episode_from_labels(id="s", source=n, labels=EpisodeLabels()),),
+            provenance=Provenance(components=(ComponentRef("policy", n, "1"), RIG)),
+        )
         for n in ("a", "b")
     ]
     verdict = PolicyComparison().check_inputs(empty)
@@ -145,7 +154,104 @@ def test_pairing_counts_only_shared_scenes():
 
 def test_the_scene_is_read_from_an_annotation_when_there_is_one():
     episode = episode_from_labels(
-        id="run-9", source="x",
+        id="run-9",
+        source="x",
         labels=EpisodeLabels(success=True, annotations={"initial_state": 4}),
     )
     assert scene_of(episode) == "4"
+
+
+# -- the floor ---------------------------------------------------------------
+#
+# Added after a real failure. Two checkpoints were compared on held-out data,
+# one won by 8% on both scenes, and it was reported. Then a model that had
+# learned nothing turned out to beat both of them.
+
+
+def floor_of(**scores):
+    return Floor(
+        scores=scores, higher_is_better=True, method="no-learning predictors on the same scenes"
+    )
+
+
+def test_a_ranking_below_the_floor_is_refused_rather_than_reported():
+    """The failure this exists for: the winner lost to a one-line heuristic, and
+    "8% better than the control" and "worse than doing nothing" were the same
+    result told from opposite ends."""
+    report = PolicyComparison(floor=floor_of(does_nothing=0.40)).analyse(
+        [arm("a", [True] * 3 + [False] * 7), arm("b", [True] * 1 + [False] * 9)]
+    )
+    codes = [f.code for f in report.findings]
+    assert codes == ["compare.below_floor"]
+
+    finding = report.findings[0]
+    assert finding.severity == "strong"
+    assert "required no learning at all" in finding.summary
+    assert "does_nothing" in finding.evidence["hardest_trivial_predictor"]
+    assert finding.evidence["floor"] == 0.4
+
+
+def test_the_ranking_is_withheld_not_printed_beside_the_warning():
+    """A number printed next to a caveat is a number somebody quotes without the
+    caveat."""
+    report = PolicyComparison(floor=floor_of(does_nothing=0.40)).analyse(
+        [arm("a", [True] * 3 + [False] * 7), arm("b", [False] * 10)]
+    )
+    assert not any(f.code == "compare.best_policy" for f in report.findings)
+    assert any("somebody will quote" in note for note in report.notes)
+    # the per-arm rates are still measured — refusing to rank is not refusing to
+    # measure, and a reader needs the numbers to see how far below the floor it is
+    assert "a.success_rate" in report.measurements
+
+
+def test_clearing_the_floor_lets_the_ranking_through():
+    report = PolicyComparison(floor=floor_of(does_nothing=0.10)).analyse(
+        [arm("a", [True] * 8 + [False] * 2), arm("b", [True] * 3 + [False] * 7)]
+    )
+    assert any(f.code == "compare.best_policy" for f in report.findings)
+    assert any("beat doing nothing" in note for note in report.notes)
+
+
+def test_the_hardest_trivial_predictor_is_the_one_that_has_to_be_beaten():
+    """Several trivial predictors, and the bar is the best of them — beating the
+    weakest while losing to a stronger one is not clearing the floor."""
+    floor = floor_of(zeros=0.10, dataset_mean=0.25, copy_state=0.45)
+    assert floor.best == ("copy_state", 0.45)
+    assert not floor.cleared_by(0.30)
+    assert floor.cleared_by(0.50)
+
+
+def test_a_floor_works_for_an_error_metric_where_lower_is_better():
+    """Prediction error, which is how this was found. The direction has to be
+    declared because 0.50 beats 0.45 for a success rate and loses to it for an
+    error."""
+    floor = Floor(
+        scores={"copy_state": 0.4252, "dataset_mean": 0.4434},
+        higher_is_better=False,
+        method="held-out MAE",
+    )
+    assert floor.best == ("copy_state", 0.4252)
+    assert not floor.cleared_by(0.5029)  # the ego checkpoint, on the day
+    assert not floor.cleared_by(0.5450)  # the scrambled control
+    assert floor.cleared_by(0.3800)
+
+
+def test_an_empty_floor_is_refused():
+    with pytest.raises(ConfigError, match="not a floor"):
+        Floor(scores={})
+
+
+def test_no_floor_is_reported_rather_than_assumed_away():
+    """A comparison without one is still a comparison. It simply cannot say
+    whether the thing it ranked was worth ranking, and that gets said."""
+    report = PolicyComparison().analyse(
+        [arm("a", [True] * 8 + [False] * 2), arm("b", [True] * 3 + [False] * 7)]
+    )
+    assert any(f.code == "compare.best_policy" for f in report.findings)
+    assert any("cannot say whether winning was worth anything" in n for n in report.notes)
+
+
+def test_the_floor_lands_in_the_descriptor_so_a_run_records_its_bar():
+    made = PolicyComparison(floor=floor_of(does_nothing=0.4))
+    assert made.descriptor().metadata["floor"]["floor"] == 0.4
+    assert PolicyComparison().descriptor().metadata["floor"] is None
