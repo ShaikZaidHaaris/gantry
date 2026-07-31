@@ -430,3 +430,58 @@ def test_the_single_arm_case_still_works_exactly_as_before():
     values[:, 6] = 0.05
     out = convert(values, source, target)
     assert out.shape == (3, 8) and np.allclose(out[:, 7], 0.05)
+
+
+# -- the labels outside the blocks still guard the arm order --------------------
+#
+# Re-encoding a rotation renames its own block: rx, ry, rz becomes qw, qx, qy,
+# qz. That is the adapter's own doing, so it closes dim_labels.mismatch. What it
+# must not close is a disagreement *outside* the blocks, which is a different
+# layout rather than a different encoding -- most often the arms in the other
+# order, which produces valid commands sent to the wrong arm.
+
+EULER_PARTS = ("x", "y", "z", "rx", "ry", "rz", "gripper")
+QUAT_PARTS = ("x", "y", "z", "qw", "qx", "qy", "qz", "gripper")
+
+
+def labelled(encoding, arms=("left", "right")):
+    parts = EULER_PARTS if encoding == "euler_xyz" else QUAT_PARTS
+    per_arm = 3 + WIDTHS[encoding] + 1
+    return ChannelSpec(
+        "action",
+        "vector",
+        (per_arm * len(arms),),
+        "float32",
+        semantics="action.eef_abs_pose",
+        dim_labels=tuple(f"{arm}_{part}" for arm in arms for part in parts),
+        metadata={KEY: encoding, OFFSET_KEY: tuple(3 + i * per_arm for i in range(len(arms)))},
+    )
+
+
+def test_the_renaming_the_adapter_itself_causes_is_not_an_obstacle():
+    verdict = ROTATION.guard(labelled("euler_xyz"), labelled("quat_wxyz"))
+    assert verdict.ok, verdict.explain()
+    assert "dim_labels.mismatch" in ROTATION.closes
+
+
+def test_the_arms_in_the_other_order_is_still_refused():
+    """The failure this guard exists for: a valid, smooth trajectory sent to the
+    wrong arm, which nothing downstream can detect."""
+    swapped = labelled("quat_wxyz", arms=("right", "left"))
+    verdict = ROTATION.guard(labelled("euler_xyz"), swapped)
+    assert not verdict.ok
+    assert "adapter.rotation_labels" in verdict.explain()
+    assert "wrong arm" in verdict.explain()
+
+
+def test_labels_on_one_side_only_are_not_treated_as_a_disagreement():
+    """The absence of a claim, which the spine reports separately."""
+    bare = ChannelSpec(
+        "action",
+        "vector",
+        (16,),
+        "float32",
+        semantics="action.eef_abs_pose",
+        metadata={KEY: "quat_wxyz", OFFSET_KEY: (3, 11)},
+    )
+    assert ROTATION.guard(labelled("euler_xyz"), bare).ok

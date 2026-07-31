@@ -171,15 +171,20 @@ class Pi0Policy(Policy):
         wide float32 vector is the same object whichever arm is first, and the
         resolver can only catch a swap if both sides said.
         """
+        declared = dict(self._layout.metadata)
         return ChannelSpec(
             "action",
             "vector",
             (self._layout.action,),
             "float32",
-            semantics="actuation",
+            semantics=str(declared.pop("semantics", "actuation")),
             dim_labels=self._layout.labels or None,
-            discriminators=("arms",),
-            metadata={"arms": self._layout.arms, "layout": self._layout.name},
+            # Only what the layout nominated. A rotation encoding is invisible
+            # in the shape and changes what every number means; a rig name is
+            # prose. Without this the layout's metadata went nowhere and no
+            # conversion could be planned for a served policy at all.
+            discriminators=("arms", *self._layout.discriminators),
+            metadata={"arms": self._layout.arms, "layout": self._layout.name, **declared},
         )
 
     def observes(self) -> Requirement:
@@ -199,14 +204,18 @@ class Pi0Policy(Policy):
             )
             for name, key in self._layout.images.items()
         ]
+        declared = dict(self._layout.metadata)
+        declared.pop("semantics", None)
         channels.append(
             ChannelSpec(
                 self._layout.reads,
                 "vector",
                 (self._layout.state,),
                 "float32",
+                semantics=self._layout.state_semantics,
                 dim_labels=self._layout.labels[: self._layout.state] or None,
-                metadata={"arms": self._layout.arms},
+                discriminators=("arms", *self._layout.discriminators),
+                metadata={"arms": self._layout.arms, **declared},
             )
         )
         return requires_channels(

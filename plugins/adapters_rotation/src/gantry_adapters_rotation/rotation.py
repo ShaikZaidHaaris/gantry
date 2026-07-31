@@ -273,6 +273,38 @@ def _segments(spec: ChannelSpec, offsets: tuple[int, ...], block: int) -> tuple[
     return tuple(gaps)
 
 
+def _outside(spec: ChannelSpec, offsets: tuple[int, ...], block: int) -> tuple[str, ...] | None:
+    """Dimension names that are not part of any rotation block."""
+    if not spec.dim_labels:
+        return None
+    inside = {index for start in offsets for index in range(start, start + block)}
+    return tuple(str(label) for index, label in enumerate(spec.dim_labels) if index not in inside)
+
+
+def _labels_agree(
+    source: ChannelSpec,
+    target: ChannelSpec,
+    here: tuple[int, ...],
+    there: tuple[int, ...],
+    mine: int,
+    theirs: int,
+) -> bool:
+    """Whether the non-rotation names match.
+
+    Re-encoding a rotation renames its own block -- ``rx, ry, rz`` becomes
+    ``qw, qx, qy, qz`` -- and that is the adapter's own doing. Everything else
+    must still line up, because a disagreement out there is a different layout
+    rather than a different encoding. Undeclared on either side is not a
+    disagreement; it is the absence of a claim, and the spine reports that
+    separately.
+    """
+    ours = _outside(source, here, mine)
+    theirs_labels = _outside(target, there, theirs)
+    if ours is None or theirs_labels is None:
+        return True
+    return ours == theirs_labels
+
+
 def _guard(source: ChannelSpec, target: ChannelSpec) -> Verdict:
     mine, theirs = _encoding(source), _encoding(target)
     if mine is None or theirs is None:
@@ -321,6 +353,15 @@ def _guard(source: ChannelSpec, target: ChannelSpec) -> Verdict:
             f"the rotation blocks declared on {broken!r} overlap or run past its "
             f"{(source if mine_gaps is None else target).width} dimensions",
         )
+    if not _labels_agree(source, target, here, there, WIDTHS[mine], WIDTHS[theirs]):
+        return Verdict.no(
+            "adapter.rotation_labels",
+            f"the numbers around the rotations are named differently in "
+            f"{source.name!r} and {target.name!r}. Re-encoding a rotation renames "
+            "its own block and nothing else, so a disagreement outside the blocks "
+            "is a different layout -- most often the arms in the other order, "
+            "which produces valid commands sent to the wrong arm",
+        )
     if mine_gaps != their_gaps:
         return Verdict.no(
             "adapter.rotation_layout",
@@ -362,7 +403,7 @@ def convert(values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.
 ROTATION = Adapter(
     name="rotation",
     version=VERSION,
-    closes=("metadata.mismatch", "shape.mismatch"),
+    closes=("metadata.mismatch", "shape.mismatch", "dim_labels.mismatch"),
     guard=_guard,
     # Exact up to floating point in every direction, and the round trip is
     # tested. An empty loss list here is a claim, and it is checked.

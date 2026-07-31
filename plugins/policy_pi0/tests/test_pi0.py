@@ -454,3 +454,108 @@ def test_channel_order_follows_the_config_and_not_a_guess():
     droid.reset(EpisodeContext("ep-0", instruction="x"))
     droid.act(observation(DROID))
     assert droid.server.seen[0]["observation/exterior_image_1_left"].shape == (8, 8, 3)
+
+
+# -- what the layout declares has to reach the channels -------------------------
+#
+# Layout carried a `metadata` field that nothing ever read. So a served policy
+# could not state its pose encoding, the adapter plane had nothing to plan
+# against, and the policy bound only to a channel that happened to match. A
+# rotation encoding is invisible in the width and changes what every number
+# means, which is exactly the case the plane exists for.
+
+POSE = {
+    "rotation_repr": "euler_xyz",
+    "rotation_offset": (3, 10),
+    "semantics": "action.eef_abs_pose",
+}
+
+
+def posed_layout():
+    return Layout(
+        name="ego_bimanual",
+        images={"observation.head_camera.rgb": "cam_high"},
+        state=14,
+        action=14,
+        state_from="endpose.vector",
+        labels=tuple(
+            f"{arm}_{part}"
+            for arm in ("left", "right")
+            for part in ("x", "y", "z", "rx", "ry", "rz", "gripper")
+        ),
+        arms=2,
+        metadata=POSE,
+        discriminators=("rotation_repr", "rotation_offset"),
+        state_semantics="observation.eef_abs_pose",
+    )
+
+
+def test_the_layouts_encoding_reaches_the_action_channel():
+    spec = Pi0Policy(layout=posed_layout(), client=object()).action_spec()
+    assert spec.metadata["rotation_repr"] == "euler_xyz"
+    assert spec.metadata["rotation_offset"] == (3, 10)
+    assert spec.semantics == "action.eef_abs_pose"
+
+
+def test_the_layouts_encoding_reaches_the_state_channel():
+    requirement = Pi0Policy(layout=posed_layout(), client=object()).observes()
+    state = [c for c in requirement.channels if c.name == "endpose.vector"][0]
+    assert state.metadata["rotation_repr"] == "euler_xyz"
+    assert state.semantics == "observation.eef_abs_pose"
+
+
+def test_a_nominated_key_becomes_a_discriminator():
+    """A quaternion channel must not bind to a Euler one just because both are
+    fourteen wide."""
+    spec = Pi0Policy(layout=posed_layout(), client=object()).action_spec()
+    assert "rotation_repr" in spec.discriminators
+
+
+def test_descriptive_metadata_is_not_made_discriminating():
+    """The ALOHA preset carries rig: "ALOHA / ViperX bimanual" -- prose for a
+    reader. Treated as discriminating it would refuse every channel that did not
+    repeat it word for word."""
+    spec = Pi0Policy(layout="aloha", client=object()).action_spec()
+    assert "rig" in spec.metadata
+    assert "rig" not in spec.discriminators
+
+
+def test_nominating_a_key_with_no_value_is_refused():
+    with pytest.raises(ConfigError, match="disagreeing with nothing"):
+        Layout(
+            name="broken",
+            images={"a": "b"},
+            state=7,
+            action=7,
+            discriminators=("rotation_repr",),
+        )
+
+
+def test_a_policy_that_declares_its_encoding_can_be_converted():
+    """The whole reason the field had to reach the channel."""
+    from gantry_adapters_core import adapt_policy
+
+    quat = ChannelSpec(
+        "action",
+        "vector",
+        (16,),
+        "float32",
+        semantics="action.eef_abs_pose",
+        dim_labels=tuple(
+            f"{arm}_{part}"
+            for arm in ("left", "right")
+            for part in ("x", "y", "z", "qw", "qx", "qy", "qz", "gripper")
+        ),
+        discriminators=("arms", "rotation_repr"),
+        metadata={"arms": 2, "rotation_repr": "quat_wxyz", "rotation_offset": (3, 11)},
+    )
+    made = adapt_policy(Pi0Policy(layout=posed_layout(), client=object()), quat)
+    assert made.action_spec().width == 16
+    assert made.losses == ()
+
+
+def test_a_layout_that_declares_nothing_is_unchanged():
+    """The default stays exactly as it was; this only adds a way to say more."""
+    spec = Pi0Policy(layout="aloha", client=object()).action_spec()
+    assert spec.semantics == "actuation"
+    assert spec.discriminators == ("arms",)

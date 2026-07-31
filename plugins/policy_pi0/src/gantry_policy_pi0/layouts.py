@@ -99,7 +99,20 @@ class Layout:
     #: Whether the two halves of the vectors are two arms. Recorded because it
     #: changes what a retargeter may bind to this policy.
     arms: int = 1
+    #: Declared on both the action and the state channel. This is where a pose
+    #: encoding goes: ``rotation_repr`` and ``rotation_offset`` are invisible in
+    #: the width and change what every number means, so a layout that does not
+    #: say cannot be converted to anything and binds only to a channel that got
+    #: lucky.
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    #: Which of those keys are load-bearing rather than descriptive. Nominated
+    #: rather than assumed: ``rig: "ALOHA / ViperX bimanual"`` is prose for a
+    #: reader and would refuse every channel that did not repeat it word for
+    #: word, while ``rotation_repr`` genuinely must match or be converted.
+    discriminators: tuple[str, ...] = ()
+    #: What the state channel is, semantically. Separate from the action's
+    #: because a policy may read one thing and command another.
+    state_semantics: str | None = None
 
     def __post_init__(self) -> None:
         if not self.images:
@@ -115,6 +128,13 @@ class Layout:
                 f"layout {self.name!r}: {len(self.labels)} labels for an action width "
                 f"of {self.action}. The labels are the only written record of which "
                 "half of a bimanual vector is which arm, so they cannot be approximate"
+            )
+        unknown = [key for key in self.discriminators if key not in self.metadata]
+        if unknown:
+            raise ConfigError(
+                f"layout {self.name!r} nominates {unknown} as discriminating and "
+                "declares no value for them, so every channel would be refused for "
+                "disagreeing with nothing"
             )
         if self.arms > 1 and not self.labels:
             raise ConfigError(
