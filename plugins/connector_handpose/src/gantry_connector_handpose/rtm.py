@@ -239,6 +239,7 @@ def rtm_with_mediapipe(
             poses: dict[str, np.ndarray] = {}
             residual: dict[str, np.ndarray] = {}
             confidence: dict[str, np.ndarray] = {}
+            agreement: dict[str, np.ndarray] = {}
             keypoints: dict[str, np.ndarray] = {}
             templated: dict[str, int] = {}
             for hand in HANDS:
@@ -271,8 +272,13 @@ def rtm_with_mediapipe(
                     [positions, rotations_to_quaternions(rotations)], axis=1
                 ).astype("float32")
                 residual[hand] = errors
-                # Both detectors' agreement, which is stricter than either alone.
-                confidence[hand] = np.minimum(
+                # The detector's own rate, because that is what "the detector
+                # found a hand" means and what the extraction report reads. The
+                # agreement between the two is a different and stricter quantity
+                # — reporting it under this name made a 100% detector look like
+                # a 49% one, and pointed the fix at the wrong component.
+                confidence[hand] = np.asarray(scores, dtype="float32")
+                agreement[hand] = np.minimum(
                     scores, np.asarray(base.confidence.get(hand, scores))
                 ).astype("float32")
                 normalised = pixels.astype("float32").copy()

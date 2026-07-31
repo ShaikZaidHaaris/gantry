@@ -226,3 +226,22 @@ def test_it_analyses_one_cohort_and_prescribes():
     made = Extraction()
     assert made.descriptor().provides["min_cohorts"] == 1
     assert made.descriptor().provides["prescribes"] is True
+
+
+def test_a_mixed_scale_cohort_reads_as_a_partial_failure_not_a_contradiction():
+    """Some clips solving metrically and some falling back is the common case.
+    Joining the set without noticing one member is the good value produced
+    "positions are metric, normalized rather than metric", which reads as a bug
+    in the report rather than a finding about the data."""
+    report = Extraction().analyse(
+        [cohort([healthy(scale="metric"), healthy(scale="normalized")] * 2)]
+    )
+    finding = next(f for f in report.findings if f.code == "extraction.not_metric")
+    assert "some episodes fell back to normalized" in finding.summary
+    assert "rather than being off" in finding.prescription
+
+
+def test_a_wholly_non_metric_cohort_still_reads_plainly():
+    report = Extraction().analyse([cohort([healthy(scale="normalized")] * 4)])
+    finding = next(f for f in report.findings if f.code == "extraction.not_metric")
+    assert finding.summary.endswith("positions are normalized rather than metric")

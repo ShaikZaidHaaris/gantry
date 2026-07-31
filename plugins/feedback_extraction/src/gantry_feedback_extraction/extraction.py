@@ -328,19 +328,33 @@ class Extraction(FeedbackModule):
             )
         scales = declarations.get("scale", set())
         if scales and scales != {"metric"}:
+            others = sorted(scales - {"metric"})
+            mixed = "metric" in scales
             out.append(
                 Finding(
                     code="extraction.not_metric",
                     severity="strong",
                     summary=(
-                        f"{cohort.name}: positions are {', '.join(sorted(scales))} rather "
-                        "than metric"
+                        # A mixed cohort is the common case and the confusing
+                        # one: some clips solved metrically and some fell back.
+                        # Saying "positions are metric, normalized rather than
+                        # metric" is what happens when a set is joined without
+                        # noticing that one of its members is the good value.
+                        f"{cohort.name}: some episodes fell back to "
+                        f"{', '.join(others)} positions while others are metric"
+                        if mixed
+                        else f"{cohort.name}: positions are {', '.join(others)} rather than metric"
                     ),
                     evidence={"scale": sorted(scales)},
                     prescription=(
-                        "Non-metric positions cannot be retargeted to a real arm at all. "
-                        "Either recover scale — the hand's own measured size does it — or "
-                        "capture with a rig that reports metres."
+                        "Non-metric positions cannot be retargeted to a real arm at all, "
+                        "so those episodes are carrying no usable trajectory. A mix means "
+                        "the metric path failed on some clips rather than being off — "
+                        "find which, and why, before treating the dataset as one thing."
+                        if mixed
+                        else "Non-metric positions cannot be retargeted to a real arm at "
+                        "all. Either recover scale — the hand's own measured size does it "
+                        "— or capture with a rig that reports metres."
                     ),
                     cohorts=(cohort.name,),
                 )
