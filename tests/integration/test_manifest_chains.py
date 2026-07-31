@@ -369,3 +369,43 @@ def test_a_rig_without_a_resolution_is_refused():
 
     with pytest.raises(ConfigError, match="width and height"):
         estimator_from({"wire": "metric", "rig": "gopro_hero5_wide"})
+
+
+def test_planning_costs_one_episode_per_cohort_not_one_per_module():
+    """A plan is a check, not a job.
+
+    `fit_consumer` only ever wanted the first episode's schema, so reading the
+    whole cohort to get it made planning a chain that decodes video cost the
+    same as running it — and cost that again for every feedback module."""
+    from gantry.runner import _cohort_schema
+
+    class Computing(Root):
+        """What connector_handpose is: the schema is not knowable until an
+        episode has actually been produced."""
+
+        def __init__(self):
+            super().__init__(episodes=24)
+            self.opened = []
+
+        def open(self, episode_id):
+            self.opened.append(episode_id)
+            return super().open(episode_id)
+
+        def schema(self, episode_id):
+            return self.open(episode_id).schema
+
+    c = Computing()
+    schema = _cohort_schema(c)
+    assert schema == c.open("root/0").schema
+    # Twenty-four episodes upstream, and a plan that looks at one of them.
+    assert set(c.opened) == {"root/0"}
+
+
+def test_a_cohort_with_no_episodes_plans_without_pretending_to_have_channels():
+    from gantry.runner import _cohort_schema
+
+    class Empty(Root):
+        def episode_ids(self):
+            return ()
+
+    assert _cohort_schema(Empty()) == ()

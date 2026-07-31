@@ -53,6 +53,11 @@ from gantry.errors import ConfigError
 from gantry.rollout import ClosedLoop, Step
 from gantry.spine import ChannelSpec, Descriptor
 
+#: The rotation-encoding keys, from the adapter that reads them. Named here so a
+#: pose command declares its encoding the way every other pose channel does.
+KEY_ROTATION = "rotation_repr"
+KEY_OFFSET = "rotation_offset"
+
 VERSION = "0.1.0.dev0"
 
 #: The three action spaces RoboTwin accepts, and the width each implies *per
@@ -323,17 +328,31 @@ class RoboTwinEvaluator(ClosedLoop):
         )
 
     def action(self) -> ChannelSpec:
+        metadata: dict[str, Any] = {"arms": len(ARMS), "action_type": self._action_type}
+        discriminators = ["arms", "action_type"]
+        if self._action_type != "qpos":
+            # A pose per arm, so a rotation per arm: at 3 in the left block and
+            # at 11 in the right. Written down because the encoding is invisible
+            # in the shape — sixteen floats is sixteen floats whether the four in
+            # the middle are scalar-first, scalar-last, or a 6D tangent — and
+            # because a converter that assumed one block would leave the right
+            # arm's rotation to be read as the start of the next one.
+            metadata[KEY_ROTATION] = "quat_wxyz"
+            metadata[KEY_OFFSET] = tuple(
+                index * ACTION_TYPES[self._action_type] + 3 for index in range(len(ARMS))
+            )
+            discriminators.append(KEY_ROTATION)
         return ChannelSpec(
             "action",
             "vector",
             (self._width,),
             "float32",
-            semantics="actuation",
+            semantics="action.eef_abs_pose" if self._action_type == "ee" else "actuation",
             rate_hz=CONTROL_HZ,
             dim_labels=labels_for(self._action_type),
-            # Both invisible in the shape and both change what the numbers mean.
-            discriminators=("arms", "action_type"),
-            metadata={"arms": len(ARMS), "action_type": self._action_type},
+            # All invisible in the shape and all change what the numbers mean.
+            discriminators=tuple(discriminators),
+            metadata=metadata,
         )
 
     def embodiment_for(self, scene: Scene) -> str:

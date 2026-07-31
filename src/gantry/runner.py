@@ -126,6 +126,10 @@ class Built:
     dataset: Any = None
     refs: list[Any] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    #: What building had to say — chiefly which optional chain stages were
+    #: skipped. A skip that never reaches the caller is a different pipeline
+    #: running under the manifest's name without saying so.
+    verdict: Verdict = field(default_factory=Verdict.yes)
 
     def close(self) -> None:
         for component in (*self.cohorts.values(), self.policy, self.evaluator, self.dataset):
@@ -231,15 +235,18 @@ def build_all(manifest: Manifest, registry: Registry) -> Built:
     built = Built()
     # The cohorts are components of the varying plane — datasets by default,
     # policies when comparing checkpoints, evaluators when comparing worlds.
+    verdicts: list[Verdict] = []
     for name, spec in manifest.cohorts.items():
         component, ref, verdict = build_component(registry, manifest.varies, spec)
         built.cohorts[name] = component
         built.refs.append(ref)
         built.notes.extend(reason.message for reason in verdict.reasons)
+        verdicts.append(verdict)
     for spec in manifest.feedback:
-        component, ref, _ = build_component(registry, "feedback", spec)
+        component, ref, verdict = build_component(registry, "feedback", spec)
         built.feedback.append(component)
         built.refs.append(ref)
+        verdicts.append(verdict)
     # Everything single-valued. A plane supplied by the cohorts has no single
     # component and is skipped here; the runner reads it per cohort instead.
     for plane, attribute in (
@@ -253,9 +260,11 @@ def build_all(manifest: Manifest, registry: Registry) -> Built:
             continue
         if plane in ("policy", "evaluation") and not manifest.evaluates:
             continue
-        component, ref, _ = build_component(registry, plane, spec)
+        component, ref, verdict = build_component(registry, plane, spec)
         setattr(built, attribute, component)
         built.refs.append(ref)
+        verdicts.append(verdict)
+    built.verdict = Verdict.all(verdicts)
     return built
 
 
@@ -295,13 +304,20 @@ class Fit:
 
 def fit_consumer(
     requirement: Any,
-    episodes: Sequence[EpisodeRecord],
+    schema: Sequence[ChannelSpec],
     provider: Any,
     adapters: AdapterRegistry,
     retargeters: RetargeterRegistry,
 ) -> Fit:
-    """Check capabilities and bind channels, before anything is analysed."""
-    schema: tuple[ChannelSpec, ...] = episodes[0].schema if episodes else ()
+    """Check capabilities and bind channels, before anything is analysed.
+
+    Takes the cohort's schema rather than its episodes because the schema is
+    all this ever needed. Asking for the episodes made every caller materialise
+    a whole cohort to answer a question about its channel names — which for a
+    chain that decodes video and estimates pose is minutes of work to read one
+    tuple.
+    """
+    schema = tuple(schema)
     capability = check_capabilities(requirement, provider.descriptor())
     wiring, binding = bind(requirement, schema, adapters, retargeters)
     verdict = Verdict.all([capability, binding])
@@ -389,7 +405,11 @@ def _execute(
         blocked: Verdict | None = None
         for source in sources:
             fit = fit_consumer(
-                module.requirement(), source.episodes, source.provider, adapters, retargeters
+                module.requirement(),
+                source.episodes[0].schema if source.episodes else (),
+                source.provider,
+                adapters,
+                retargeters,
             )
             if fit.wiring is None:
                 blocked = fit.verdict
@@ -566,12 +586,28 @@ def discovered_registry() -> Registry:
 # --------------------------------------------------------------------------
 
 
+def _cohort_schema(connector: Any) -> tuple[ChannelSpec, ...]:
+    """The cohort's channels, for the price of one episode.
+
+    A connector that computes its episodes cannot declare a schema without
+    producing one of them, so a plan pays for exactly one and no more. The
+    alternative — reading every episode to look at the first — turns planning
+    a chain that decodes video into a job rather than a check.
+    """
+    ids = connector.episode_ids()
+    return tuple(connector.schema(ids[0])) if ids else ()
+
+
 def plan_manifest(manifest: Manifest, registry: Registry | None = None) -> Verdict:
     """Resolve without running anything.
 
     Builds the cohorts, because a connector's schema and capabilities are only
     knowable once it has opened its source — and refusing a run for a reason
     that could have been found in a second is the whole point of planning.
+
+    "Without running anything" is meant literally, and a plan that reads a whole
+    cohort has stopped being one. It costs one episode per cohort, not one per
+    feedback module per cohort.
     """
     registry = registry or discovered_registry()
     checks = [check_manifest(manifest, registry)]
@@ -583,6 +619,7 @@ def plan_manifest(manifest: Manifest, registry: Registry | None = None) -> Verdi
         built = build_all(manifest, registry)
     except GantryError as error:
         return Verdict.all(checks + [Verdict.no("plan.build_failed", str(error))])
+    checks.append(built.verdict)
 
     try:
         if built.embodiment is not None and built.policy is not None:
@@ -591,10 +628,12 @@ def plan_manifest(manifest: Manifest, registry: Registry | None = None) -> Verdi
                     built.policy, built.embodiment, adapters, retargeters
                 )
             )
+        schemas = {name: _cohort_schema(c) for name, c in built.cohorts.items()}
         for module in built.feedback:
             for name, connector in built.cohorts.items():
-                episodes = tuple(connector)
-                fit = fit_consumer(module.requirement(), episodes, connector, adapters, retargeters)
+                fit = fit_consumer(
+                    module.requirement(), schemas[name], connector, adapters, retargeters
+                )
                 if fit.wiring is None:
                     checks.append(
                         Verdict.no(
