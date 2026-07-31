@@ -50,6 +50,15 @@ def summarise(arm: str, commanded: np.ndarray, actual: np.ndarray) -> dict:
     centre = actual.mean(axis=0)
     offset = commanded.mean(axis=0) - centre
 
+    # The distance from each command to where the arm actually was at that
+    # step. This is the number people mean by "how far off were the commands",
+    # and it is not the offset below: a policy scattering commands evenly in
+    # every direction has a mean sitting exactly on the target and is not
+    # aiming at it. Fire arrows randomly around a bullseye and the average
+    # arrow is a bullseye.
+    per_step = np.linalg.norm(commanded - actual, axis=1)
+    travel = np.linalg.norm(np.diff(commanded, axis=0), axis=1)
+
     # Reach measured from where this arm actually operates, not from the world
     # origin. An arm working at z=0.94 is not "a metre from the origin" in any
     # sense that matters; what matters is how far the command is from it.
@@ -61,9 +70,21 @@ def summarise(arm: str, commanded: np.ndarray, actual: np.ndarray) -> dict:
         "robotwin_workspace_centre_m": [round(float(v), 3) for v in centre],
         "robotwin_workspace_radius_m": round(float(np.percentile(spread, 95)), 3),
         "commanded_centre_m": [round(float(v), 3) for v in commanded.mean(axis=0)],
-        # The headline: how far the two clouds sit apart, and in which direction.
+        # How far each command was from the arm at the time. The honest
+        # reachability number.
+        "command_to_arm_m": {
+            "mean": round(float(per_step.mean()), 3),
+            "median": round(float(np.median(per_step)), 3),
+        },
+        "commanded_travel_per_step_m": round(float(travel.mean()), 4),
+        # Where the two clouds sit relative to each other. A *bias*, not a
+        # distance: scatter cancels here, so a small number means the errors
+        # average out, never that the commands were close.
         "offset_m": [round(float(v), 3) for v in offset],
         "offset_magnitude_m": round(float(np.linalg.norm(offset)), 3),
+        # How much of the typical error is that bias. Near 1 means the policy is
+        # consistently aiming somewhere wrong; near 0 means it is scattering.
+        "bias_share": round(float(np.linalg.norm(offset) / max(per_step.mean(), 1e-9)), 3),
         "commanded_distance_from_centre_m": {
             "median": round(float(np.median(distance)), 3),
             "p95": round(float(np.percentile(distance, 95)), 3),
@@ -97,9 +118,10 @@ def main() -> None:
         print(f"\n{name}:")
         for entry in body["per_arm"]:
             print(
-                f"  {entry['arm']:5s} commanded sits {entry['offset_magnitude_m']} m from "
-                f"where the arm works (offset {entry['offset_m']}); "
-                f"{entry['within_0.75m_of_centre_pct']}% of commands within 0.75 m of it"
+                f"  {entry['arm']:5s} each command {entry['command_to_arm_m']['mean']} m from "
+                f"the arm  |  bias {entry['offset_magnitude_m']} m "
+                f"({entry['bias_share']:.0%} of the error)  |  "
+                f"travel {entry['commanded_travel_per_step_m']} m/step"
             )
 
 
