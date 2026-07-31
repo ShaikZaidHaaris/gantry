@@ -416,6 +416,7 @@ class HandPoseConnector(Connector):
         fast: float = FAST,
         min_steps: int = MIN_STEPS,
         keep_video: bool = True,
+        cache: bool = True,
     ):
         self._source = source
         self._estimator = estimator
@@ -425,6 +426,10 @@ class HandPoseConnector(Connector):
         self._fast = float(fast)
         self._min_steps = int(min_steps)
         self._keep_video = bool(keep_video)
+        # Off for a large build: every cached episode holds its full-resolution
+        # frames, and two dozen 1080p clips is tens of gigabytes of resident
+        # memory that nothing reads twice.
+        self._cache_on = bool(cache)
         self._cache: dict[str, EpisodeRecord] = {}
 
     # -- contract ----------------------------------------------------------
@@ -471,9 +476,12 @@ class HandPoseConnector(Connector):
         return self.open(episode_id).schema
 
     def open(self, episode_id: str) -> EpisodeRecord:
-        if episode_id not in self._cache:
-            self._cache[episode_id] = self._derive(episode_id)
-        return self._cache[episode_id]
+        if episode_id in self._cache:
+            return self._cache[episode_id]
+        derived = self._derive(episode_id)
+        if self._cache_on:
+            self._cache[episode_id] = derived
+        return derived
 
     # -- deriving one episode ----------------------------------------------
 

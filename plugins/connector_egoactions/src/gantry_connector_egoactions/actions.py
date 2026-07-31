@@ -38,6 +38,7 @@ which is also the number that tells somebody their filming needs to change.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any, Mapping, Sequence
 
 import numpy as np
@@ -63,6 +64,23 @@ ACTION = "action"
 #: Shortest episode worth keeping once unsolved frames are cut. Below this there
 #: is no motion to learn from, only a pose.
 MIN_STEPS = 8
+
+
+def _resize(frames: np.ndarray, size: tuple[int, int]) -> np.ndarray:
+    """Frames at the size a policy will actually see.
+
+    Nearest-neighbour by index rather than an interpolating resize, so this needs
+    no image library and cannot introduce a dependency into a connector. The
+    training images are resized again by the model's own pipeline anyway; what
+    matters here is that they stop being 1080p.
+    """
+    array = np.asarray(frames)
+    if array.ndim != 4:
+        return array
+    height, width = int(size[0]), int(size[1])
+    rows = (np.arange(height) * array.shape[1] // height).clip(0, array.shape[1] - 1)
+    cols = (np.arange(width) * array.shape[2] // width).clip(0, array.shape[2] - 1)
+    return array[:, rows][:, :, cols]
 
 
 def _hold(arm: np.ndarray, solved: np.ndarray) -> tuple[np.ndarray, float]:
@@ -102,6 +120,8 @@ class EgoActionConnector(Connector):
         min_steps: int = MIN_STEPS,
         keep_video: bool = True,
         hold_missing: bool = False,
+        size: tuple[int, int] | None = None,
+        cache: bool = True,
     ):
         """``retargeter`` is one, or one per hand.
 
@@ -129,6 +149,12 @@ class EgoActionConnector(Connector):
         self._min_steps = int(min_steps)
         self._keep_video = bool(keep_video)
         self._hold_missing = bool(hold_missing)
+        # Stored frame size, after estimation. Estimation wants every pixel; a
+        # policy does not — openpi resizes to 224 internally regardless, so
+        # keeping 1080p in the training set costs disk, encode time and, the way
+        # it was found, 44 GB of RAM across a two-dozen-clip build.
+        self._size = tuple(size) if size else None
+        self._cache_on = bool(cache)
         self._per_arm = arm_command("arm", rotation_repr=rotation_repr, control_mode=control_mode)
         self._cache: dict[str, EpisodeRecord] = {}
         self._dropped: dict[str, dict[str, Any]] = {}
@@ -198,9 +224,12 @@ class EgoActionConnector(Connector):
         return self.open(episode_id).schema
 
     def open(self, episode_id: str) -> EpisodeRecord:
-        if episode_id not in self._cache:
-            self._cache[episode_id] = self._derive(episode_id)
-        return self._cache[episode_id]
+        if episode_id in self._cache:
+            return self._cache[episode_id]
+        derived = self._derive(episode_id)
+        if self._cache_on:
+            self._cache[episode_id] = derived
+        return derived
 
     # -- the conversion ----------------------------------------------------
 
@@ -279,8 +308,13 @@ class EgoActionConnector(Connector):
         arrays: dict[str, np.ndarray] = {STATE: state, ACTION: action}
         schema = [self._channel(STATE, rate), self._channel(ACTION, rate)]
         if self._keep_video and original.has(self._video):
-            arrays[self._video] = original.array(self._video)[solved][:-1]
-            schema.insert(0, original.channel(self._video))
+            frames = original.array(self._video)[solved][:-1]
+            spec = original.channel(self._video)
+            if self._size:
+                frames = _resize(frames, self._size)
+                spec = replace(spec, shape=(self._size[0], self._size[1], spec.shape[2]))
+            arrays[self._video] = frames
+            schema.insert(0, spec)
 
         self._dropped[episode_id] = {
             "steps_in": int(len(merged)),

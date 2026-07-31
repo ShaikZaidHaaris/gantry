@@ -293,3 +293,24 @@ def test_frames_before_any_hand_was_seen_cannot_be_held_and_are_dropped():
     c = made(source=FakeHands(unsolved=(0, 1, 2)), hold_missing=True)
     e = c.open("egoactions/handpose/ego/0")
     assert e.array(STATE).shape[0] == STEPS - 3 - 1
+
+
+def test_stored_frames_can_be_shrunk_to_what_a_policy_actually_sees():
+    """Estimation wants every pixel; a policy does not. openpi resizes to 224
+    internally regardless, so keeping 1080p in the training set costs disk,
+    encode time and — the way this was found — 44 GB of RAM across a two-dozen
+    clip build, which wedged the machine."""
+    c = made(size=(64, 64))
+    e = c.open("egoactions/handpose/ego/0")
+    assert e.array(RGB).shape[1:] == (64, 64, 3)
+    assert e.channel(RGB).shape == (64, 64, 3)
+    # and the row counts still line up with the actions
+    assert len(e.array(RGB)) == len(e.array(STATE))
+
+
+def test_caching_can_be_turned_off_for_a_large_build():
+    c = made(cache=False)
+    first = c.open("egoactions/handpose/ego/0")
+    second = c.open("egoactions/handpose/ego/0")
+    assert first is not second
+    assert np.array_equal(first.array(STATE), second.array(STATE))
