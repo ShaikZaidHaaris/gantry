@@ -340,7 +340,7 @@ def metric(
     model_path: str | None = None,
     *,
     intrinsics: Intrinsics | Mapping[str, Any],
-    max_reprojection: float = 10.0,
+    max_reprojection: float = 0.15,
     **options: Any,
 ) -> Estimator:
     """MediaPipe plus perspective-n-point: metric hand pose from one camera.

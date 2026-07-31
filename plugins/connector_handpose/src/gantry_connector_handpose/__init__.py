@@ -37,10 +37,12 @@ from .handpose import (
 )
 from .pnp import (
     MAX_REPROJECTION,
+    MIN_REPROJECTION_PX,
     RIGS,
     SOURCES,
     Intrinsics,
     Pose,
+    extent,
     for_rig,
     intrinsics_from,
     plausible,
@@ -81,6 +83,8 @@ __all__ = [
     "HANDS",
     "JOINTS",
     "MAX_REPROJECTION",
+    "MIN_REPROJECTION_PX",
+    "extent",
     "MIN_STEPS",
     "RIGS",
     "SOURCES",

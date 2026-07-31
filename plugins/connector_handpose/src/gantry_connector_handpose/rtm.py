@@ -42,7 +42,7 @@ import numpy as np
 from gantry.errors import ConfigError
 
 from .handpose import HANDS, Track
-from .pnp import Intrinsics, rotations_to_quaternions, solve_sequence
+from .pnp import MAX_REPROJECTION, Intrinsics, rotations_to_quaternions, solve_sequence
 
 #: What rtmlib exposes that is worth pointing at a hand. Whole-body gives 133
 #: keypoints including 21 per hand, which is more robust in ego video than a
@@ -160,7 +160,7 @@ def rtm_with_mediapipe(
     shape_source: Any,
     *,
     intrinsics: Intrinsics,
-    max_reprojection: float = 10.0,
+    max_reprojection: float = MAX_REPROJECTION,
     use_template: bool = True,
 ) -> Any:
     """RTMPose for where the hand is, MediaPipe for how big it is, PnP for the rest.

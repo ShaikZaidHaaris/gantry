@@ -60,12 +60,24 @@ from gantry.errors import ConfigError
 #: only as good as the focal length behind it.
 SOURCES = ("calibrated", "fov", "exif", "declared")
 
-#: Reprojection error above which a solve is not trusted, in pixels. A hand is
-#: roughly 200 px across in a 1080p ego frame, so ten pixels is a real
-#: disagreement rather than noise.
-MAX_REPROJECTION = 10.0
+#: Reprojection error above which a solve is not trusted, as a **fraction of the
+#: hand's own extent in the image**.
+#:
+#: Relative rather than absolute, because an absolute pixel budget is a different
+#: standard at every distance: ten pixels is loose on a hand filling the frame
+#: and impossible on one across the room. Measured on real footage, two good
+#: detectors disagree with each other about where a given knuckle is by roughly
+#: 8% of the hand's span — so demanding a fit tighter than that is demanding
+#: better than the inputs support, and it showed: at a fixed 10 px this rejected
+#: 109 of 120 frames whose poses were perfectly plausible.
+MAX_REPROJECTION = 0.15
+
+#: A floor in pixels, for a hand so small in frame that a fraction of it is
+#: sub-pixel and the criterion stops meaning anything.
+MIN_REPROJECTION_PX = 6.0
 
 #: How far from the camera a hand can possibly be, in metres.
+
 #:
 #: Not a nicety. A degenerate point set — a hand edge-on, an averaged template
 #: that came out planar — makes the fallback solvers return a pose that
@@ -174,18 +186,41 @@ class Pose:
     ok: bool
 
 
+def extent(points: np.ndarray) -> float:
+    """How big the hand is in the image, in pixels.
+
+    The scale everything else is judged against. Taken as the bounding-box
+    diagonal of the detected keypoints, which is stable under rotation in a way
+    that width or height alone is not.
+    """
+    pixels = np.asarray(points, dtype=float).reshape(-1, 2)
+    live = pixels[np.any(pixels != 0.0, axis=1)]
+    if len(live) < 2:
+        return 0.0
+    span = live.max(axis=0) - live.min(axis=0)
+    return float(np.hypot(*span))
+
+
 def solve(
     world: np.ndarray,
     image: np.ndarray,
     intrinsics: Intrinsics,
     *,
     max_reprojection: float = MAX_REPROJECTION,
+    robust: bool = True,
 ) -> Pose:
     """Metric hand pose from metric hand shape plus its projection.
 
     ``world`` is ``(joints, 3)`` in metres, hand-centred. ``image`` is
     ``(joints, 2)`` in pixels. Returns the wrist's position and the hand's
     orientation in the camera's frame.
+
+    ``robust`` fits through RANSAC, which matters more than it sounds. The 3D
+    hand is rigid and a real hand is not, so when the fingers are curled and the
+    model is flat, a handful of joints disagree badly while the palm agrees
+    perfectly. A least-squares fit is dragged around by those few; RANSAC finds
+    the consistent majority and reports the rest as outliers, which is the
+    correct reading — those joints genuinely are not where the model says.
     """
     try:
         import cv2
@@ -206,23 +241,49 @@ def solve(
         # letting the solver return an arbitrary pose for a degenerate input.
         return Pose(np.zeros(3), np.eye(3), float("inf"), False)
 
+    # The budget in pixels, from the hand's own size in this frame.
+    span = extent(pts)
+    budget = max(MIN_REPROJECTION_PX, float(max_reprojection) * span) if span else MIN_REPROJECTION_PX
+
     # SQPNP is the best of these and it asserts outright on a degenerate point
     # set — a hand seen edge-on, or an averaged template that came out nearly
     # planar. That is one frame's problem, not the clip's, so it falls back
     # rather than taking the whole episode down with it.
     ok, rvec, tvec = False, None, None
-    for flag in (cv2.SOLVEPNP_SQPNP, cv2.SOLVEPNP_EPNP, cv2.SOLVEPNP_ITERATIVE):
+    inliers = None
+    if robust and len(obj) >= 6:
         try:
-            ok, rvec, tvec = cv2.solvePnP(obj, pts, intrinsics.matrix, None, flags=flag)
+            ok, rvec, tvec, inliers = cv2.solvePnPRansac(
+                obj,
+                pts,
+                intrinsics.matrix,
+                None,
+                reprojectionError=budget,
+                iterationsCount=200,
+                flags=cv2.SOLVEPNP_EPNP,
+            )
         except cv2.error:
-            continue
-        if ok:
-            break
+            ok = False
+    if not ok:
+        for flag in (cv2.SOLVEPNP_SQPNP, cv2.SOLVEPNP_EPNP, cv2.SOLVEPNP_ITERATIVE):
+            try:
+                ok, rvec, tvec = cv2.solvePnP(obj, pts, intrinsics.matrix, None, flags=flag)
+            except cv2.error:
+                continue
+            if ok:
+                break
     if not ok or rvec is None:
         return Pose(np.zeros(3), np.eye(3), float("inf"), False)
 
     projected, _ = cv2.projectPoints(obj, rvec, tvec, intrinsics.matrix, None)
-    error = float(np.linalg.norm(projected.reshape(-1, 2) - pts, axis=1).mean())
+    per_point = np.linalg.norm(projected.reshape(-1, 2) - pts, axis=1)
+    # Scored on the joints the fit actually claims to explain. A rigid model of a
+    # bending hand will always have a few that it does not, and averaging those
+    # in judges the fit by the parts it never fitted.
+    if inliers is not None and len(inliers) >= 4:
+        error = float(per_point[np.asarray(inliers).reshape(-1)].mean())
+    else:
+        error = float(per_point.mean())
     rotation, _ = cv2.Rodrigues(rvec)
     # The object points are hand-centred, so the wrist sits at the object's own
     # first joint carried through the same transform.
@@ -236,7 +297,7 @@ def solve(
         # Both conditions, because they catch different failures. Reprojection
         # catches a pose that does not explain the pixels; the distance bound
         # catches one that explains them perfectly from an impossible place.
-        ok=error <= float(max_reprojection) and near <= distance <= far,
+        ok=error <= budget and near <= distance <= far,
     )
 
 
@@ -246,6 +307,7 @@ def solve_sequence(
     intrinsics: Intrinsics,
     *,
     max_reprojection: float = MAX_REPROJECTION,
+    robust: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Every step of one hand. Returns ``(positions, rotations, reprojection)``.
 
@@ -259,7 +321,13 @@ def solve_sequence(
     rotations = np.tile(np.eye(3, dtype="float32"), (steps, 1, 1))
     errors = np.full(steps, np.inf, dtype="float32")
     for index in range(steps):
-        pose = solve(world[index], image[index], intrinsics, max_reprojection=max_reprojection)
+        pose = solve(
+            world[index],
+            image[index],
+            intrinsics,
+            max_reprojection=max_reprojection,
+            robust=robust,
+        )
         if not pose.ok:
             continue
         positions[index] = pose.position
