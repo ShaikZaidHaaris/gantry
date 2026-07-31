@@ -80,7 +80,7 @@ class Chunker(Policy):
         return np.zeros((4, self.width), dtype="float32")
 
 
-def evaluator(width=12, win_at=3, **kwargs):
+def evaluator(width=12, win_at=3, task="PickPlaceCounterToCabinet", **kwargs):
     built: list[FakeKitchen] = []
 
     def factory(task, *, robot, layout, style, **_):
@@ -88,9 +88,7 @@ def evaluator(width=12, win_at=3, **kwargs):
         built.append(kitchen)
         return kitchen
 
-    made = RobocasaEvaluator(
-        "PnPCounterToCab", factory=factory, camera_size=SIZE, horizon=20, **kwargs
-    )
+    made = RobocasaEvaluator(task, factory=factory, camera_size=SIZE, horizon=20, **kwargs)
     made.built = built
     return made
 
@@ -118,10 +116,10 @@ def test_every_scene_names_its_layout_style_and_draw():
     task = made.task_for(per_scene=2)
     assert len(task.scenes) == 4
     assert [scene.id for scene in task.scenes] == [
-        "PnPCounterToCab/l0s7#00",
-        "PnPCounterToCab/l0s7#01",
-        "PnPCounterToCab/l3s7#00",
-        "PnPCounterToCab/l3s7#01",
+        "PickPlaceCounterToCabinet/l0s7#00",
+        "PickPlaceCounterToCabinet/l0s7#01",
+        "PickPlaceCounterToCabinet/l3s7#00",
+        "PickPlaceCounterToCabinet/l3s7#01",
     ]
     assert task.scenes[2].metadata == {"layout": 3, "style": 7, "draw": 0}
 
@@ -164,7 +162,7 @@ def test_an_environment_that_reports_no_action_dimension_is_refused():
             self.action_spec = None
 
     made = RobocasaEvaluator(
-        "PnPCounterToCab",
+        "PickPlaceCounterToCabinet",
         factory=lambda task, **kw: Mute(task, kw["robot"], kw["layout"], kw["style"]),
     )
     with pytest.raises(ConfigError, match="action dimension"):
@@ -179,7 +177,7 @@ def test_the_action_width_can_come_from_action_spec_instead():
             self.action_spec = (np.zeros(7), np.ones(7))
 
     made = RobocasaEvaluator(
-        "PnPCounterToCab",
+        "PickPlaceCounterToCabinet",
         factory=lambda task, **kw: SpecOnly(task, kw["robot"], kw["layout"], kw["style"]),
     )
     assert made.action().shape == (7,)
@@ -237,5 +235,25 @@ def test_close_releases_every_kitchen():
 
 @pytest.mark.skip(reason="needs RoboCasa and its kitchen asset pack")
 def test_against_the_real_simulator():  # pragma: no cover
-    made = RobocasaEvaluator("PnPCounterToCab", robot="PandaMobile")
+    made = RobocasaEvaluator("PickPlaceCounterToCabinet", robot="PandaOmron")
     assert made.action().shape[0] >= 7
+
+
+def test_task_ids_are_the_ones_robocasa_registers_not_the_ones_the_paper_uses():
+    """The paper writes PnPCounterToCab; the registry says
+    PickPlaceCounterToCabinet. The code wins, and an unresolvable id otherwise
+    surfaces as a robosuite exception several layers down, after the scene has
+    started building, with a message listing three hundred names."""
+    from gantry_evaluator_robocasa import KITCHEN_CORE, TASKS
+
+    assert "PickPlaceCounterToCabinet" in TASKS
+    assert not any(t.startswith("PnP") for t in TASKS)
+    assert set(KITCHEN_CORE) <= set(TASKS)
+
+    with pytest.raises(ConfigError, match="does not register"):
+        evaluator(task="PnPCounterToCab").task_for()
+
+
+def test_a_near_miss_task_id_gets_a_suggestion():
+    with pytest.raises(ConfigError, match="did you mean"):
+        evaluator(task="PickPlaceCounterToFridge").task_for()

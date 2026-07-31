@@ -52,28 +52,65 @@ from gantry.spine import ChannelSpec, Descriptor
 
 VERSION = "0.1.0.dev0"
 
-#: A sample of RoboCasa's task ids, by the names its own registry uses. Not a
-#: whitelist: any id RoboCasa knows is accepted.
+#: Task ids as RoboCasa's own registry spells them, verified against a live
+#: install rather than copied from a paper.
+#:
+#: Worth recording why this list is here at all: the first version used the
+#: abbreviations the RoboCasa paper uses — PnPCounterToCab and friends — and
+#: robosuite refused every one of them, because the registry name is
+#: PickPlaceCounterToCabinet. The paper and the code disagree, the code wins, and
+#: a task name that does not resolve fails at environment construction rather
+#: than at planning time unless something checks.
 TASKS = (
-    "PnPCounterToCab",
-    "PnPCabToCounter",
-    "PnPCounterToSink",
-    "PnPSinkToCounter",
-    "PnPCounterToMicrowave",
-    "PnPCounterToStove",
-    "OpenSingleDoor",
-    "CloseSingleDoor",
+    # pick and place, which is most of what a kitchen is
+    "PickPlaceCounterToCabinet",
+    "PickPlaceCabinetToCounter",
+    "PickPlaceCounterToSink",
+    "PickPlaceSinkToCounter",
+    "PickPlaceCounterToMicrowave",
+    "PickPlaceMicrowaveToCounter",
+    "PickPlaceCounterToStove",
+    "PickPlaceStoveToCounter",
+    "PickPlaceCounterToDrawer",
+    "PickPlaceDrawerToCounter",
+    # doors and drawers
+    "OpenDoor",
+    "CloseDoor",
     "OpenDrawer",
     "CloseDrawer",
+    "OpenCabinet",
+    "CloseCabinet",
+    "OpenMicrowave",
+    "CloseMicrowave",
+    "OpenFridge",
+    "CloseFridge",
+    # switches and knobs
     "TurnOnSinkFaucet",
     "TurnOffSinkFaucet",
     "TurnOnStove",
     "TurnOffStove",
-    "CoffeePressButton",
-    "CoffeeSetupMug",
-    "CoffeeServeMug",
     "TurnOnMicrowave",
     "TurnOffMicrowave",
+    # appliances
+    "CoffeeSetupMug",
+    "CoffeeServeMug",
+    "StartCoffeeMachine",
+    "TurnOnToaster",
+)
+
+#: The subset closest to what ego kitchen footage actually shows: fetching,
+#: putting away, opening things. Named separately because coverage against the
+#: whole registry would report a mismatch that is about the registry rather than
+#: about anybody's data.
+KITCHEN_CORE = (
+    "PickPlaceCounterToCabinet",
+    "PickPlaceCounterToSink",
+    "PickPlaceSinkToCounter",
+    "OpenDoor",
+    "CloseDoor",
+    "OpenDrawer",
+    "CloseDrawer",
+    "TurnOnSinkFaucet",
 )
 
 #: The bodies RoboCasa ships. Mobile bases, which is the other thing a kitchen
@@ -175,7 +212,7 @@ class RobocasaEvaluator(ClosedLoop):
 
     def __init__(
         self,
-        task: str = "PnPCounterToCab",
+        task: str = "PickPlaceCounterToCabinet",
         *,
         robot: str = "PandaMobile",
         name: str = "robocasa",
@@ -294,6 +331,22 @@ class RobocasaEvaluator(ClosedLoop):
     def embodiment_for(self, scene: Scene) -> str:
         return self._robot
 
+    def check_task(self) -> None:
+        """Refuse a task id the installed RoboCasa does not register.
+
+        At planning time rather than at construction. An unknown id otherwise
+        surfaces as a robosuite exception several layers down, after the scene
+        has begun to build, with a message listing three hundred names.
+        """
+        if self._task not in TASKS:
+            near = [t for t in TASKS if t.lower().startswith(self._task.lower()[:6])]
+            raise ConfigError(
+                f"{self._name}: RoboCasa does not register {self._task!r}"
+                + (f"; did you mean {near}?" if near else "")
+                + ". Note the registry uses PickPlaceCounterToCabinet where the "
+                "paper writes PnPCounterToCab"
+            )
+
     def task_for(self, name: str = "", per_scene: int = 5, horizon: int | None = None) -> TaskSpec:
         """One scene per (layout, style, seed), in that nesting order.
 
@@ -303,6 +356,7 @@ class RobocasaEvaluator(ClosedLoop):
         within a scene, the second across scenes — and both are expressible here
         because the triple is explicit.
         """
+        self.check_task()
         scenes: list[Scene] = []
         for layout in self._layouts:
             for style in self._styles:
