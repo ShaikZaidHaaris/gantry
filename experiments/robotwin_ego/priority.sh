@@ -32,7 +32,11 @@ train () {  # train <arm> <exp>
 evaluate () {  # evaluate <arm> <exp>
   pkill -f "serve_policy.py"; sleep 15
   cd ~/openpi || exit 1
-  XLA_PYTHON_CLIENT_MEM_FRACTION=0.55 nohup uv run scripts/serve_policy.py \
+  # 0.35, not 0.55. JAX preallocates its fraction of the whole card up front,
+  # and curobo builds CUDA graphs for the motion planner afterwards -- at 0.55
+  # there was nothing left and the evaluation died with an out-of-memory inside
+  # newton_base, after the policy server had already come up healthy.
+  XLA_PYTHON_CLIENT_MEM_FRACTION=0.35 nohup uv run scripts/serve_policy.py \
     --port $PORT policy:checkpoint --policy.config="pi05_$1" \
     --policy.dir="$CKPT/pi05_$1/$2/2999" > ~/serve_$1.log 2>&1 &
   echo $! > /tmp/serve.pid
@@ -60,19 +64,40 @@ pkill -f "ablation.sh"
 pkill -f "ab.sh"
 sleep 5
 pkill -f "scripts/train.py"
-sleep 20
+# Wait for the card to actually drain rather than assuming twenty seconds is
+# enough. A trainer still holding 40 GB while the server preallocates is the
+# same out-of-memory by a different route.
+for _ in $(seq 1 60); do
+  used=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits)
+  [ "$used" -lt 2000 ] && break
+  sleep 10
+done
+nvidia-smi --query-gpu=memory.used --format=csv,noheader
 
 evaluate rt_base abl
 
 # --- the gate -----------------------------------------------------------------
+#
+# Three outcomes, not two. The first version had `|| echo 0`, which turned "the
+# evaluation never produced a record" into "the baseline scored zero" -- and
+# then reported the baseline cannot do the task when in fact it had never been
+# asked. An absent measurement is not a measurement of absence, and this whole
+# project exists to keep those apart.
 BASE=~/egorun/abl_rt_base_$TASK.json
-WINS=$(python3 -c "import json;print(json.load(open('$BASE'))['successes'])" 2>/dev/null || echo 0)
-echo "[priority] baseline scored $WINS/$SCENES"
+if [ ! -f "$BASE" ]; then
+  echo "PRIORITY_NO_RESULT: the baseline was never evaluated -- there is no record at"
+  echo "  $BASE. That is not a score of zero and must not be read as one; the"
+  echo "  evaluation failed before it could answer. Check the log above for why."
+  exit 2
+fi
+WINS=$(python3 -c "import json;print(json.load(open('$BASE'))['successes'])")
+SCORED=$(python3 -c "import json;print(json.load(open('$BASE'))['episodes'])")
+echo "[priority] baseline scored $WINS/$SCORED"
 if [ "$WINS" -eq 0 ]; then
-  echo "PRIORITY_GATE_FAILED: the baseline cannot do the task, so no arm can be"
-  echo "  ranked against another -- every one would score zero. Fix the baseline"
-  echo "  first: the 500-episode randomized demo set, or more training steps."
-  echo "  Not running A vs B; it would cost six hours and produce four zeros."
+  echo "PRIORITY_GATE_FAILED: the baseline was evaluated on $SCORED scenes and solved"
+  echo "  none of them, so no arm can be ranked against another -- every one would"
+  echo "  score zero. Fix the baseline first: the 500-episode randomized demo set,"
+  echo "  or more training steps. Not running A vs B; it would produce four zeros."
   exit 0
 fi
 
