@@ -145,6 +145,13 @@ def main() -> None:
         payload = json.loads(cache.read_text())
         seeds = tuple(payload["seeds"])
         evaluator._screened = (payload["start"], payload["stop"], seeds)
+        # The sentences come back with the seeds. They are produced by the
+        # expert's rollout, which is exactly what reusing the cache skips, and
+        # without them a language-conditioned policy refuses. Carrying them here
+        # also makes the pairing exact rather than merely likely: both arms are
+        # asked to do the same task in the same words, not two samples from the
+        # same pool.
+        evaluator._instructions = {int(k): v for k, v in payload["instructions"].items()}
         print(f"[{ARM}] reusing screened seeds {list(seeds)}", flush=True)
     else:
         print(f"[{ARM}] screening seeds with RoboTwin's own expert...", flush=True)
@@ -153,7 +160,18 @@ def main() -> None:
         # Only a non-empty result is worth keeping. Caching an empty screen
         # makes the second arm reuse a failure instead of discovering it.
         if seeds:
-            cache.write_text(json.dumps({"start": start, "stop": stop, "seeds": list(seeds)}))
+            cache.write_text(
+                json.dumps(
+                    {
+                        "start": start,
+                        "stop": stop,
+                        "seeds": list(seeds),
+                        "instructions": {
+                            str(seed): evaluator.instruction_for(seed) for seed in seeds
+                        },
+                    }
+                )
+            )
     print(f"[{ARM}] expert solved {len(seeds)}/{SCENES} wanted: {list(seeds)}", flush=True)
     if not seeds:
         raise SystemExit("the scripted expert solved nothing; the install is wrong")
@@ -169,6 +187,15 @@ def main() -> None:
         name=f"pi05_{ARM}",
     )
     print(f"[{ARM}] action chain: {policy.chain}", flush=True)
+
+    missing = [seed for seed in seeds if not evaluator.instruction_for(seed)]
+    if missing:
+        raise SystemExit(
+            f"[{ARM}] no instruction for seeds {missing}. A pi05 server takes the prompt "
+            "with every observation; without one the model runs unconditioned, which "
+            "scores badly and looks exactly like a checkpoint that did not train. "
+            f"Delete {cache} and let the screen run again."
+        )
 
     task = evaluator.task_for(seeds=seeds)
     print(f"[{ARM}] {len(seeds)} scenes x {task.horizon} steps ({TASK})", flush=True)
