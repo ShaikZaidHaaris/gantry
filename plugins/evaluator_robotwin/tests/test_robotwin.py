@@ -336,7 +336,14 @@ def test_against_the_real_simulator():  # pragma: no cover
 
 
 class Screenable(FakeTask):
-    """A fake whose expert solves only some arrangements."""
+    """A fake whose expert solves only some arrangements.
+
+    Modelled on the real thing in the one way that matters: the scripted expert
+    drives the arms through its own planner and never calls take_action, so it
+    never latches eval_success. Only check_success answers. An earlier version
+    of this fake set eval_success in play_once, which let a screen that read the
+    latched flag pass every test here and then reject all sixty seeds on the box.
+    """
 
     def __init__(self, solvable=(0, 2, 5), explodes=(), **kwargs):
         super().__init__(**kwargs)
@@ -345,18 +352,24 @@ class Screenable(FakeTask):
         self.seed = None
         self.plan_success = True
         self.played = []
+        self._expert_solved = False
 
     def setup_demo(self, now_ep_num=0, seed=0, is_test=True, **kwargs):
         super().setup_demo(now_ep_num, seed, is_test, **kwargs)
         self.seed = seed
         self.eval_success = False
+        self._expert_solved = False
 
     def play_once(self):
         self.played.append(self.seed)
         if self.seed in self.explodes:
             raise RuntimeError("the expert's planner gave up")
         self.plan_success = self.seed in self.solvable
-        self.eval_success = self.seed in self.solvable
+        self._expert_solved = self.seed in self.solvable
+        # deliberately does NOT set eval_success -- the real expert cannot
+
+    def check_success(self):
+        return self._expert_solved or super().check_success()
 
 
 def screening(**kwargs):
@@ -392,8 +405,29 @@ def test_an_expert_that_throws_is_a_property_of_the_arrangement_not_an_error():
 
 def test_screening_stops_at_the_limit_rather_than_searching_forever():
     made = screening(solvable=())
-    assert made.screen(5, limit=4) == ()
+    with pytest.raises(ConfigError, match="solved none of 4"):
+        made.screen(5, limit=4)
     assert made.built[0].played == [0, 1, 2, 3]
+
+
+def test_solving_nothing_at_all_is_reported_as_a_configuration_problem():
+    """It was one. The screen read the latched eval_success, which the scripted
+    expert never sets because it never calls take_action, so all sixty seeds on
+    the box were rejected and the run downstream had nothing to score. An empty
+    list returned quietly wastes the whole run."""
+    made = screening(solvable=())
+    with pytest.raises(ConfigError) as caught:
+        made.screen(3, limit=5)
+    message = str(caught.value)
+    assert "far more often" in message
+    # and it points at the right suspect when nothing raised
+    assert "the success check disagreed" in message
+
+
+def test_when_every_seed_raised_the_commonest_reason_is_named():
+    made = screening(solvable=(), explodes=tuple(range(6)))
+    with pytest.raises(ConfigError, match="planner gave up"):
+        made.screen(3, limit=5)
 
 
 def test_an_unscreened_run_says_so_on_every_episode():

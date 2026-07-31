@@ -432,6 +432,17 @@ class DualArm:
 
     # -- internals ---------------------------------------------------------
 
+    def _checked(self) -> bool:
+        """The predicate, asked directly.
+
+        For the scripted expert, which drives the arms through its own planner
+        and never calls ``take_action`` — so nothing latches ``eval_success``
+        and reading the flag would report every arrangement as unsolvable.
+        RoboTwin's own screen asks the predicate for exactly this reason.
+        """
+        checker = getattr(self.env, "check_success", None)
+        return bool(checker()) if callable(checker) else False
+
     def _success(self) -> bool:
         """The latched flag first, the predicate second.
 
@@ -585,6 +596,8 @@ class RoboTwinEvaluator(ClosedLoop):
         self._screened: tuple[int, int, tuple[int, ...]] | None = None
         #: The sentence each screened scene will be scored against.
         self._instructions: dict[int, str] = {}
+        #: Why seeds were rejected, when they raised.
+        self._refused: tuple[str, ...] = ()
 
     # -- contract ----------------------------------------------------------
 
@@ -741,12 +754,16 @@ class RoboTwinEvaluator(ClosedLoop):
             )
         ceiling = start + (limit if limit is not None else count * 10)
         solved: list[int] = []
+        refused: list[str] = []
         seed = start
         while len(solved) < count and seed < ceiling:
             try:
                 env.setup_demo(now_ep_num=seed, seed=seed, is_test=True, **self._settings(env))
                 episode = env.play_once()
-                if bool(getattr(env, "plan_success", True)) and world._success():
+                # The predicate, not the latched flag: the expert plans the arms
+                # itself and never calls take_action, so eval_success is never
+                # set and reading it would reject every seed.
+                if bool(getattr(env, "plan_success", True)) and world._checked():
                     solved.append(seed)
                     # The expert's rollout is the only place the placeholders
                     # get filled, and it has just been run. Taking the sentence
@@ -756,15 +773,36 @@ class RoboTwinEvaluator(ClosedLoop):
                         sentence = self._describe(info, seed)
                         if sentence:
                             self._instructions[seed] = sentence
-            except Exception:
-                # An expert failure is a property of the arrangement, which is
-                # what is being measured here. It is not this run's error.
-                pass
+            except Exception as error:
+                # An expert failure is usually a property of the arrangement,
+                # which is what is being measured. But it is not always, and
+                # swallowing it silently makes a broken configuration look like
+                # sixty unsolvable scenes. So the reason is kept.
+                refused.append(f"{type(error).__name__}: {error}")
             finally:
                 if callable(getattr(env, "close_env", None)):
                     env.close_env()
             seed += 1
         self._screened = (start, seed, tuple(solved))
+        self._refused = tuple(refused)
+        tried = seed - start
+        if not solved and tried:
+            # Nothing solvable in a whole range is far more often a broken
+            # configuration than a run of bad luck, and it is the one case where
+            # returning an empty list quietly wastes the entire run downstream.
+            common = max(set(refused), key=refused.count) if refused else None
+            raise ConfigError(
+                f"{self._name}: RoboTwin's own expert solved none of {tried} "
+                f"arrangements for {self._task!r}. That is a configuration problem far "
+                f"more often than {tried} unsolvable scenes"
+                + (
+                    f"; {len(refused)} of them raised, most commonly {common}"
+                    if refused
+                    else ", and none of them raised, so the expert ran and the success "
+                    "check disagreed — check that the check being asked is the one the "
+                    "expert satisfies"
+                )
+            )
         return tuple(solved)
 
     @property

@@ -141,7 +141,7 @@ def main() -> None:
     # *same* arrangements for the comparison to be paired at all, so it is
     # computed once and reused rather than recomputed and hoped to agree.
     cache = Path(f"/home/ubuntu/egorun/robotwin_seeds_{TASK}_{SCENES}.json")
-    if cache.exists():
+    if cache.exists() and json.loads(cache.read_text())["seeds"]:
         payload = json.loads(cache.read_text())
         seeds = tuple(payload["seeds"])
         evaluator._screened = (payload["start"], payload["stop"], seeds)
@@ -150,7 +150,10 @@ def main() -> None:
         print(f"[{ARM}] screening seeds with RoboTwin's own expert...", flush=True)
         seeds = evaluator.screen(SCENES, limit=SCENES * 6)
         start, stop, _ = evaluator._screened
-        cache.write_text(json.dumps({"start": start, "stop": stop, "seeds": list(seeds)}))
+        # Only a non-empty result is worth keeping. Caching an empty screen
+        # makes the second arm reuse a failure instead of discovering it.
+        if seeds:
+            cache.write_text(json.dumps({"start": start, "stop": stop, "seeds": list(seeds)}))
     print(f"[{ARM}] expert solved {len(seeds)}/{SCENES} wanted: {list(seeds)}", flush=True)
     if not seeds:
         raise SystemExit("the scripted expert solved nothing; the install is wrong")
