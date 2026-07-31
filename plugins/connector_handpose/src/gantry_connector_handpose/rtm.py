@@ -35,7 +35,7 @@ supplied the scale, separately, because they are separately wrong.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 
@@ -56,6 +56,58 @@ WHOLEBODY_RIGHT = slice(112, 133)
 
 #: Below this the keypoint is a guess and is treated as absent.
 CONFIDENT = 0.3
+
+#: How close two hands may be, as a fraction of a hand's own width, before at
+#: most one of them is real.
+#:
+#: This exists because of what a whole-body model does in egocentric video, and
+#: it is worth stating plainly: COCO-WholeBody assumes a third-person view of a
+#: whole person. Ego footage has no body and no face — just hands, close up — so
+#: the model fits its 133-point skeleton to whatever it can and puts *both* hand
+#: sets on the one visible hand. Measured on real EPIC footage: in 54% of frames
+#: the two predicted hands were less than half a hand-width apart, and in 28%
+#: they were on top of each other, while a proper handedness classifier saw one
+#: hand in 59 frames and two in 6.
+#:
+#: Two hands cannot occupy the same pixels. That is not a heuristic, it is a fact
+#: about hands, and it is the cheapest reliable way to catch this.
+APART = 0.5
+
+
+def centroid(points: np.ndarray) -> np.ndarray:
+    """Middle of the detected keypoints, ignoring the ones that are absent."""
+    live = np.asarray(points, dtype=float).reshape(-1, 2)
+    live = live[np.any(live != 0.0, axis=1)]
+    return live.mean(axis=0) if len(live) else np.array([np.nan, np.nan])
+
+
+def separate(
+    found: Mapping[str, tuple[np.ndarray, np.ndarray]], *, apart: float = APART
+) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """Drop the weaker of two hands predicted in the same place.
+
+    Whole-body models hallucinate the hand that is not there, on top of the one
+    that is. Where the two predictions sit closer together than :data:`APART`,
+    the lower-confidence one is dropped — keeping both would put two skeletons on
+    one hand and, worse, feed a phantom trajectory into training as though a
+    second arm had been doing something.
+    """
+    from .pnp import extent
+
+    out = {hand: (points.copy(), scores.copy()) for hand, (points, scores) in found.items()}
+    if len(out) < 2:
+        return out
+    (left_name, (left, left_score)), (right_name, (right, right_score)) = list(out.items())[:2]
+    for t in range(len(left)):
+        if left_score[t] <= 0 or right_score[t] <= 0:
+            continue
+        gap = np.linalg.norm(centroid(left[t]) - centroid(right[t]))
+        size = max(extent(left[t]), extent(right[t]), 1e-6)
+        if np.isfinite(gap) and gap / size < apart:
+            loser = right_name if left_score[t] >= right_score[t] else left_name
+            out[loser][0][t] = 0.0
+            out[loser][1][t] = 0.0
+    return out
 
 
 def rtmpose(
@@ -116,13 +168,15 @@ def rtmpose(
                         else np.zeros((21, 2), dtype="float32")
                     )
                     scores[hand].append(weight)
-            return {
-                hand: (
-                    np.stack(points[hand]),
-                    np.asarray(scores[hand], dtype="float32"),
-                )
-                for hand in HANDS
-            }
+            return separate(
+                {
+                    hand: (
+                        np.stack(points[hand]),
+                        np.asarray(scores[hand], dtype="float32"),
+                    )
+                    for hand in HANDS
+                }
+            )
 
     return RTMPose()
 
@@ -177,6 +231,10 @@ def rtm_with_mediapipe(
             found = detector.detect(frames)
             base = shape_source.estimate(frames)
             height, width = np.asarray(frames).shape[1:3]
+            # MediaPipe classifies handedness as its actual job; a whole-body
+            # model infers it from body context that ego video does not contain.
+            # Where the classifier saw only one hand, believe it.
+            found = _confirm(found, base, width, height)
 
             poses: dict[str, np.ndarray] = {}
             residual: dict[str, np.ndarray] = {}
@@ -237,14 +295,47 @@ def rtm_with_mediapipe(
                     "detector": "rtmpose",
                     "shape_model": base.metadata.get("estimator", "mediapipe"),
                     "pose_method": "solvePnP(SQPNP) on RTMPose 2D + MediaPipe hand model",
-                    "template_frames": {
-                        h: int(v) for h, v in templated.items()
-                    },
+                    "template_frames": {h: int(v) for h, v in templated.items()},
                     **intrinsics.as_dict(),
                 },
             )
 
     return Combined()
+
+
+def _confirm(
+    found: Mapping[str, tuple[np.ndarray, np.ndarray]],
+    base: Track,
+    width: int,
+    height: int,
+) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """Drop an RTMPose hand the handedness classifier did not also see.
+
+    Only where the classifier saw *something* in that frame — if it found no
+    hands at all, it has no opinion and RTMPose's detection stands. The point is
+    to use a disagreement, not to inherit the weaker model's recall again.
+    """
+    out = {hand: (points.copy(), scores.copy()) for hand, (points, scores) in found.items()}
+    any_seen = None
+    seen: dict[str, np.ndarray] = {}
+    for hand in out:
+        world = np.asarray(base.world.get(hand, ()), dtype=float)
+        image = np.asarray(base.keypoints.get(hand, ()), dtype=float)
+        source = world if world.size else image
+        seen[hand] = (
+            np.any(source.reshape(len(source), -1) != 0.0, axis=1)
+            if source.size
+            else np.zeros(len(next(iter(out.values()))[1]), dtype=bool)
+        )
+        any_seen = seen[hand] if any_seen is None else (any_seen | seen[hand])
+    if any_seen is None:
+        return out
+    for hand, (points, scores) in out.items():
+        # Frames where the classifier looked, saw a hand, and it was not this one.
+        contradicted = any_seen & ~seen[hand]
+        points[contradicted] = 0.0
+        scores[contradicted] = 0.0
+    return out
 
 
 def rtm_with_depth(

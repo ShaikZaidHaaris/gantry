@@ -51,17 +51,23 @@ from .pnp import (
     solve_sequence,
 )
 from .rtm import (
+    APART,
     BACKENDS,
     CONFIDENT,
+    centroid,
     rtm_with_depth,
     rtm_with_mediapipe,
     rtmpose,
+    separate,
     template_from,
 )
 
 __all__ = [
+    "APART",
     "BACKENDS",
     "CONFIDENT",
+    "centroid",
+    "separate",
     "Depth",
     "DepthMaps",
     "FAR",

@@ -243,7 +243,9 @@ def solve(
 
     # The budget in pixels, from the hand's own size in this frame.
     span = extent(pts)
-    budget = max(MIN_REPROJECTION_PX, float(max_reprojection) * span) if span else MIN_REPROJECTION_PX
+    budget = (
+        max(MIN_REPROJECTION_PX, float(max_reprojection) * span) if span else MIN_REPROJECTION_PX
+    )
 
     # SQPNP is the best of these and it asserts outright on a degenerate point
     # set — a hand seen edge-on, or an averaged template that came out nearly

@@ -14,11 +14,11 @@ from gantry_connector_handpose import (
     MIN_REPROJECTION_PX,
     RIGS,
     Intrinsics,
+    extent,
     for_rig,
     intrinsics_from,
     plausible,
     rotations_to_quaternions,
-    extent,
     solve,
     solve_sequence,
 )
@@ -288,8 +288,8 @@ def test_a_pose_that_reprojects_perfectly_from_an_impossible_place_is_rejected()
     a statement about where hands actually are can."""
     model = hand_model()
     far = solve(model, project(model, (0.0, 0.0, 500.0)), CAMERA)
-    assert far.reprojection < MAX_REPROJECTION   # it fits the pixels
-    assert not far.ok                             # and is still refused
+    assert far.reprojection < MAX_REPROJECTION  # it fits the pixels
+    assert not far.ok  # and is still refused
 
     near = solve(model, project(model, (0.0, 0.0, 0.001)), CAMERA)
     assert not near.ok
