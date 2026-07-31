@@ -57,7 +57,7 @@ class FakeTask:
             },
             "joint_action": np.zeros(14, dtype="float32"),
             "endpose": np.zeros(16, dtype="float32"),
-            "task_name": "dual_bottles_pick_easy",  # a string, not a channel
+            "task_name": "pick_dual_bottles",  # a string, not a channel
         }
 
     def take_action(self, action, action_type="qpos"):
@@ -102,7 +102,7 @@ def evaluator(action_type="ee", win_at=3, **kwargs):
         return made
 
     made = RoboTwinEvaluator(
-        "dual_bottles_pick_easy", action_type=action_type, factory=factory, horizon=20, **kwargs
+        "pick_dual_bottles", action_type=action_type, factory=factory, horizon=20, **kwargs
     )
     made.built = built
     return made
@@ -133,19 +133,27 @@ def test_it_is_the_first_dual_arm_backend_here():
 
 
 def test_the_action_type_is_required_and_has_no_default():
-    """Three spaces, invisible in the array, and a policy trained for one
+    """Two spaces, invisible in the array, and a policy trained for one
     evaluated under another produces numbers that are accepted and mean
     something else."""
     with pytest.raises(TypeError):
-        RoboTwinEvaluator("dual_bottles_pick_easy")  # no action_type
+        RoboTwinEvaluator("pick_dual_bottles")  # no action_type
 
 
 def test_the_width_follows_from_the_action_type():
     assert width_of("qpos") == 14
     assert width_of("ee") == 16
-    assert width_of("delta_ee") == 16
     assert evaluator(action_type="qpos").action().shape == (14,)
     assert evaluator(action_type="ee").action().shape == (16,)
+
+
+def test_the_delta_mode_the_docs_imply_is_not_offered_because_it_does_not_exist():
+    """RoboTwin's own signature is Literal['qpos', 'ee']. A third value falls
+    through both branches of take_action to an unbound local, so advertising it
+    would trade a clear refusal for a crash deep in the simulator."""
+    assert set(ACTION_TYPES) == {"qpos", "ee"}
+    with pytest.raises(ConfigError, match="mean something else"):
+        width_of("delta_ee")
 
 
 def test_an_unknown_action_type_is_refused_with_the_reason():
@@ -170,9 +178,9 @@ def test_the_labels_say_which_space_as_well_as_which_arm():
 
 
 def test_the_action_type_reaches_the_simulator():
-    made = evaluator(action_type="delta_ee")
-    made.run(Chunker(16), made.task_for(scenes=1), Protocol())
-    assert {t for _, t in made.built[0].sent} == {"delta_ee"}
+    made = evaluator(action_type="qpos")
+    made.run(Chunker(14), made.task_for(scenes=1), Protocol())
+    assert {t for _, t in made.built[0].sent} == {"qpos"}
 
 
 # -- the rollout --------------------------------------------------------------
@@ -236,10 +244,12 @@ def test_asking_for_every_camera_keeps_them_all():
 # -- the rest ------------------------------------------------------------------
 
 
-def test_the_task_list_is_available_without_the_simulator():
-    assert len(TASKS) >= 15
-    assert "dual_bottles_pick_easy" in TASKS
-    assert set(ACTION_TYPES) == {"qpos", "ee", "delta_ee"}
+def test_the_task_list_is_the_installed_versions_not_the_papers():
+    """RoboTwin 2.0 renamed every task. The 1.0 ids read like valid arguments
+    and fail only when the import misses, one run in."""
+    assert len(TASKS) == 50
+    assert "pick_dual_bottles" in TASKS
+    assert "dual_bottles_pick_easy" not in TASKS  # the 1.0 name for it
 
 
 def test_it_does_not_claim_to_host_other_bodies():
@@ -268,5 +278,127 @@ def test_close_releases_the_environment():
 
 @pytest.mark.skip(reason="needs RoboTwin 2.0, SAPIEN and its object dataset")
 def test_against_the_real_simulator():  # pragma: no cover
-    made = for_ego("dual_bottles_pick_easy")
+    made = for_ego("pick_dual_bottles")
     assert made.action().shape == (16,)
+
+
+# -- the seed screen -----------------------------------------------------------
+#
+# RoboTwin randomises object placement per seed and not every arrangement is
+# solvable. Scoring a policy on one that is not charges it for the sampler, and
+# the unsolvable fraction moves with the seed range — so two runs over different
+# ranges are not comparable even on the same task. RoboTwin's own loop screens
+# with the scripted expert for exactly this reason.
+
+
+class Screenable(FakeTask):
+    """A fake whose expert solves only some arrangements."""
+
+    def __init__(self, solvable=(0, 2, 5), explodes=(), **kwargs):
+        super().__init__(**kwargs)
+        self.solvable = set(solvable)
+        self.explodes = set(explodes)
+        self.seed = None
+        self.plan_success = True
+        self.played = []
+
+    def setup_demo(self, now_ep_num=0, seed=0, is_test=True, **kwargs):
+        super().setup_demo(now_ep_num, seed, is_test, **kwargs)
+        self.seed = seed
+        self.eval_success = False
+
+    def play_once(self):
+        self.played.append(self.seed)
+        if self.seed in self.explodes:
+            raise RuntimeError("the expert's planner gave up")
+        self.plan_success = self.seed in self.solvable
+        self.eval_success = self.seed in self.solvable
+
+
+def screening(**kwargs):
+    built = []
+
+    def factory(task, **_):
+        made = Screenable(**kwargs)
+        built.append(made)
+        return made
+
+    made = RoboTwinEvaluator("pick_dual_bottles", action_type="ee", factory=factory)
+    made.built = built
+    return made
+
+
+def test_screening_returns_only_the_seeds_the_expert_solved():
+    made = screening(solvable=(0, 2, 5))
+    assert made.screen(3, limit=10) == (0, 2, 5)
+
+
+def test_screened_seeds_are_the_ones_the_run_uses():
+    made = screening(solvable=(1, 4))
+    task = made.task_for(seeds=made.screen(2, limit=10))
+    assert [scene.seed for scene in task.scenes] == [1, 4]
+
+
+def test_an_expert_that_throws_is_a_property_of_the_arrangement_not_an_error():
+    """RoboTwin raises UnStableError when the scene settles badly. That is a
+    fact about the seed, and it must not take the run down with it."""
+    made = screening(solvable=(0, 3), explodes=(1, 2))
+    assert made.screen(2, limit=10) == (0, 3)
+
+
+def test_screening_stops_at_the_limit_rather_than_searching_forever():
+    made = screening(solvable=())
+    assert made.screen(5, limit=4) == ()
+    assert made.built[0].played == [0, 1, 2, 3]
+
+
+def test_an_unscreened_run_says_so_on_every_episode():
+    """So a rate that includes unsolvable arrangements cannot be read as one
+    that does not."""
+    made = evaluator(win_at=2)
+    record = made.run(Chunker(16), made.task_for(scenes=1), Protocol())
+    assert record.episodes[0].labels.annotations["expert_screened"] is False
+
+
+def test_a_screened_run_records_the_experts_own_rate():
+    """The ceiling. A policy at 40% where the expert managed 50% is a different
+    claim from one at 40% where the expert managed 100%."""
+    made = screening(solvable=(0, 2))
+    made.screen(2, limit=4)
+    record = made.run(Chunker(16), made.task_for(seeds=(0, 2)), Protocol())
+    labels = record.episodes[0].labels.annotations
+    assert labels["expert_screened"] is True
+    # Seeds 0, 1 and 2 were tried and two were solved. The denominator is what
+    # was actually examined, not the limit — screening stops as soon as it has
+    # enough, so the limit says nothing about how hard the task was.
+    assert made.built[0].played == [0, 1, 2]
+    assert labels["expert_solve_rate"] == round(2 / 3, 4)
+
+
+def test_screening_needs_an_expert_and_says_so_when_there_is_none():
+    made = evaluator()
+    with pytest.raises(ConfigError, match="no scripted expert"):
+        made.screen(2)
+
+
+# -- success is latched, not re-asked ------------------------------------------
+
+
+def test_success_detected_mid_motion_is_not_lost_when_the_object_settles_back():
+    """RoboTwin interpolates one command into hundreds of physics steps and
+    latches eval_success inside that loop. Asking check_success() afterwards can
+    disagree — and the trial that succeeded would be recorded as a failure."""
+
+    class Settles(FakeTask):
+        def take_action(self, action, action_type="qpos"):
+            super().take_action(action, action_type)
+            self.eval_success = True  # latched during the motion
+
+        def check_success(self):
+            return False  # and no longer true once everything stopped moving
+
+    made = RoboTwinEvaluator(
+        "pick_dual_bottles", action_type="ee", factory=lambda task, **_: Settles(), horizon=20
+    )
+    record = made.run(Chunker(16), made.task_for(scenes=1), Protocol())
+    assert record.episodes[0].labels.success is True

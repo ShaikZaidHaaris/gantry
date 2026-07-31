@@ -14,11 +14,10 @@ The part that matters more than the task count
 ----------------------------------------------
 RoboTwin accepts actions in **end-effector space**, not only joint space:
 
-    qpos      left arm joints + left gripper + right arm joints + right gripper
-    ee        left (xyz + quaternion) + gripper, then right — absolute pose
-    delta_ee  the same, as a change from the current pose
+    qpos  left arm joints + left gripper, then right — 14 numbers
+    ee    left (xyz + wxyz quaternion) + gripper, then right — 16, absolute pose
 
-That third column is why this plugin is worth more than another benchmark.
+That second row is why this plugin is worth more than another benchmark.
 ``retargeter_hands`` refuses to produce joint positions and says why — inverse
 kinematics needs link lengths, joint limits and a choice of elbow configuration,
 none of which a retargeter has. That refusal has blocked the ego path from every
@@ -26,13 +25,31 @@ ALOHA-family config since it was written. RoboTwin's ``ee`` mode takes exactly
 what the retargeter *does* produce, so the chain runs end to end with no IK step
 and no pretending.
 
-Three action spaces, one arm, and the widths differ
----------------------------------------------------
+Two action spaces, one arm, and the widths differ
+-------------------------------------------------
 Fourteen numbers in ``qpos``, sixteen in ``ee``. Same robot, same task, same
 method name, and a policy trained for one cannot be evaluated under another —
 the numbers would be accepted and mean something else. So ``action_type`` is a
 constructor argument with no safe default, the width follows from it, and a
 mismatch is refused at plan time rather than discovered as poor performance.
+
+There is no delta mode. An earlier draft of this file listed one, on the
+strength of the documentation; the simulator's own signature is
+``Literal['qpos', 'ee']`` and a third value falls through both branches to an
+unbound local. A backend that advertises a control mode its simulator does not
+implement is worse than one that offers fewer.
+
+Seeds are screened by the expert first
+--------------------------------------
+RoboTwin's own evaluation loop runs the scripted expert on a seed before
+scoring a policy on it, and skips the seed if the expert fails. Without that,
+a success rate mixes "the policy could not do it" with "this arrangement was
+not solvable", and the two move independently as the seed range changes.
+
+Screening is a separate, recorded step here rather than something hidden inside
+the rollout: :meth:`RoboTwinEvaluator.screen` returns the seeds the expert
+solved, and they are passed to :meth:`task_for` explicitly. What was screened
+out is then a fact somebody can look at, not a silent filter.
 
 The instruction comes from the environment
 ------------------------------------------
@@ -60,7 +77,7 @@ KEY_OFFSET = "rotation_offset"
 
 VERSION = "0.1.0.dev0"
 
-#: The three action spaces RoboTwin accepts, and the width each implies *per
+#: The two action spaces RoboTwin accepts, and the width each implies *per
 #: arm*. Doubling happens in :func:`width_of` — a dual-arm command is the two
 #: arms concatenated, left first.
 #:
@@ -71,10 +88,9 @@ VERSION = "0.1.0.dev0"
 ACTION_TYPES: dict[str, int] = {
     # six joints and a gripper
     "qpos": 7,
-    # position, wxyz quaternion, gripper
+    # position, wxyz quaternion, gripper. The quaternion is scalar-first because
+    # the pose goes to mplib, which takes SAPIEN's convention.
     "ee": 8,
-    # the same, as a delta from where the arm is now
-    "delta_ee": 8,
 }
 
 #: Arms, in the order they are concatenated. The only written record of which
@@ -82,30 +98,63 @@ ACTION_TYPES: dict[str, int] = {
 #: retargeter_hands already keep, for the same reason.
 ARMS = ("left", "right")
 
-#: A sample of RoboTwin 2.0's task ids. Not a whitelist: any id the installed
-#: version knows is accepted, and this exists so a run can be planned against a
-#: task list on a laptop with no simulator.
+#: RoboTwin 2.0's fifty task ids, read off the installed ``envs`` package. Not a
+#: whitelist: any id the installed version knows is accepted, and this exists so
+#: a run can be planned against a task list on a laptop with no simulator.
+#:
+#: These are the 2.0 names. The 1.0 paper's ids (``dual_bottles_pick_easy`` and
+#: friends) were renamed wholesale and none of them resolve.
 TASKS = (
-    "block_hammer_beat",
-    "block_handover",
-    "blocks_stack_easy",
-    "blocks_stack_hard",
-    "bottle_adjust",
-    "container_place",
-    "diverse_bottles_pick",
-    "dual_bottles_pick_easy",
-    "dual_bottles_pick_hard",
-    "dual_shoes_place",
-    "empty_cup_place",
-    "mug_hanging_easy",
-    "mug_hanging_hard",
-    "pick_apple_messy",
-    "put_apple_cabinet",
-    "shoe_place",
-    "tool_adjust",
+    "adjust_bottle",
     "beat_block_hammer",
+    "blocks_ranking_rgb",
+    "blocks_ranking_size",
+    "click_alarmclock",
+    "click_bell",
+    "dump_bin_bigbin",
+    "grab_roller",
     "handover_block",
+    "handover_mic",
+    "hanging_mug",
+    "lift_pot",
+    "move_can_pot",
+    "move_pillbottle_pad",
+    "move_playingcard_away",
+    "move_stapler_pad",
+    "open_laptop",
+    "open_microwave",
+    "pick_diverse_bottles",
+    "pick_dual_bottles",
+    "place_a2b_left",
+    "place_a2b_right",
+    "place_bread_basket",
+    "place_bread_skillet",
+    "place_burger_fries",
+    "place_can_basket",
+    "place_cans_plasticbox",
+    "place_container_plate",
+    "place_dual_shoes",
+    "place_empty_cup",
+    "place_fan",
+    "place_mouse_pad",
+    "place_object_basket",
+    "place_object_scale",
+    "place_object_stand",
+    "place_phone_stand",
     "place_shoe",
+    "press_stapler",
+    "put_bottles_dustbin",
+    "put_object_cabinet",
+    "rotate_qrcode",
+    "scan_object",
+    "shake_bottle",
+    "shake_bottle_horizontally",
+    "stack_blocks_three",
+    "stack_blocks_two",
+    "stack_bowls_three",
+    "stack_bowls_two",
+    "stamp_seal",
+    "turn_switch",
 )
 
 #: RoboTwin's own control frequency.
@@ -146,18 +195,32 @@ def make_env(
     head_camera: str = "D435",
     **kwargs: Any,
 ) -> Any:
-    """Construct one RoboTwin task environment. Imported here, not at load."""
+    """Construct one RoboTwin task environment. Imported here, not at load.
+
+    RoboTwin has no public constructor: its own scripts each carry a private copy
+    of a ``class_decorator`` that imports ``envs.<task>`` and instantiates the
+    class of the same name. That convention is reproduced rather than imported,
+    because the copies live in ``script/`` next to ``__main__`` guards and
+    importing one of them runs an argument parser.
+    """
+    import importlib
+
     try:
-        from envs import CONFIGS_PATH  # noqa: F401 - RoboTwin's own package layout
-        from envs.utils import class_decorator
+        module = importlib.import_module(f"envs.{task}")
     except ImportError as error:  # pragma: no cover - needs the simulator
         raise ConfigError(
-            "running RoboTwin needs the simulator: install RoboTwin 2.0 (MIT) and "
-            "its object dataset, then run from the repository root so its `envs` "
-            "package is importable. See "
+            f"cannot load RoboTwin task {task!r}: install RoboTwin 2.0 (MIT) and its "
+            "object dataset, and run from the repository root so its `envs` package "
+            "is importable. See "
             "https://robotwin-platform.github.io/doc/usage/robotwin-install.html"
         ) from error
-    environment = class_decorator(task)
+    try:
+        environment = getattr(module, task)()
+    except AttributeError as error:  # pragma: no cover - needs the simulator
+        raise ConfigError(
+            f"RoboTwin's `envs.{task}` has no class named {task!r}; the installed "
+            f"version may use different task ids. Known here: {len(TASKS)}"
+        ) from error
     environment.setup_demo(
         now_ep_num=0,
         seed=seed,
@@ -229,6 +292,17 @@ class DualArm:
     # -- internals ---------------------------------------------------------
 
     def _success(self) -> bool:
+        """The latched flag first, the predicate second.
+
+        RoboTwin interpolates each command into hundreds of physics steps and
+        checks success *inside* that loop, latching ``eval_success``. Asking
+        ``check_success()`` afterwards can disagree: an object knocked into place
+        mid-motion may settle back out of it, and the trial that succeeded would
+        be recorded as a failure.
+        """
+        latched = getattr(self.env, "eval_success", None)
+        if latched is not None:
+            return bool(latched)
         checker = getattr(self.env, "check_success", None)
         return bool(checker()) if callable(checker) else False
 
@@ -272,7 +346,7 @@ class RoboTwinEvaluator(ClosedLoop):
 
     def __init__(
         self,
-        task: str = "dual_bottles_pick_easy",
+        task: str = "pick_dual_bottles",
         *,
         action_type: str,
         embodiment: str = "aloha-agilex",
@@ -300,6 +374,8 @@ class RoboTwinEvaluator(ClosedLoop):
         self._horizon = int(horizon)
         self._env_kwargs = dict(env_kwargs or {})
         self._world: DualArm | None = None
+        #: (first seed tried, one past the last, the ones the expert solved).
+        self._screened: tuple[int, int, tuple[int, ...]] | None = None
 
     # -- contract ----------------------------------------------------------
 
@@ -321,7 +397,7 @@ class RoboTwinEvaluator(ClosedLoop):
             action_type=self._action_type,
             action_width=self._width,
             # The reason this backend exists, said where a report will find it.
-            accepts_end_effector=self._action_type in ("ee", "delta_ee"),
+            accepts_end_effector=self._action_type == "ee",
             cameras=list(self._cameras),
             control_hz=CONTROL_HZ,
             licence="MIT (RoboTwin 2.0)",
@@ -358,17 +434,73 @@ class RoboTwinEvaluator(ClosedLoop):
     def embodiment_for(self, scene: Scene) -> str:
         return self._embodiment
 
-    def task_for(self, name: str = "", scenes: int = 25, horizon: int | None = None) -> TaskSpec:
+    def task_for(
+        self,
+        name: str = "",
+        scenes: int = 25,
+        horizon: int | None = None,
+        seeds: Sequence[int] | None = None,
+    ) -> TaskSpec:
         """One scene per seed. RoboTwin re-randomises object placement per seed,
         so scene ``k`` is the same arrangement on any machine — which is what a
-        paired comparison rests on."""
+        paired comparison rests on.
+
+        ``seeds`` takes the screened list from :meth:`screen`. Left unset, the
+        seeds are ``0..scenes-1`` unscreened, and the resulting success rate
+        mixes "the policy failed" with "this arrangement was not solvable".
+        """
+        chosen = (
+            tuple(int(seed) for seed in seeds)
+            if seeds is not None
+            else tuple(range(max(1, scenes)))
+        )
         return TaskSpec(
             name=name or self._task,
-            scenes=tuple(
-                Scene(id=f"{self._task}#{index:03d}", seed=index) for index in range(max(1, scenes))
-            ),
+            scenes=tuple(Scene(id=f"{self._task}#{seed:03d}", seed=seed) for seed in chosen),
             horizon=self._horizon if horizon is None else int(horizon),
         )
+
+    def screen(self, count: int, *, start: int = 0, limit: int | None = None) -> tuple[int, ...]:
+        """Seeds the scripted expert can solve, which are the fair ones to score.
+
+        RoboTwin randomises object placement per seed and not every arrangement
+        is solvable. Scoring a policy on one that is not charges it for the
+        sampler, and because the unsolvable fraction moves with the seed range,
+        two runs over different ranges are not comparable even on the same task.
+        RoboTwin's own loop screens for exactly this reason.
+
+        Returns fewer than ``count`` if ``limit`` seeds are exhausted first —
+        the caller can then see the expert's own rate rather than being handed a
+        short list with no explanation.
+        """
+        world = self.world
+        env = world.env
+        if not callable(getattr(env, "play_once", None)):
+            raise ConfigError(
+                f"{self._name}: this environment has no scripted expert (`play_once`), "
+                "so seeds cannot be screened. Pass seeds to task_for() explicitly, or "
+                "run unscreened and record that the success rate includes unsolvable "
+                "arrangements"
+            )
+        ceiling = start + (limit if limit is not None else count * 10)
+        solved: list[int] = []
+        seed = start
+        while len(solved) < count and seed < ceiling:
+            try:
+                env.setup_demo(now_ep_num=seed, seed=seed, is_test=True, **self._env_kwargs)
+                env.play_once()
+                if bool(getattr(env, "plan_success", True)) and world._success():
+                    solved.append(seed)
+            except Exception:
+                # An expert failure is a property of the arrangement, which is
+                # what is being measured here. It is not this run's error.
+                pass
+            finally:
+                if callable(getattr(env, "close_env", None)):
+                    env.close_env()
+            seed += 1
+        self._screened = (start, seed, tuple(solved))
+        return tuple(solved)
 
     @property
     def world(self) -> DualArm:
@@ -401,7 +533,13 @@ class RoboTwinEvaluator(ClosedLoop):
             "action_type": self._action_type,
             "arms": len(ARMS),
             "robotwin_task": self._task,
+            # Whether the arrangement was known solvable before the policy saw
+            # it. Without this an unscreened rate reads like a screened one.
+            "expert_screened": self._screened is not None,
         }
+        if self._screened is not None:
+            start, stop, solved = self._screened
+            extra["expert_solve_rate"] = round(len(solved) / max(1, stop - start), 4)
         if self._world is not None and self._world.instruction:
             extra["instruction_given"] = self._world.instruction
         return episode.with_labels(
@@ -413,7 +551,7 @@ class RoboTwinEvaluator(ClosedLoop):
         )
 
 
-def for_ego(task: str = "dual_bottles_pick_easy", **kwargs: Any) -> RoboTwinEvaluator:
+def for_ego(task: str = "pick_dual_bottles", **kwargs: Any) -> RoboTwinEvaluator:
     """The configuration the ego pipeline can actually drive.
 
     ``ee`` because that is what ``retargeter_hands`` produces and refuses to turn
