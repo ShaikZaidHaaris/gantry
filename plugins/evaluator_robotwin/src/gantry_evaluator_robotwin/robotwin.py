@@ -172,6 +172,11 @@ TASKS = (
 #: RoboTwin's own control frequency.
 CONTROL_HZ = 25.0
 
+#: What RoboTwin falls back to when a task is missing from its step-limit file.
+#: Matched to its own fallback rather than chosen here, so a task it does not
+#: list gets the same budget under this evaluator as under its own script.
+DEFAULT_STEPS = 1000
+
 
 def width_of(action_type: str, arms: int = 2) -> int:
     """How wide a command is. Follows from the action type; never assumed."""
@@ -246,6 +251,11 @@ def config_for(
     args["task_name"] = task
     args["task_config"] = config
     args["embodiment"] = [embodiment]
+    # RoboTwin only loads its per-task step limit when this is set, and its own
+    # eval script sets it. Without it `step_lim` stays None, take_action never
+    # reaches its stopping condition, and an episode that is not going to
+    # succeed runs until something else stops it.
+    args["eval_mode"] = True
 
     with open(
         os.path.join(str(CONFIGS_PATH), "_embodiment_config.yml"), encoding="utf-8"
@@ -274,6 +284,36 @@ def config_for(
 
     args.update(overrides)
     return args
+
+
+def step_limit(task: str, root: str | None = None) -> int:
+    """How many commands RoboTwin allows this task, from its own table.
+
+    Per task, and the spread is wide -- 400 for picking two bottles, 1500 for
+    opening a microwave. A single horizon chosen here would cut the long tasks
+    off before they could finish and leave the short ones grinding through
+    hundreds of steps after the outcome was decided.
+
+    Read rather than copied: the table ships with the simulator and changing it
+    is how the maintainers re-balance a task.
+    """
+    import os
+
+    # The simulator first: without it there is no table to read, and requiring
+    # yaml here would make planning a run on a laptop depend on a dependency
+    # only the simulator needs.
+    try:
+        import yaml
+        from envs import CONFIGS_PATH
+    except ImportError:
+        return DEFAULT_STEPS
+    path = os.path.join(root or str(CONFIGS_PATH), "_eval_step_limit.yml")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            table = yaml.safe_load(handle.read()) or {}
+    except OSError:  # pragma: no cover - needs the simulator
+        return DEFAULT_STEPS
+    return int(table.get(task, DEFAULT_STEPS))
 
 
 def make_env(
@@ -517,7 +557,7 @@ class RoboTwinEvaluator(ClosedLoop):
         instruction_type: str = "seen",
         cameras: Sequence[str] = ("head_camera", "left_camera", "right_camera"),
         factory: Callable[..., Any] = make_env,
-        horizon: int = 400,
+        horizon: int | None = None,
         env_kwargs: Mapping[str, Any] | None = None,
     ):
         """``action_type`` is required and has no default.
@@ -536,7 +576,9 @@ class RoboTwinEvaluator(ClosedLoop):
         self._cameras = tuple(cameras)
         self.observes = None
         self._factory = factory
-        self._horizon = int(horizon)
+        # None means "whatever RoboTwin allows this task", resolved when the
+        # simulator is present rather than guessed at construction.
+        self._horizon = None if horizon is None else int(horizon)
         self._env_kwargs = dict(env_kwargs or {})
         self._world: DualArm | None = None
         #: (first seed tried, one past the last, the ones the expert solved).
@@ -661,12 +703,19 @@ class RoboTwinEvaluator(ClosedLoop):
         return TaskSpec(
             name=name or self._task,
             scenes=tuple(Scene(id=f"{self._task}#{seed:03d}", seed=seed) for seed in chosen),
-            horizon=self._horizon if horizon is None else int(horizon),
+            horizon=int(horizon) if horizon is not None else self.horizon,
         )
 
     @staticmethod
     def _settings(env: Any) -> dict[str, Any]:
         return dict(getattr(env, "gantry_settings", {}) or {})
+
+    @property
+    def horizon(self) -> int:
+        """The step budget for this task: declared, or RoboTwin's own."""
+        if self._horizon is not None:
+            return self._horizon
+        return step_limit(self._task)
 
     def screen(self, count: int, *, start: int = 0, limit: int | None = None) -> tuple[int, ...]:
         """Seeds the scripted expert can solve, which are the fair ones to score.

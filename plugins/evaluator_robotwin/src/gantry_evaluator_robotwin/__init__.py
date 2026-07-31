@@ -4,6 +4,7 @@ from .robotwin import (
     ACTION_TYPES,
     ARMS,
     CONTROL_HZ,
+    DEFAULT_STEPS,
     TASKS,
     VERSION,
     DualArm,
@@ -15,6 +16,7 @@ from .robotwin import (
     labels_for,
     make_env,
     state_spec,
+    step_limit,
     width_of,
 )
 
@@ -22,6 +24,7 @@ __all__ = [
     "ACTION_TYPES",
     "ARMS",
     "CONTROL_HZ",
+    "DEFAULT_STEPS",
     "TASKS",
     "config_for",
     "endpose_vector",
@@ -32,6 +35,7 @@ __all__ = [
     "for_ego",
     "labels_for",
     "state_spec",
+    "step_limit",
     "make_env",
     "width_of",
 ]

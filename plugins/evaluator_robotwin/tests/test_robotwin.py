@@ -11,13 +11,16 @@ import numpy as np
 import pytest
 from gantry_evaluator_robotwin import (
     ACTION_TYPES,
+    DEFAULT_STEPS,
     TASKS,
     RoboTwinEvaluator,
+    config_for,
     endpose_vector,
     flatten,
     for_ego,
     labels_for,
     state_spec,
+    step_limit,
     width_of,
 )
 
@@ -106,7 +109,7 @@ class Chunker(Policy):
         return np.zeros((4, self.width), dtype="float32")
 
 
-def evaluator(action_type="ee", win_at=3, **kwargs):
+def evaluator(action_type="ee", win_at=3, horizon=20, **kwargs):
     built = []
 
     def factory(task, **_):
@@ -115,7 +118,7 @@ def evaluator(action_type="ee", win_at=3, **kwargs):
         return made
 
     made = RoboTwinEvaluator(
-        "pick_dual_bottles", action_type=action_type, factory=factory, horizon=20, **kwargs
+        "pick_dual_bottles", action_type=action_type, factory=factory, horizon=horizon, **kwargs
     )
     made.built = built
     return made
@@ -566,3 +569,42 @@ def test_what_the_environment_holds_is_what_gets_recorded():
     made.screen(1, limit=3)
     made.run(Chunker(16), made.task_for(seeds=(0,)), Protocol())
     assert made.built[0]._instruction == "pick up the bottle (0)"
+
+
+# -- the step budget ------------------------------------------------------------
+#
+# RoboTwin only loads its per-task step limit when eval_mode is set, and its own
+# eval script sets it. Without it step_lim stays None, take_action never reaches
+# its stopping condition, and an episode that is not going to succeed runs until
+# something else stops it. The first attempt at this run hung for exactly that
+# reason.
+
+
+def test_the_horizon_defaults_to_robotwins_own_limit_not_a_number_chosen_here():
+    """Per task, and the spread is wide -- 400 to open with two bottles, 1500
+    for a microwave. One horizon would cut the long tasks off before they could
+    finish and grind the short ones on after the outcome was decided."""
+    made = evaluator(horizon=None)
+    assert made.horizon == DEFAULT_STEPS  # no simulator installed: RoboTwin's own fallback
+    assert made.task_for(scenes=1).horizon == DEFAULT_STEPS
+
+
+def test_a_declared_horizon_still_wins():
+    made = evaluator(horizon=37)
+    assert made.horizon == 37
+    assert made.task_for(scenes=1).horizon == 37
+    assert made.task_for(scenes=1, horizon=5).horizon == 5
+
+
+def test_the_fallback_matches_the_simulators_own():
+    """A task RoboTwin does not list gets the same budget under this evaluator
+    as under its own script."""
+    assert DEFAULT_STEPS == 1000
+    assert step_limit("a_task_that_does_not_exist") == DEFAULT_STEPS
+
+
+def test_eval_mode_is_set_so_the_limit_is_loaded_at_all():
+    import inspect
+
+    source = inspect.getsource(config_for)
+    assert '"eval_mode"' in source

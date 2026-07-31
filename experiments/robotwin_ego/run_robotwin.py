@@ -130,7 +130,11 @@ def reachability(commanded: np.ndarray, reach: float = 0.75) -> dict:
 
 def main() -> None:
     started = time.time()
-    evaluator = RoboTwinEvaluator(TASK, action_type="ee", horizon=int(1e9))
+    # No horizon given: RoboTwin's own per-task step limit governs. An earlier
+    # version passed a huge number here on the assumption the simulator would
+    # stop the episode itself, which it only does when eval_mode is set -- so an
+    # episode that was not going to succeed ran until something else stopped it.
+    evaluator = RoboTwinEvaluator(TASK, action_type="ee")
 
     # The screen depends on the task and the seed range, not on the policy, and
     # costs one scripted rollout per seed tried. Both arms must be scored on the
@@ -164,6 +168,7 @@ def main() -> None:
     print(f"[{ARM}] action chain: {policy.chain}", flush=True)
 
     task = evaluator.task_for(seeds=seeds)
+    print(f"[{ARM}] {len(seeds)} scenes x {task.horizon} steps ({TASK})", flush=True)
     record = evaluator.run(policy, task, Protocol())
 
     commanded = np.concatenate([e.array("action") for e in record.episodes])
