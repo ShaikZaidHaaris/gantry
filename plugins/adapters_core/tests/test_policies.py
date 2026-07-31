@@ -158,3 +158,100 @@ def test_it_finds_installed_adapters_without_naming_one():
     assert len(registry) >= 1
     # the module itself names no adapter; the rotation one is found by entry point
     assert "metadata.mismatch" in registry.codes()
+
+
+# -- the same gap, on the way in ------------------------------------------------
+#
+# ClosedLoop hands a policy the world's observation dict untouched. A world
+# publishing poses as quaternions and a policy reading Euler angles fail the
+# same way the actions did -- except quietly, because a state of the wrong width
+# is a shape error and a state of the right width in the wrong encoding is not
+# an error at all.
+
+STATE_QUAT = ChannelSpec(
+    "endpose.vector",
+    "vector",
+    (16,),
+    "float32",
+    semantics="observation.eef_abs_pose",
+    metadata={"rotation_repr": "quat_wxyz", "rotation_offset": (3, 11), "arms": 2},
+)
+STATE_EULER = ChannelSpec(
+    "endpose.vector",
+    "vector",
+    (14,),
+    "float32",
+    semantics="observation.eef_abs_pose",
+    metadata={"rotation_repr": "euler_xyz", "rotation_offset": (3, 10), "arms": 2},
+)
+
+
+class Reader(Policy):
+    """Records exactly what it was handed."""
+
+    def __init__(self, wants=STATE_EULER):
+        self.wants = wants
+        self.saw = None
+
+    def descriptor(self):
+        return policy_descriptor(
+            name="reader", version="0.1", horizon=1, chunk=False, deterministic=True
+        )
+
+    def action_spec(self):
+        return QUAT
+
+    def observes(self):
+        return requires_channels("reader", "policy", self.wants)
+
+    def reset(self, context):
+        pass
+
+    def act(self, observation):
+        self.saw = dict(getattr(observation, "channels", observation))
+        return np.zeros(16)
+
+
+def test_the_state_is_converted_into_the_encoding_the_policy_reads():
+    policy = Reader()
+    made = adapt_policy(policy, QUAT, reading=(STATE_QUAT,))
+
+    values = np.zeros(16)
+    values[3:7] = [np.sqrt(0.5), 0, 0, np.sqrt(0.5)]  # left, quarter turn in z
+    made.act({"endpose.vector": values})
+
+    state = policy.saw["endpose.vector"]
+    assert state.shape == (14,)
+    assert np.allclose(state[3:6], [0, 0, np.pi / 2])
+
+
+def test_a_state_that_already_matches_is_passed_straight_through():
+    policy = Reader(wants=STATE_QUAT)
+    made = adapt_policy(policy, QUAT, reading=(STATE_QUAT,))
+    values = np.arange(16, dtype=float)
+    made.act({"endpose.vector": values})
+    assert np.allclose(policy.saw["endpose.vector"], values)
+
+
+def test_a_world_that_publishes_nothing_the_policy_can_read_is_refused_now():
+    """Before the simulator is built, not on the first step."""
+    unrelated = ChannelSpec("joint_action.vector", "vector", (14,), "float32")
+    with pytest.raises(ConfigError, match="cannot read what this world publishes"):
+        adapt_policy(Reader(), QUAT, reading=(unrelated,))
+
+
+def test_channels_the_policy_did_not_ask_about_are_left_alone():
+    policy = Reader()
+    made = adapt_policy(policy, QUAT, reading=(STATE_QUAT,))
+    image = np.zeros((4, 4, 3), dtype="uint8")
+    made.act({"endpose.vector": np.zeros(16), "observation.head_camera.rgb": image})
+    assert policy.saw["observation.head_camera.rgb"].shape == (4, 4, 3)
+
+
+def test_both_directions_are_converted_in_one_run():
+    """The point of doing it here rather than in two places."""
+    policy = Reader()
+    made = adapt_policy(policy, EULER, reading=(STATE_QUAT,))
+    out = made.act({"endpose.vector": np.zeros(16)})
+    assert policy.saw["endpose.vector"].shape == (14,)  # in
+    assert out.shape == (14,)  # out

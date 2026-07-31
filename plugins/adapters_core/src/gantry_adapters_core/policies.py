@@ -11,6 +11,19 @@ any one pair. Give it a policy and the channel an evaluator wants; it plans a
 chain from the registered adapters, refuses now if no chain closes the gap, and
 applies the same chain to every action.
 
+Both directions, or neither
+---------------------------------
+The same gap exists on the way in. ``ClosedLoop`` hands a policy the world's
+observation dict untouched, so a world publishing poses as quaternions and a
+policy reading Euler angles fail in the same way the actions did — except
+quietly, because a state of the wrong width is usually a shape error and a state
+of the right width in the wrong encoding is not an error at all.
+
+Pass ``reading`` — the channels the world actually publishes — and the
+observations are wired through the same plane, using the resolver's own
+``bind``. Leave it out and only the action is converted, which is honest when
+the state already matches and a trap when it does not.
+
 Refuse at construction, not on the first step
 ---------------------------------------------
 Planning happens once, in the constructor. An unplannable pair raises there,
@@ -28,12 +41,12 @@ two are not the same thing" stays sayable.
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 
 from gantry.errors import ConfigError
-from gantry.resolve import AdapterRegistry, Chain
+from gantry.resolve import AdapterRegistry, Chain, bind
 from gantry.spine import ChannelSpec, compatible
 
 
@@ -52,11 +65,13 @@ class AdaptedPolicy:
         target: ChannelSpec,
         *,
         adapters: AdapterRegistry | None = None,
+        reading: Sequence[ChannelSpec] = (),
         name: str | None = None,
     ):
         self._policy = policy
         self._target = target
         self._source = policy.action_spec()
+        self._registry = adapters if adapters is not None else installed_adapters()
 
         gap = compatible(self._source, target)
         if gap.ok:
@@ -65,9 +80,8 @@ class AdaptedPolicy:
             self._chain: Chain | None = None
             self._losses: tuple[str, ...] = ()
         else:
-            registry = adapters if adapters is not None else installed_adapters()
             codes = tuple(reason.code for reason in gap.reasons)
-            chain, unclosed = registry.close(self._source, target, codes)
+            chain, unclosed = self._registry.close(self._source, target, codes)
             if chain is None:
                 raise ConfigError(
                     f"cannot convert {self._source.name!r} into {target.name!r}: "
@@ -81,6 +95,28 @@ class AdaptedPolicy:
             self._chain = chain
             self._losses = chain.losses
         self._name = name or f"{getattr(policy, '_name', 'policy')}+adapted"
+        self._inputs: dict[str, tuple[str, Chain]] = {}
+        if reading:
+            self._wire(tuple(reading))
+
+    def _wire(self, provided: Sequence[ChannelSpec]) -> None:
+        """Plan the observation side through the resolver's own binding."""
+        wiring, verdict = bind(self._policy.observes(), provided, self._registry)
+        if wiring is None:
+            raise ConfigError(
+                f"{self._policy_name()}: cannot read what this world publishes. {verdict.explain()}"
+            )
+        for binding in wiring.bindings:
+            if binding.chain:
+                self._inputs[binding.want.name] = (binding.provided.name, binding.chain)
+            elif binding.provided.name != binding.want.name:
+                # A rename is still a wiring decision, and the policy looks the
+                # channel up by the name it asked for.
+                self._inputs[binding.want.name] = (binding.provided.name, Chain())
+        self._wiring = wiring
+
+    def _policy_name(self) -> str:
+        return str(getattr(self._policy, "_name", type(self._policy).__name__))
 
     # -- what changed ------------------------------------------------------
 
@@ -122,7 +158,7 @@ class AdaptedPolicy:
         self._policy.reset(context)
 
     def act(self, observation: Any) -> np.ndarray:
-        values = np.asarray(self._policy.act(observation))
+        values = np.asarray(self._policy.act(self._read(observation)))
         if self._chain is None:
             return values
         # A chunk is (horizon, width) and a single action is (width,). The
@@ -132,6 +168,36 @@ class AdaptedPolicy:
         block = values[None, :] if flat else values
         out = self._chain.run(block, self._source, self._target)
         return out[0] if flat else out
+
+    def _read(self, observation: Any) -> Any:
+        """The observation, with each wired channel under the name the policy
+        asked for and in the encoding it asked for."""
+        if not self._inputs:
+            return observation
+        channels = dict(getattr(observation, "channels", observation) or {})
+        for wanted, (source, chain) in self._inputs.items():
+            if source not in channels:
+                continue
+            values = np.asarray(channels[source])
+            if chain:
+                flat = values.ndim == 1
+                block = values[None, :] if flat else values
+                out = chain.run(block, self._by_name(source), self._by_name(wanted, want=True))
+                values = out[0] if flat else out
+            channels[wanted] = values
+        rebuilt = getattr(observation, "channels", None)
+        if rebuilt is None:
+            return channels
+        return type(observation)(observation.step, channels)
+
+    def _by_name(self, name: str, want: bool = False) -> ChannelSpec:
+        source = self._wiring.bindings
+        for binding in source:
+            if want and binding.want.name == name:
+                return binding.want
+            if not want and binding.provided.name == name:
+                return binding.provided
+        raise KeyError(name)  # pragma: no cover - _inputs is built from these
 
     def __getattr__(self, item: str) -> Any:
         # Anything this wrapper does not model belongs to the policy underneath.
@@ -143,13 +209,18 @@ def adapt_policy(
     to: ChannelSpec,
     *,
     adapters: AdapterRegistry | None = None,
+    reading: Sequence[ChannelSpec] = (),
     name: str | None = None,
 ) -> Any:
-    """``policy``, emitting ``to``. Returns the policy unchanged if it already does."""
-    source = policy.action_spec()
-    if compatible(source, to).ok:
+    """``policy``, emitting ``to`` and reading what ``reading`` publishes.
+
+    Returns the policy unchanged only when nothing at all needs converting —
+    including the observation side, which is why ``reading`` has to be passed
+    here rather than checked later.
+    """
+    if not reading and compatible(policy.action_spec(), to).ok:
         return policy
-    return AdaptedPolicy(policy, to, adapters=adapters, name=name)
+    return AdaptedPolicy(policy, to, adapters=adapters, reading=reading, name=name)
 
 
 def installed_adapters() -> AdapterRegistry:
