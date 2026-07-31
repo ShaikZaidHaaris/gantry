@@ -54,6 +54,7 @@ from .rtm import (
     rtm_with_depth,
     rtm_with_mediapipe,
     rtmpose,
+    template_from,
 )
 
 __all__ = [
@@ -72,6 +73,7 @@ __all__ = [
     "rtm_with_depth",
     "rtm_with_mediapipe",
     "rtmpose",
+    "template_from",
     "sample",
     "unproject",
     "zoedepth",

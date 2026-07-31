@@ -127,12 +127,41 @@ def rtmpose(
     return RTMPose()
 
 
+def template_from(world: np.ndarray, *, minimum: int = 5) -> np.ndarray | None:
+    """One rigid hand, averaged over the frames a shape model did solve.
+
+    The fix for a real disappointment: pairing a strong 2D detector with a weak
+    3D one gets you the *weak* one's recall, because a frame needs both. On real
+    footage RTMPose found hands in every frame and the combination solved 6% of
+    them, because MediaPipe supplied the metric shape and MediaPipe is what was
+    missing.
+
+    A hand does not change size. So the frames where the shape model worked
+    measure *this person's* hand, and that measurement can carry the frames where
+    it did not. Per-person rather than a generic template, which matters because
+    hand size is exactly the quantity being used as a ruler.
+
+    The cost is articulation: a rigid template cannot bend, so a fisted hand fits
+    it badly. That shows up honestly as reprojection error and gets rejected by
+    the usual threshold rather than becoming a confident wrong pose.
+    """
+    frames = np.asarray(world, dtype=float)
+    if frames.ndim != 3:
+        return None
+    usable = np.any(frames.reshape(len(frames), -1) != 0.0, axis=1)
+    if usable.sum() < minimum:
+        return None
+    # Median rather than mean: a badly-fitted frame is an outlier, not noise.
+    return np.median(frames[usable], axis=0)
+
+
 def rtm_with_mediapipe(
     detector: Any,
     shape_source: Any,
     *,
     intrinsics: Intrinsics,
     max_reprojection: float = 10.0,
+    use_template: bool = True,
 ) -> Any:
     """RTMPose for where the hand is, MediaPipe for how big it is, PnP for the rest.
 
@@ -153,6 +182,7 @@ def rtm_with_mediapipe(
             residual: dict[str, np.ndarray] = {}
             confidence: dict[str, np.ndarray] = {}
             keypoints: dict[str, np.ndarray] = {}
+            templated: dict[str, int] = {}
             for hand in HANDS:
                 if hand not in found or hand not in base.world:
                     continue
@@ -160,15 +190,25 @@ def rtm_with_mediapipe(
                 world = np.asarray(base.world[hand], dtype=float)
                 if not world.size:
                     continue
-                # RTMPose says where; MediaPipe says how big. A frame where
-                # either is missing cannot be solved and is left at the origin
-                # rather than filled from the other.
-                usable = (scores > 0) & np.any(world.reshape(len(world), -1), axis=1)
+                # RTMPose says where; the shape model says how big. Where the
+                # shape model is missing, this person's own averaged hand stands
+                # in — otherwise the pair inherits the weaker recall of the two,
+                # which measured 6% on real footage against RTMPose's 100%.
+                shape = world.copy()
+                filled = np.zeros(len(world), dtype=bool)
+                if use_template:
+                    template = template_from(world)
+                    if template is not None:
+                        empty = ~np.any(world.reshape(len(world), -1) != 0.0, axis=1)
+                        shape[empty] = template
+                        filled = empty
+                usable = (scores > 0) & np.any(shape.reshape(len(shape), -1), axis=1)
                 positions, rotations, errors = solve_sequence(
-                    world, pixels, intrinsics, max_reprojection=max_reprojection
+                    shape, pixels, intrinsics, max_reprojection=max_reprojection
                 )
                 positions[~usable] = 0.0
                 errors[~usable] = np.inf
+                templated[hand] = int((filled & usable).sum())
                 poses[hand] = np.concatenate(
                     [positions, rotations_to_quaternions(rotations)], axis=1
                 ).astype("float32")
@@ -197,6 +237,9 @@ def rtm_with_mediapipe(
                     "detector": "rtmpose",
                     "shape_model": base.metadata.get("estimator", "mediapipe"),
                     "pose_method": "solvePnP(SQPNP) on RTMPose 2D + MediaPipe hand model",
+                    "template_frames": {
+                        h: int(v) for h, v in templated.items()
+                    },
                     **intrinsics.as_dict(),
                 },
             )

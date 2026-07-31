@@ -192,3 +192,75 @@ def test_quaternions_from_rotations_are_unit_and_identity_when_degenerate():
     assert quaternions[0] == pytest.approx([1, 0, 0, 0], abs=1e-6)
     assert float(np.linalg.norm(quaternions[1])) == pytest.approx(1.0, abs=1e-5)
     assert quaternions[2] == pytest.approx([1, 0, 0, 0], abs=1e-6)
+
+
+# -- the per-person hand template --------------------------------------------
+
+
+def test_a_template_is_the_median_of_the_frames_that_solved():
+    """Pairing a strong 2D detector with a weak 3D one inherits the weak one's
+    recall, because a frame needs both. A hand does not change size, so the
+    frames that did solve measure this person's hand and can carry the rest."""
+    from gantry_connector_handpose import template_from
+
+    world = np.zeros((10, 21, 3))
+    world[2:8] = hand_model()
+    template = template_from(world)
+    assert template is not None
+    assert template == pytest.approx(hand_model(), abs=1e-9)
+
+
+def test_no_template_when_too_few_frames_solved():
+    from gantry_connector_handpose import template_from
+
+    world = np.zeros((10, 21, 3))
+    world[0] = hand_model()
+    assert template_from(world) is None
+
+
+def test_a_template_is_per_person_because_size_is_the_ruler():
+    from gantry_connector_handpose import template_from
+
+    big = hand_model() * 1.3
+    world = np.zeros((10, 21, 3))
+    world[:6] = big
+    assert template_from(world) == pytest.approx(big, abs=1e-9)
+
+
+def test_a_degenerate_hand_falls_back_instead_of_crashing_the_clip():
+    """SQPNP asserts outright on a near-planar point set — a hand seen edge-on,
+    or an averaged template that came out flat. That is one frame's problem, not
+    the episode's."""
+    flat = hand_model().copy()
+    flat[:, 2] = 0.0  # perfectly planar
+    pose = solve(flat, project(flat, (0.0, 0.0, 0.5)), CAMERA)
+    # Either it solves through a fallback or it reports unsolved. What it must
+    # not do is raise.
+    assert isinstance(pose.ok, bool)
+
+
+def test_a_solve_never_raises_on_junk():
+    junk = np.full((21, 3), 1e-9)
+    pose = solve(junk, np.zeros((21, 2)), CAMERA)
+    assert pose.ok is False
+
+
+def test_a_pose_that_reprojects_perfectly_from_an_impossible_place_is_rejected():
+    """The failure the fallback solvers introduced: a degenerate point set gets
+    fitted at nine trillion metres, where the projection is unchanged by
+    anything, so it reprojects beautifully. Reprojection cannot catch that. Only
+    a statement about where hands actually are can."""
+    model = hand_model()
+    far = solve(model, project(model, (0.0, 0.0, 500.0)), CAMERA)
+    assert far.reprojection < MAX_REPROJECTION   # it fits the pixels
+    assert not far.ok                             # and is still refused
+
+    near = solve(model, project(model, (0.0, 0.0, 0.001)), CAMERA)
+    assert not near.ok
+
+
+def test_the_plausible_range_is_the_same_one_the_depth_path_uses():
+    from gantry_connector_handpose import FAR, NEAR
+    from gantry_connector_handpose.pnp import REACHABLE
+
+    assert REACHABLE == (NEAR, FAR)

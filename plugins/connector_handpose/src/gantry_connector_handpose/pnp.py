@@ -65,6 +65,16 @@ SOURCES = ("calibrated", "fov", "exif", "declared")
 #: disagreement rather than noise.
 MAX_REPROJECTION = 10.0
 
+#: How far from the camera a hand can possibly be, in metres.
+#:
+#: Not a nicety. A degenerate point set — a hand edge-on, an averaged template
+#: that came out planar — makes the fallback solvers return a pose that
+#: reprojects beautifully and sits nine trillion metres away, because at that
+#: distance the projection is essentially unchanged by anything. The reprojection
+#: check cannot catch it; only a statement about where hands actually are can.
+#: This is the same bound the depth path applies, for the same reason.
+REACHABLE = (0.05, 3.0)
+
 
 @dataclass(frozen=True)
 class Intrinsics:
@@ -196,8 +206,19 @@ def solve(
         # letting the solver return an arbitrary pose for a degenerate input.
         return Pose(np.zeros(3), np.eye(3), float("inf"), False)
 
-    ok, rvec, tvec = cv2.solvePnP(obj, pts, intrinsics.matrix, None, flags=cv2.SOLVEPNP_SQPNP)
-    if not ok:
+    # SQPNP is the best of these and it asserts outright on a degenerate point
+    # set — a hand seen edge-on, or an averaged template that came out nearly
+    # planar. That is one frame's problem, not the clip's, so it falls back
+    # rather than taking the whole episode down with it.
+    ok, rvec, tvec = False, None, None
+    for flag in (cv2.SOLVEPNP_SQPNP, cv2.SOLVEPNP_EPNP, cv2.SOLVEPNP_ITERATIVE):
+        try:
+            ok, rvec, tvec = cv2.solvePnP(obj, pts, intrinsics.matrix, None, flags=flag)
+        except cv2.error:
+            continue
+        if ok:
+            break
+    if not ok or rvec is None:
         return Pose(np.zeros(3), np.eye(3), float("inf"), False)
 
     projected, _ = cv2.projectPoints(obj, rvec, tvec, intrinsics.matrix, None)
@@ -206,11 +227,16 @@ def solve(
     # The object points are hand-centred, so the wrist sits at the object's own
     # first joint carried through the same transform.
     wrist = (rotation @ obj[0].reshape(3, 1) + tvec).reshape(3)
+    distance = float(np.linalg.norm(wrist))
+    near, far = REACHABLE
     return Pose(
         position=wrist,
         rotation=np.asarray(rotation, dtype=float),
         reprojection=error,
-        ok=error <= float(max_reprojection),
+        # Both conditions, because they catch different failures. Reprojection
+        # catches a pose that does not explain the pixels; the distance bound
+        # catches one that explains them perfectly from an impossible place.
+        ok=error <= float(max_reprojection) and near <= distance <= far,
     )
 
 
