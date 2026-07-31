@@ -154,8 +154,12 @@ def make_env(
         ) from error
     environment = class_decorator(task)
     environment.setup_demo(
-        now_ep_num=0, seed=seed, is_test=True,
-        embodiment=[embodiment], head_camera_type=head_camera, **kwargs,
+        now_ep_num=0,
+        seed=seed,
+        is_test=True,
+        embodiment=[embodiment],
+        head_camera_type=head_camera,
+        **kwargs,
     )
     return environment
 

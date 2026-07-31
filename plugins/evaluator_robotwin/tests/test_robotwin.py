@@ -102,8 +102,7 @@ def evaluator(action_type="ee", win_at=3, **kwargs):
         return made
 
     made = RoboTwinEvaluator(
-        "dual_bottles_pick_easy", action_type=action_type, factory=factory,
-        horizon=20, **kwargs
+        "dual_bottles_pick_easy", action_type=action_type, factory=factory, horizon=20, **kwargs
     )
     made.built = built
     return made
