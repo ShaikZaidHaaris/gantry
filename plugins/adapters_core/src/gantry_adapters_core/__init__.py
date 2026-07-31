@@ -21,8 +21,12 @@ from .adapters import (
     permutation_between,
     resample_to,
 )
+from .policies import AdaptedPolicy, adapt_policy, installed_adapters
 
 __all__ = [
+    "AdaptedPolicy",
+    "adapt_policy",
+    "installed_adapters",
     "PERMUTE",
     "RESAMPLE",
     "UNIT_CONVERT",
