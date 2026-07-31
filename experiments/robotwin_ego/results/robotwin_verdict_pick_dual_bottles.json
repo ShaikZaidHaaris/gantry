@@ -1,0 +1,25 @@
+{
+  "task": "pick_dual_bottles",
+  "arms": {
+    "ego": {
+      "successes": 0,
+      "scored": 10
+    },
+    "shuffled": {
+      "successes": 0,
+      "scored": 10
+    }
+  },
+  "measurements": {
+    "ego.success_rate": "0 fraction [0, 0.277533] (n=10)",
+    "shuffled.success_rate": "0 fraction [0, 0.277533] (n=10)",
+    "ego_vs_shuffled": "1 (n=20)"
+  },
+  "findings": [
+    {
+      "code": "control.not_separated",
+      "severity": "weak",
+      "summary": "the data (0%) and its shuffled control (0%) are not separated at this number of trials, so the data has not been shown to carry information"
+    }
+  ]
+}
