@@ -48,12 +48,32 @@ from gantry.spine import ChannelSpec
 VERSION = "0.1.0.dev0"
 
 
-def rigid(matrix: Any) -> np.ndarray:
-    """A 4x4 rigid transform from a 4x4, a 3x4 or a (rotation, translation) pair.
+#: How far from orthonormal a published rotation may be and still be treated as
+#: one that lost precision rather than one that is not a rotation. Well above
+#: float32 round-off and well below any misalignment that would matter.
+WOBBLE = 1e-4
+
+
+def rigid(matrix: Any, *, tidy: bool = True) -> np.ndarray:
+    """A 4x4 rigid transform from a 4x4 or a 3x4.
 
     Accepts the shapes simulators actually publish. A 3x4 is the usual
     ``[R | t]`` and gets its bottom row; anything else is refused rather than
     reshaped into something plausible.
+
+    Rotations arrive slightly bent. RoboTwin stores its camera extrinsics as
+    float32, so the rotation it publishes is orthonormal only to about 5e-8 and
+    its determinant is 1.0000000477 — near enough that a there-and-back trip
+    drifts by ~2e-8, which is fifty nanometres and irrelevant, but far enough
+    that "its inverse is the transpose" stops being exactly true.
+
+    So a rotation within :data:`WOBBLE` of orthonormal is projected onto the
+    nearest true rotation, which is the standard cleanup and not a fit: it is
+    the closest rotation in Frobenius norm, and for float32 round-off it moves
+    nothing anyone can measure. Anything further out is left alone here and
+    refused by :func:`invert`, because a genuinely skewed or scaled transform
+    between frames is a different claim and needs saying rather than silently
+    rounding into a rotation.
     """
     values = np.asarray(matrix, dtype=float)
     if values.shape == (3, 4):
@@ -63,6 +83,18 @@ def rigid(matrix: Any) -> np.ndarray:
             f"a rigid transform is 4x4 or 3x4; got {values.shape}. Reshaping this "
             "would produce a transform that applies cleanly and means nothing"
         )
+    if not tidy:
+        return values
+    rotation = values[:3, :3]
+    error = float(np.abs(rotation @ rotation.T - np.eye(3)).max())
+    if 0.0 < error <= WOBBLE:
+        u, _, vt = np.linalg.svd(rotation)
+        nearest = u @ vt
+        if np.linalg.det(nearest) < 0:  # pragma: no cover - a reflection, not a rotation
+            u[:, -1] *= -1
+            nearest = u @ vt
+        values = values.copy()
+        values[:3, :3] = nearest
     return values
 
 
@@ -75,7 +107,7 @@ def invert(transform: np.ndarray) -> np.ndarray:
     """
     transform = rigid(transform)
     rotation, translation = transform[:3, :3], transform[:3, 3]
-    if not np.allclose(rotation @ rotation.T, np.eye(3), atol=1e-6):
+    if not np.allclose(rotation @ rotation.T, np.eye(3), atol=1e-9):
         raise ConfigError(
             "this transform's rotation is not orthonormal, so it is not a rigid "
             "motion and inverting it by transpose would be wrong. A scaled or "

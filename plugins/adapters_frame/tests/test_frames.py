@@ -225,3 +225,64 @@ def test_the_frames_are_recorded_on_the_descriptor():
     assert metadata["pose_frame_from"] == "camera"
     assert metadata["pose_frame_to"] == "world"
     assert metadata["pose_frame_source"].endswith("extrinsic_cv")
+
+
+# -- rotations arrive slightly bent ---------------------------------------------
+#
+# RoboTwin stores its camera extrinsics as float32. The rotation it publishes is
+# orthonormal only to about 5e-8 with a determinant of 1.0000000477 -- fifty
+# nanometres of error, which nothing cares about, except that it makes "the
+# inverse is the transpose" untrue and leaves a there-and-back trip drifting by
+# ~2e-8 instead of ~2e-16.
+
+FLOAT32_CV = np.asarray(EXTRINSIC_CV, dtype=np.float32).astype(float)
+
+
+def test_float32_round_off_is_tidied_rather_than_carried():
+    raw = rigid(FLOAT32_CV, tidy=False)[:3, :3]
+    assert np.abs(raw @ raw.T - np.eye(3)).max() > 1e-9  # as published
+
+    fixed = rigid(FLOAT32_CV)[:3, :3]
+    assert np.abs(fixed @ fixed.T - np.eye(3)).max() < 1e-12
+    assert np.isclose(np.linalg.det(fixed), 1.0, atol=1e-12)
+    # and it moved nothing anyone could measure
+    assert np.abs(fixed - raw).max() < 1e-7
+
+
+def test_the_round_trip_is_exact_once_it_is_tidied():
+    """The drift measured on the box, gone.
+
+    The quaternion is normalised first because to_matrix does not renormalise
+    its input: a quaternion that is off unit norm by 1e-10 yields a slightly
+    non-orthonormal matrix, and from_matrix renormalises on the way back, which
+    shows up as ~5e-7 of drift. That is a separate effect from the float32
+    extrinsics and would otherwise be blamed on them here.
+    """
+    to_world = invert(rigid(FLOAT32_CV))
+    quaternion = np.array([0.7, -1e-6, -1e-5, 0.714142])
+    quaternion /= np.linalg.norm(quaternion)
+    values = pose_at([0.1, -0.2, 0.45], quaternion=quaternion)
+    back = shift(shift(values, POSE, to_world), POSE, rigid(FLOAT32_CV))
+    assert np.abs(back - values).max() < 1e-12
+
+
+def test_a_quaternion_off_unit_norm_drifts_and_that_is_the_encoders_business():
+    """Recorded rather than fixed here. Renormalising inside a frame shift would
+    hide a caller sending something that is not a rotation, and the effect is
+    ~5e-7 -- six hundredths of a millidegree."""
+    to_world = invert(rigid(FLOAT32_CV))
+    values = pose_at([0.1, -0.2, 0.45], quaternion=(0.7, -1e-6, -1e-5, 0.714142))
+    back = shift(shift(values, POSE, to_world), POSE, rigid(FLOAT32_CV))
+    drift = np.abs(back - values).max()
+    assert 1e-12 < drift < 1e-5
+    assert np.abs(back[0, 0:3] - values[0, 0:3]).max() < 1e-12  # positions unaffected
+
+
+def test_a_transform_too_bent_to_be_round_off_is_still_refused():
+    """Projecting a genuinely skewed transform onto a rotation would turn a
+    claim that needs saying into a silent rounding."""
+    skewed = np.eye(4)
+    skewed[0, 0] = 1.05
+    assert np.abs(rigid(skewed)[:3, :3] - skewed[:3, :3]).max() == 0.0  # left alone
+    with pytest.raises(ConfigError, match="not a rigid motion"):
+        invert(skewed)
