@@ -37,11 +37,13 @@ class FakeTask:
         self._instruction = instruction
         self.steps = 0
         self.seeds: list[int] = []
+        self.settings: list[dict] = []
         self.sent: list[tuple[np.ndarray, str]] = []
         self.closed = False
 
     def setup_demo(self, now_ep_num=0, seed=0, is_test=True, **kwargs):
         self.seeds.append(seed)
+        self.settings.append(kwargs)
         self.steps = 0
 
     def get_instruction(self):
@@ -55,8 +57,14 @@ class FakeTask:
                 "right_camera": {"rgb": np.zeros((SIZE, SIZE, 3), dtype="uint8")},
                 "wrist_camera": {"rgb": np.zeros((SIZE, SIZE, 3), dtype="uint8")},
             },
-            "joint_action": np.zeros(14, dtype="float32"),
-            "endpose": np.zeros(16, dtype="float32"),
+            # The real shape: a dict per arm, and the grippers are bare floats.
+            "joint_action": {"vector": np.zeros(14, dtype="float32")},
+            "endpose": {
+                "left_endpose": np.zeros(7, dtype="float32"),
+                "left_gripper": 0.3,
+                "right_endpose": np.zeros(7, dtype="float32"),
+                "right_gripper": 0.7,
+            },
             "task_name": "pick_dual_bottles",  # a string, not a channel
         }
 
@@ -208,6 +216,24 @@ def test_scenes_are_seeds_and_reach_the_environment():
     assert made.built[0].seeds == [0, 1, 2]
 
 
+def test_every_reset_reuses_the_settings_the_environment_was_built_with():
+    """A partial dict on reset would quietly change the cameras or the
+    randomisation partway through a run, and between the screen and the run it
+    was screening for."""
+
+    def factory(task, **_):
+        made = FakeTask(win_at=2)
+        made.gantry_settings = {"domain_randomization": {"random_light": False}}
+        return made
+
+    made = RoboTwinEvaluator("pick_dual_bottles", action_type="ee", factory=factory, horizon=20)
+    made.built = []
+    made.run(Chunker(16), made.task_for(scenes=2), Protocol())
+    seen = made.world.env.settings
+    assert len(seen) == 2
+    assert all(s["domain_randomization"] == {"random_light": False} for s in seen)
+
+
 def test_the_instruction_the_environment_chose_is_recorded():
     """RoboTwin varies the sentence. A policy given the nominal one while the
     environment scores another is tested on a mismatch that reads as a low
@@ -229,7 +255,8 @@ def test_the_space_the_actions_were_read_in_is_on_every_episode():
 def test_the_nested_observation_becomes_dotted_names_without_its_strings():
     flat = flatten(FakeTask().get_obs(), keep=("head_camera", "left_camera", "right_camera"))
     assert "observation.head_camera.rgb" in flat
-    assert "joint_action" in flat and "endpose" in flat
+    assert "joint_action.vector" in flat
+    assert flat["endpose.left_endpose"].shape == (7,)
     # a task name is a string, not a channel
     assert "task_name" not in flat
     # and a camera nobody asked for is dropped rather than recorded
@@ -239,6 +266,15 @@ def test_the_nested_observation_becomes_dotted_names_without_its_strings():
 def test_asking_for_every_camera_keeps_them_all():
     flat = flatten(FakeTask().get_obs(), keep=())
     assert "observation.wrist_camera.rgb" in flat
+
+
+def test_a_bare_float_gripper_survives_flattening():
+    """RoboTwin's endpose carries each gripper as a scalar, not an array.
+    Dropping zero-rank values would discard both and leave a pose-only state
+    that still looks well formed."""
+    flat = flatten(FakeTask().get_obs(), keep=())
+    assert flat["endpose.left_gripper"].shape == (1,)
+    assert float(flat["endpose.right_gripper"][0]) == 0.7
 
 
 # -- the rest ------------------------------------------------------------------

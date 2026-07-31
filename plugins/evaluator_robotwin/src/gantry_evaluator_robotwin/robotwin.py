@@ -187,6 +187,83 @@ def labels_for(action_type: str) -> tuple[str, ...]:
     return tuple(f"{arm}_{part}" for arm in ARMS for part in parts)
 
 
+def config_for(
+    task: str,
+    *,
+    config: str = "demo_clean",
+    embodiment: str = "aloha-agilex",
+    root: str | None = None,
+    **overrides: Any,
+) -> dict[str, Any]:
+    """RoboTwin's own settings for a task, assembled the way RoboTwin assembles them.
+
+    ``setup_demo(**args)`` wants the whole thing — the task YAML, plus resolved
+    embodiment file paths, per-robot configs and the head camera's resolution,
+    all of which its eval script derives at start-up and none of which are
+    optional. An abbreviated dict raises a KeyError somewhere inside scene
+    construction, a long way from anything that names the cause.
+
+    So this reads the same files rather than reproducing their contents: task
+    config, ``_embodiment_config.yml`` and ``_camera_config.yml``. Anything the
+    installed version changes is picked up instead of drifting.
+    """
+    import os
+
+    import yaml
+
+    try:
+        from envs import CONFIGS_PATH
+    except ImportError as error:  # pragma: no cover - needs the simulator
+        raise ConfigError(
+            "running RoboTwin needs the simulator: install RoboTwin 2.0 (MIT) and its "
+            "object dataset, and run from the repository root so its `envs` package is "
+            "importable. See "
+            "https://robotwin-platform.github.io/doc/usage/robotwin-install.html"
+        ) from error
+
+    base = root or os.path.join(os.path.dirname(str(CONFIGS_PATH).rstrip("/")), "")
+    task_config = os.path.join(base, "task_config", f"{config}.yml")
+    if not os.path.isfile(task_config):  # pragma: no cover - needs the simulator
+        raise ConfigError(
+            f"no RoboTwin task config at {task_config!r}; the shipped ones are "
+            "'demo_clean' and 'demo_randomized'"
+        )
+    with open(task_config, encoding="utf-8") as handle:
+        args = yaml.load(handle.read(), Loader=yaml.FullLoader)
+
+    args["task_name"] = task
+    args["task_config"] = config
+    args["embodiment"] = [embodiment]
+
+    with open(
+        os.path.join(str(CONFIGS_PATH), "_embodiment_config.yml"), encoding="utf-8"
+    ) as handle:
+        bodies = yaml.load(handle.read(), Loader=yaml.FullLoader)
+    if embodiment not in bodies:  # pragma: no cover - needs the simulator
+        raise ConfigError(f"unknown embodiment {embodiment!r}; installed: {sorted(bodies)}")
+    robot_file = bodies[embodiment]["file_path"]
+    if robot_file is None:  # pragma: no cover - needs the simulator
+        raise ConfigError(f"embodiment {embodiment!r} has no files; download the assets")
+
+    # One entry means the same robot on both sides, which is what makes it a
+    # single dual-arm body rather than two independent ones facing each other.
+    args["left_robot_file"] = robot_file
+    args["right_robot_file"] = robot_file
+    args["dual_arm_embodied"] = True
+    for side in ("left", "right"):
+        with open(os.path.join(robot_file, "config.yml"), encoding="utf-8") as handle:
+            args[f"{side}_embodiment_config"] = yaml.load(handle.read(), Loader=yaml.FullLoader)
+
+    with open(os.path.join(str(CONFIGS_PATH), "_camera_config.yml"), encoding="utf-8") as handle:
+        cameras = yaml.load(handle.read(), Loader=yaml.FullLoader)
+    head = args["camera"]["head_camera_type"]
+    args["head_camera_h"] = cameras[head]["h"]
+    args["head_camera_w"] = cameras[head]["w"]
+
+    args.update(overrides)
+    return args
+
+
 def make_env(
     task: str,
     *,
@@ -221,14 +298,12 @@ def make_env(
             f"RoboTwin's `envs.{task}` has no class named {task!r}; the installed "
             f"version may use different task ids. Known here: {len(TASKS)}"
         ) from error
-    environment.setup_demo(
-        now_ep_num=0,
-        seed=seed,
-        is_test=True,
-        embodiment=[embodiment],
-        head_camera_type=head_camera,
-        **kwargs,
-    )
+    settings = config_for(task, embodiment=embodiment, **kwargs)
+    settings.setdefault("camera", {})["head_camera_type"] = head_camera
+    environment.setup_demo(now_ep_num=0, seed=seed, is_test=True, **settings)
+    # Kept so screen() and every later reset use the same settings rather than
+    # a fresh partial dict that happens to differ.
+    environment.gantry_settings = settings
     return environment
 
 
@@ -257,7 +332,15 @@ class DualArm:
     def begin(self, scene: Scene) -> Mapping[str, Any]:
         seed = scene.seed if scene.seed is not None else 0
         if callable(getattr(self.env, "setup_demo", None)):
-            self.env.setup_demo(now_ep_num=seed, seed=seed, is_test=True)
+            # The settings the environment was built with. Resetting with a
+            # partial dict would quietly change the cameras or the randomisation
+            # between the screen and the run being screened for.
+            self.env.setup_demo(
+                now_ep_num=seed,
+                seed=seed,
+                is_test=True,
+                **dict(getattr(self.env, "gantry_settings", {}) or {}),
+            )
         elif callable(getattr(self.env, "reset", None)):  # pragma: no cover
             self.env.reset()
         # Asked rather than assumed: RoboTwin varies the sentence, and a policy
@@ -329,8 +412,14 @@ def flatten(observation: Any, *, keep: Sequence[str] = ()) -> dict[str, np.ndarr
         if not name:
             return
         array = np.asarray(node)
-        if array.dtype.kind in "OUSV" or array.ndim == 0:
+        if array.dtype.kind in "OUSV":
             return
+        if array.ndim == 0:
+            # A gripper opening arrives as a bare float — RoboTwin's endpose is
+            # {left_endpose: [7], left_gripper: 0.3, ...}. Dropping zero-rank
+            # values would discard both grippers and leave a pose-only state
+            # that still looks well formed.
+            array = array.reshape(1)
         if keep and not any(camera in name for camera in keep) and "camera" in name:
             return
         out[name] = array
@@ -460,6 +549,10 @@ class RoboTwinEvaluator(ClosedLoop):
             horizon=self._horizon if horizon is None else int(horizon),
         )
 
+    @staticmethod
+    def _settings(env: Any) -> dict[str, Any]:
+        return dict(getattr(env, "gantry_settings", {}) or {})
+
     def screen(self, count: int, *, start: int = 0, limit: int | None = None) -> tuple[int, ...]:
         """Seeds the scripted expert can solve, which are the fair ones to score.
 
@@ -487,7 +580,7 @@ class RoboTwinEvaluator(ClosedLoop):
         seed = start
         while len(solved) < count and seed < ceiling:
             try:
-                env.setup_demo(now_ep_num=seed, seed=seed, is_test=True, **self._env_kwargs)
+                env.setup_demo(now_ep_num=seed, seed=seed, is_test=True, **self._settings(env))
                 env.play_once()
                 if bool(getattr(env, "plan_success", True)) and world._success():
                     solved.append(seed)
