@@ -17,16 +17,27 @@ as many frames, with the same action distribution, and no relationship between
 what it saw and what it did. Beating it is evidence the ego actions carried
 information. Not beating it means the gain was from fine-tuning at all.
 
-What this run cannot tell you
------------------------------
-The ego trajectories were recovered in a camera-mounted frame and scaled by a
-hand span. RoboTwin's arms live in its own world frame with their own reach.
-Nothing here aligns those two, because nothing legitimately can: a fitted
-transform between them would be tuned on the thing being measured. So the
-absolute positions are expected to be largely unreachable, and the honest
-reading of a low number is "these workspaces do not overlap", not "the data was
-bad". The reachability probe below measures exactly that, and it is reported
-next to the success rate so the two cannot be confused.
+The frames, which the first run got wrong
+-----------------------------------------
+The ego pipeline solves hand poses against the camera's own intrinsics, so its
+poses are in the **camera** frame, and ``Mount.aligned()`` passes them through
+unchanged. RoboTwin executes end-effector poses in its **world** frame. Nothing
+in the widths, encodings or labels disagreed, and the first run duly commanded
+positions 0.30 m (left) and 0.65 m (right) from where the arms actually work.
+
+``PoseInFrame`` closes that, using the transform RoboTwin publishes about its
+own head camera rather than one fitted to the commands — fitting an alignment
+here and then scoring under it would tune the correction on the very episodes
+being scored. Through the published extrinsics the training distribution lands
+0.109 m (left) and 0.171 m (right) from where the arms work.
+
+The nesting is deliberate: the frame shift is outermost, so it works in 16-wide
+quaternion space on both sides and the rotation adapter underneath never sees a
+frame it did not expect.
+
+The reachability probe is still reported next to the success rate, because a
+success rate whose commands were mostly unreachable is a statement about
+workspaces rather than about data.
 """
 
 from __future__ import annotations
@@ -41,6 +52,7 @@ import numpy as np
 sys.path.insert(0, "/home/ubuntu/RoboTwin")
 
 from gantry_adapters_core import adapt_policy  # noqa: E402
+from gantry_adapters_frame import PoseInFrame  # noqa: E402
 from gantry_evaluator_robotwin import RoboTwinEvaluator, width_of  # noqa: E402
 from gantry_policy_pi0 import Layout, Pi0Policy  # noqa: E402
 
@@ -105,7 +117,6 @@ POLICY_STATE = ChannelSpec(
     dim_labels=EGO_LABELS,
     metadata={"rotation_repr": "euler_xyz", "rotation_offset": (3, 10), "arms": 2},
 )
-
 
 
 def reachability(commanded: np.ndarray, reach: float = 0.75) -> dict:
@@ -180,13 +191,20 @@ def main() -> None:
     # Both directions through the adapter plane: the state arrives as
     # quaternions and the checkpoint reads Euler; the actions come back as Euler
     # and RoboTwin reads quaternions.
-    policy = adapt_policy(
+    converted = adapt_policy(
         served,
         evaluator.action(),
         reading=evaluator.provides(),
         name=f"pi05_{ARM}",
     )
-    print(f"[{ARM}] action chain: {policy.chain}", flush=True)
+    # Outermost: world-frame poses in, world-frame poses out, with the rotation
+    # conversion happening underneath in the frame the checkpoint thinks in.
+    policy = PoseInFrame(
+        converted,
+        extrinsics="observation.head_camera.extrinsic_cv",
+        state_channels=("endpose.vector",),
+    )
+    print(f"[{ARM}] action chain: {converted.chain} | frame: camera -> world", flush=True)
 
     missing = [seed for seed in seeds if not evaluator.instruction_for(seed)]
     if missing:
@@ -213,7 +231,8 @@ def main() -> None:
         "expert_solve_rate": record.episodes[0].labels.annotations.get("expert_solve_rate"),
         "steps_per_episode": [int(len(e)) for e in record.episodes],
         "instruction": record.episodes[0].labels.annotations.get("instruction_given"),
-        "action_chain": [f"{s.name}@{s.version}" for s in (policy.chain or ())],
+        "action_chain": [f"{s.name}@{s.version}" for s in (converted.chain or ())],
+        "frame_shift": policy.descriptor().metadata.get("pose_frame_source"),
         # The number that says whether the success rate means anything.
         "reachability": reachability(commanded),
         "seconds": round(time.time() - started, 1),

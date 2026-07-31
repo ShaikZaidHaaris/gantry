@@ -77,8 +77,7 @@ def main() -> None:
         },
         "measurements": {k: str(v) for k, v in report.measurements.items()},
         "findings": [
-            {"code": f.code, "severity": f.severity, "summary": f.summary}
-            for f in report.findings
+            {"code": f.code, "severity": f.severity, "summary": f.summary} for f in report.findings
         ],
     }
     (HERE / f"robotwin_verdict_{TASK}.json").write_text(json.dumps(payload, indent=2))

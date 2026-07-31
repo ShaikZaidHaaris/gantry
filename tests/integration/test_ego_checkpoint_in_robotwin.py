@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import numpy as np
 from gantry_adapters_core import adapt_policy
+from gantry_adapters_frame import PoseInFrame
 from gantry_evaluator_robotwin import RoboTwinEvaluator, width_of
 from gantry_policy_pi0 import Layout, Pi0Policy
 
@@ -79,11 +80,22 @@ class FakeTwin:
     def get_instruction(self):
         return "pick up both bottles"
 
+    #: RoboTwin's own published head-camera extrinsics, world -> camera.
+    EXTRINSIC_CV = np.array(
+        [[1.0, 0.0, 0.0, 0.032], [0.0, -0.8, -0.6, 0.45], [0.0, 0.6, -0.8, 1.35]],
+        dtype="float32",
+    )
+
     def get_obs(self):
         pose = np.zeros(7, dtype="float32")
         pose[3] = 1.0  # identity quaternion, scalar first
         return {
-            "observation": {"head_camera": {"rgb": np.zeros((SIZE, SIZE, 3), dtype="uint8")}},
+            "observation": {
+                "head_camera": {
+                    "rgb": np.zeros((SIZE, SIZE, 3), dtype="uint8"),
+                    "extrinsic_cv": self.EXTRINSIC_CV,
+                }
+            },
             "joint_action": {"vector": np.zeros(14, dtype="float32")},
             "endpose": {
                 "left_endpose": pose,
@@ -189,3 +201,92 @@ def test_a_success_the_environment_latched_is_the_recorded_outcome():
     record = evaluator.run(policy, evaluator.task_for(scenes=3), Protocol())
     assert all(e.labels.success for e in record.episodes)
     assert record.metrics["success_rate"].value == 1.0
+
+
+# -- and now in the right frame -------------------------------------------------
+#
+# The first real run scored 0/10 with its commands 0.30 m (left) and 0.65 m
+# (right) from where the arms actually work. The ego pipeline solves hand poses
+# against the camera's own intrinsics, so its poses are camera-frame, and
+# Mount.aligned() passes them through unchanged; RoboTwin executes in world
+# frame. Nothing in the widths, the encodings or the labels disagreed.
+#
+# The transform is read from what RoboTwin publishes about its own camera, not
+# fitted to the commands. Nesting matters: the frame shift is outermost, so it
+# works in 16-wide quaternion space on both sides and the rotation adapter
+# underneath never sees a frame it did not expect.
+
+
+def framed(win_at=2):
+    envs = []
+
+    def factory(task, **_):
+        made = FakeTwin(win_at=win_at)
+        envs.append(made)
+        return made
+
+    evaluator = RoboTwinEvaluator(
+        "pick_dual_bottles", action_type="ee", factory=factory, horizon=6
+    )
+    server = FakeServer()
+    policy = PoseInFrame(
+        adapt_policy(
+            Pi0Policy(layout=LAYOUT, client=server, variant="pi05"),
+            evaluator.action(),
+            reading=evaluator.provides(),
+        ),
+        extrinsics="observation.head_camera.extrinsic_cv",
+        state_channels=("endpose.vector",),
+    )
+    return evaluator, policy, server, envs
+
+
+def test_the_whole_stack_runs_with_the_frame_shift_outermost():
+    evaluator, policy, server, envs = framed()
+    record = evaluator.run(policy, evaluator.task_for(scenes=2), Protocol())
+
+    assert server.seen[0]["state"].shape == (14,)   # still Euler at the server
+    assert envs[0].sent[0].shape == (16,)           # still quaternions at the simulator
+    assert record.episodes[0].array("action").shape[1] == width_of("ee")
+
+
+def test_the_camera_extrinsics_reach_the_wrapper_through_the_evaluator():
+    """flatten() has to keep them: they arrive under the same head_camera key as
+    the image, and a camera filter that dropped everything but rgb would take
+    the transform with it."""
+    evaluator, policy, server, envs = framed()
+    evaluator.run(policy, evaluator.task_for(scenes=1), Protocol())
+    assert policy._seen is not None
+    assert policy._seen.shape == (4, 4)
+
+
+def test_the_commands_land_in_world_coordinates_not_camera_ones():
+    """The failure being fixed. The server returns zeros, which in the policy's
+    own frame means the camera origin — so the command must come out at where
+    the camera is in the world, not at the world origin."""
+    evaluator, policy, server, envs = framed()
+    evaluator.run(policy, evaluator.task_for(scenes=1), Protocol())
+    sent = envs[0].sent[0]
+    assert np.allclose(sent[0:3], [-0.032, -0.45, 1.35], atol=1e-5)
+    assert np.allclose(sent[8:11], [-0.032, -0.45, 1.35], atol=1e-5)
+
+
+def test_the_state_handed_to_the_server_is_in_the_frame_it_trained_in():
+    """RoboTwin's arms sit around z=0.92 in world. The ego data trained around
+    z=0.45 in camera coordinates. Without the shift the server sees a state half
+    a metre from anything it has ever seen."""
+    evaluator, policy, server, envs = framed()
+    evaluator.run(policy, evaluator.task_for(scenes=1), Protocol())
+    state = server.seen[0]["state"]
+    # the fake's arms are at the world origin, which is 1.35 m below the camera
+    assert state[2] > 1.0
+    assert not np.isclose(state[2], 0.0)
+
+
+def test_the_frames_are_on_the_record():
+    evaluator, policy, server, envs = framed()
+    metadata = policy.descriptor().metadata
+    assert metadata["pose_frame_from"] == "camera"
+    assert metadata["pose_frame_to"] == "world"
+    # and the conversion underneath is still recorded too
+    assert metadata["action_adapter_chain"]
