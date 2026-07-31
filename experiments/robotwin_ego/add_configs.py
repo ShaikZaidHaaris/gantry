@@ -17,7 +17,6 @@ evaluates on the same sentence, and language is held constant rather than left
 to vary alongside the thing being measured.
 """
 
-import re
 from pathlib import Path
 
 CONFIG = Path("/home/ubuntu/openpi/src/openpi/training/config.py")

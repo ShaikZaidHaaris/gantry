@@ -56,7 +56,6 @@ from gantry_evaluator_robotwin import RoboTwinEvaluator, width_of  # noqa: E402
 from gantry_policy_pi0 import Layout, Pi0Policy  # noqa: E402
 
 from gantry.contracts.evaluator import Protocol  # noqa: E402
-from gantry.spine import ChannelSpec  # noqa: E402
 from gantry.store import write_run  # noqa: E402
 
 PROMPT = "pick up both bottles"
