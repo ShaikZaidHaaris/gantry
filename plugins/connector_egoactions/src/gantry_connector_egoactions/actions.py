@@ -104,6 +104,65 @@ def _hold(arm: np.ndarray, solved: np.ndarray) -> tuple[np.ndarray, float]:
     return out, filled / max(1, len(out))
 
 
+def retargeter_from(spec: Any) -> Any:
+    """A retargeter from plain data, or one already built.
+
+    Same rule as everywhere else: an argument that has to cross a manifest
+    accepts plain data. The measured quantities stay required — a hand with no
+    travel and a mount that was never established are still refused, and being
+    reachable from JSON does not make them optional.
+    """
+    if spec is None or hasattr(spec, "accepts"):
+        return spec
+    if isinstance(spec, Mapping) and spec and all(hasattr(v, "accepts") for v in spec.values()):
+        return dict(spec)
+
+    from gantry_retargeter_hands import REACHES, Hand, HandToArm, Mount
+
+    config = dict(spec)
+    raw_mount = config.pop("mount", None)
+    if raw_mount in (None, "aligned"):
+        mount = Mount.aligned()
+    elif isinstance(raw_mount, Mapping):
+        mount = Mount(**dict(raw_mount))
+    else:
+        raise ConfigError(f"a mount is 'aligned' or an object, got {raw_mount!r}")
+
+    raw_reach = config.pop("reach", None)
+    if raw_reach is None:
+        reach = None
+    elif isinstance(raw_reach, str):
+        try:
+            reach = REACHES[raw_reach]
+        except KeyError:
+            raise ConfigError(
+                f"unknown reach {raw_reach!r}; known: {sorted(REACHES)}. An arm not "
+                "listed is described as an object with radius/inner/floor/ceiling"
+            ) from None
+    else:
+        from gantry_retargeter_hands import Reach
+
+        reach = Reach(**dict(raw_reach))
+
+    raw_hand = config.pop("hand", None)
+    if raw_hand is None:
+        raise ConfigError(
+            "a retargeter needs the person's hand measured: thumb-to-index closed "
+            "and open, and the wrist-to-fingertip span if the source is unscaled. "
+            "These are per-person and cannot be defaulted — an adult's open hand "
+            "and a child's differ by a factor that lands in the gripper signal"
+        )
+    # One per hand, because people are not symmetric.
+    if isinstance(raw_hand, Mapping) and {"left", "right"} & set(raw_hand):
+        return {
+            side: HandToArm(
+                mount=mount, hand=Hand(**dict(values)), reach=reach, name=f"hands.{side}", **config
+            )
+            for side, values in raw_hand.items()
+        }
+    return HandToArm(mount=mount, hand=Hand(**dict(raw_hand)), reach=reach, **config)
+
+
 class EgoActionConnector(Connector):
     """Hands from an upstream connector, as one arm's or two arms' state and action."""
 
@@ -134,6 +193,7 @@ class EgoActionConnector(Connector):
         self._hands = tuple(hands)
         if not self._hands:
             raise ConfigError(f"{name}: needs at least one hand to retarget")
+        retargeter = retargeter_from(retargeter)
         self._retargeters = (
             dict(retargeter)
             if isinstance(retargeter, Mapping)

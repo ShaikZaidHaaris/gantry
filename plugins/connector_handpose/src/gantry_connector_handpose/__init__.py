@@ -27,10 +27,12 @@ from .handpose import (
     JOINTS,
     MIN_STEPS,
     VERSION,
+    WIRES,
     Estimator,
     HandPoseConnector,
     Track,
     aperture_from,
+    estimator_from,
     mediapipe,
     metric,
     wrist_from,
@@ -63,6 +65,8 @@ from .rtm import (
 )
 
 __all__ = [
+    "estimator_from",
+    "WIRES",
     "APART",
     "BACKENDS",
     "CONFIDENT",

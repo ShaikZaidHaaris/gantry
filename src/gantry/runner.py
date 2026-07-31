@@ -50,7 +50,7 @@ from .resolve import (
     check_capabilities,
     requires_channels,
 )
-from .spine import ChannelSpec, EpisodeRecord, Provenance, RunRecord, Verdict
+from .spine import ChannelSpec, EpisodeRecord, Provenance, Reason, RunRecord, Verdict
 from .store import write_run
 
 
@@ -140,14 +140,56 @@ class Built:
 def build_component(
     registry: Registry, plane: str, spec: ComponentSpec
 ) -> tuple[Any, Any, Verdict]:
-    """Construct one component, honouring the isolation it declared."""
+    """Construct one component, honouring the isolation it declared.
+
+    A chained spec is built innermost first, each stage handed the one before
+    it. Every stage's own refusals fire here, at plan time, which is the point:
+    a chain that cannot work — an estimator pointed at a dataset with no video,
+    a retargeting step given image coordinates — is refused before a single
+    frame is decoded rather than an hour into a run.
+    """
+    if spec.chained:
+        return _build_chain(registry, plane, spec)
+    return _build_one(registry, plane, spec)
+
+
+def _build_chain(registry: Registry, plane: str, spec: ComponentSpec) -> tuple[Any, Any, Verdict]:
+    component: Any = None
+    refs: list[str] = []
+    notes: list[Reason] = []
+    for link in spec.chain:
+        try:
+            component, ref, verdict = _build_one(registry, plane, link, source=component)
+        except GantryError as error:
+            if link.optional and component is not None:
+                # A stage that may genuinely not apply. The run continues on the
+                # stage before it and the record says which link was skipped and
+                # why, because a silently shorter chain is a different pipeline
+                # wearing the same name.
+                notes.append(
+                    Reason(
+                        "chain.skipped",
+                        f"{plane}: optional stage {link.name!r} was skipped ({error})",
+                    )
+                )
+                refs.append(f"{link.name}(skipped)")
+                continue
+            raise
+        refs.append(ref if isinstance(ref, str) else link.name)
+        notes.extend(verdict.reasons)
+    return component, " -> ".join(refs), Verdict(ok=True, reasons=tuple(notes))
+
+
+def _build_one(
+    registry: Registry, plane: str, spec: ComponentSpec, source: Any = None
+) -> tuple[Any, Any, Verdict]:
     try:
         registration = registry.get(plane, spec.name)
     except KeyError as error:
         raise ConfigError(str(error)) from None
 
     try:
-        descriptor = registration.descriptor(spec.config)
+        descriptor = registration.descriptor(spec.config, source)
     except GantryError:
         raise
     except Exception as error:  # noqa: BLE001
@@ -155,14 +197,26 @@ def build_component(
             f"{plane}:{spec.name} could not describe itself: {type(error).__name__}: {error}"
         ) from error
 
-    if wants_isolation(descriptor):
+    if wants_isolation(descriptor) and source is None:
+        # Isolation and chaining do not compose: a stage in another process
+        # cannot be handed a live object from this one. Declared isolation on a
+        # chained stage is honoured by refusing rather than by quietly running
+        # it in-process, which would be the isolation silently not happening.
         component, verdict = isolated_or_refuse(descriptor, plane, spec.name, spec.config)
         if component is None:
             raise ConfigError(verdict.explain())
         return component, descriptor.component_ref(config=spec.config), verdict
 
+    if wants_isolation(descriptor) and source is not None:
+        raise ConfigError(
+            f"{plane}:{spec.name} declares isolation and is a stage in a chain. A "
+            "component running in another process cannot be handed a live object "
+            "from this one; put the isolated component first in the chain, or drop "
+            "the isolation"
+        )
+
     try:
-        component = registration.build(spec.config)
+        component = registration.build(spec.config, source)
     except GantryError:
         raise
     except Exception as error:  # noqa: BLE001
@@ -188,8 +242,12 @@ def build_all(manifest: Manifest, registry: Registry) -> Built:
         built.refs.append(ref)
     # Everything single-valued. A plane supplied by the cohorts has no single
     # component and is skipped here; the runner reads it per cohort instead.
-    for plane, attribute in (("embodiment", "embodiment"), ("policy", "policy"),
-                             ("evaluation", "evaluator"), ("dataset", "dataset")):
+    for plane, attribute in (
+        ("embodiment", "embodiment"),
+        ("policy", "policy"),
+        ("evaluation", "evaluator"),
+        ("dataset", "dataset"),
+    ):
         spec = manifest.components.get(plane)
         if spec is None or manifest.varies == plane:
             continue
@@ -263,18 +321,20 @@ def check_policy_against_embodiment(
     if not descriptor:
         return Verdict.note(
             "runner.embodiment_actionless",
-            "the embodiment declares no action channels, so the policy was not checked "
-            "against it",
+            "the embodiment declares no action channels, so the policy was not checked against it",
         )
     requirement = requires_channels("policy", "policy", policy.action_spec())
     _, verdict = bind(requirement, tuple(descriptor), adapters, retargeters)
     if verdict.ok:
         return verdict
-    return Verdict.no(
-        "runner.policy_embodiment",
-        f"{policy.name} cannot command this embodiment",
-        hint="the policy's action channel does not fit any the machine accepts",
-    ) & verdict
+    return (
+        Verdict.no(
+            "runner.policy_embodiment",
+            f"{policy.name} cannot command this embodiment",
+            hint="the policy's action channel does not fit any the machine accepts",
+        )
+        & verdict
+    )
 
 
 # --------------------------------------------------------------------------
@@ -359,9 +419,7 @@ def _execute(
 
     if refusals:
         runnable = [report.module for report in reports]
-        notes.append(
-            "runnable as requested: " + (", ".join(runnable) if runnable else "nothing")
-        )
+        notes.append("runnable as requested: " + (", ".join(runnable) if runnable else "nothing"))
     notes.extend(
         f"{step.name} is lossy: {'; '.join(step.losses)}" for step in applied if step.losses
     )
@@ -445,9 +503,7 @@ def _gather(
                 failures.append(f"embodiment:{name}: {error}")
                 continue
         if provider is None:
-            failures.append(
-                f"{name}: nothing supplies the dataset plane; name one, or vary on it"
-            )
+            failures.append(f"{name}: nothing supplies the dataset plane; name one, or vary on it")
             continue
         episodes = tuple(provider)
         if not manifest.evaluates:
@@ -463,9 +519,7 @@ def _gather(
         # that rebound itself would score the second against the first's
         # answer key.
         evaluator = (
-            evaluator.bind(episodes)
-            if getattr(evaluator, "needs_dataset", False)
-            else evaluator
+            evaluator.bind(episodes) if getattr(evaluator, "needs_dataset", False) else evaluator
         )
         task = _task_for(evaluator, name, manifest)
         try:
@@ -540,9 +594,7 @@ def plan_manifest(manifest: Manifest, registry: Registry | None = None) -> Verdi
         for module in built.feedback:
             for name, connector in built.cohorts.items():
                 episodes = tuple(connector)
-                fit = fit_consumer(
-                    module.requirement(), episodes, connector, adapters, retargeters
-                )
+                fit = fit_consumer(module.requirement(), episodes, connector, adapters, retargeters)
                 if fit.wiring is None:
                     checks.append(
                         Verdict.no(

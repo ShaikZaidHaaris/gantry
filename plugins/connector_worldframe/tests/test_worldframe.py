@@ -43,9 +43,10 @@ def straight(steps=STEPS, metric=True, source="device", move=0.05):
 class CameraFrame(Connector):
     """What connector_handpose presents: metric wrists in the camera frame."""
 
-    def __init__(self, steps=STEPS, scale="metric"):
+    def __init__(self, steps=STEPS, scale="metric", episodes=1):
         self._steps = steps
         self._scale = scale
+        self._episodes = episodes
 
     def descriptor(self):
         return connector_descriptor(
@@ -60,7 +61,7 @@ class CameraFrame(Connector):
         )
 
     def episode_ids(self):
-        return ("handpose/ego/0",)
+        return tuple(f"handpose/ego/{i}" for i in range(self._episodes))
 
     def schema(self, episode_id):
         return self.open(episode_id).schema
@@ -144,12 +145,26 @@ def test_channels_that_are_not_wrists_pass_through():
 # -- the refusals ------------------------------------------------------------
 
 
-def test_no_trajectory_is_a_refusal_and_says_where_to_get_one():
-    """A trajectory guessed from nothing produces a hand that moves correctly
-    through a room that does not exist."""
-    c = WorldFrameConnector(CameraFrame(), trajectories={})
+def test_no_trajectory_at_all_is_refused_when_the_stage_is_built():
+    """A stage that could not place a single episode is inert, and it knows so
+    before anything is read.
+
+    Saying it here rather than on the first ``open`` is what lets a chain mark
+    the stage optional and fall back to camera frame — an escape hatch that
+    only fires at build time cannot catch a refusal raised mid-run."""
+    with pytest.raises(ConfigError, match="no episode this stage could place in a world"):
+        WorldFrameConnector(CameraFrame(), trajectories={})
+
+
+def test_covering_some_episodes_is_not_inertness_and_the_rest_are_still_refused():
+    """Partial coverage is a stage doing its job for the data it has. Asking
+    for a world frame for an episode with no trajectory remains a real request
+    that cannot be met, and a guessed trajectory would put the hand in a room
+    that does not exist."""
+    c = WorldFrameConnector(CameraFrame(episodes=2), trajectories={"handpose/ego/0": straight()})
+    assert c.open("worldframe/handpose/ego/0").schema
     with pytest.raises(ConfigError, match="room that does not exist"):
-        c.open("worldframe/handpose/ego/0")
+        c.open("worldframe/handpose/ego/1")
 
 
 def test_a_scaleless_trajectory_is_refused_when_fitting_is_off():

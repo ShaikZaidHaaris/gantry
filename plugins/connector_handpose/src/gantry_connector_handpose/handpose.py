@@ -67,7 +67,14 @@ from gantry.spine import (
     EpisodeRecord,
 )
 
-from .pnp import Intrinsics, intrinsics_from, plausible, rotations_to_quaternions, solve_sequence
+from .pnp import (
+    Intrinsics,
+    for_rig,
+    intrinsics_from,
+    plausible,
+    rotations_to_quaternions,
+    solve_sequence,
+)
 
 VERSION = "0.1.0.dev0"
 
@@ -402,6 +409,68 @@ def metric(
     return Metric()
 
 
+#: Estimator wires addressable by name, so a manifest can choose one.
+#:
+#: Every argument that has to cross a manifest accepts plain data — the same
+#: rule the gym bridge states and the pi0 layouts follow. A component whose key
+#: argument is only constructible in Python is a component no manifest can use,
+#: which means the pipeline that uses it is a script.
+WIRES = ("mediapipe", "metric", "rtm+mediapipe", "rtm+depth")
+
+
+def estimator_from(spec: Any) -> Any:
+    """An estimator from plain data, a callable, or one already built."""
+    if spec is None or hasattr(spec, "estimate"):
+        return spec
+    if callable(spec) and not isinstance(spec, Mapping):
+        return spec
+    config = dict(spec)
+    wire = str(config.pop("wire", "metric"))
+    if wire not in WIRES:
+        raise ConfigError(f"unknown estimator wire {wire!r}; known: {list(WIRES)}")
+
+    model_path = config.pop("model_path", None)
+    rig = config.pop("rig", None)
+    width, height = int(config.pop("width", 0)), int(config.pop("height", 0))
+    camera = None
+    if rig:
+        if not (width and height):
+            raise ConfigError(
+                f"an estimator naming rig {rig!r} also needs the frame width and "
+                "height, because intrinsics are in pixels and a focal length "
+                "without a resolution is not a camera"
+            )
+        camera = for_rig(str(rig), width=width, height=height)
+    elif "intrinsics" in config:
+        camera = intrinsics_from(config.pop("intrinsics"))
+
+    if wire == "mediapipe":
+        return mediapipe(model_path, **config)
+    if camera is None:
+        raise ConfigError(
+            f"the {wire!r} wire recovers metric pose and needs the camera's "
+            "intrinsics: name a 'rig' with 'width' and 'height', or give "
+            "'intrinsics' directly. Every distance scales with the focal length, "
+            "so a guessed one makes every number wrong by the same unseen factor"
+        )
+    if wire == "metric":
+        return metric(model_path, intrinsics=camera, **config)
+
+    from .rtm import rtm_with_depth, rtm_with_mediapipe, rtmpose
+
+    detector = rtmpose(**dict(config.pop("detector", {})))
+    shape = mediapipe(model_path)
+    if wire == "rtm+mediapipe":
+        return rtm_with_mediapipe(detector, shape, intrinsics=camera, **config)
+
+    from .depth import depth_anything, zoedepth
+
+    depth_config = dict(config.pop("depth", {}))
+    model = str(depth_config.pop("model", "zoedepth"))
+    depth = zoedepth(**depth_config) if model == "zoedepth" else depth_anything(**depth_config)
+    return rtm_with_depth(detector, depth, shape, intrinsics=camera, **config)
+
+
 class HandPoseConnector(Connector):
     """Another connector's clips, with hands estimated onto them."""
 
@@ -419,7 +488,7 @@ class HandPoseConnector(Connector):
         cache: bool = True,
     ):
         self._source = source
-        self._estimator = estimator
+        self._estimator = estimator_from(estimator)
         self._video = video
         self._name = name
         self._found = float(found)

@@ -45,14 +45,42 @@ class Registration:
     def ref(self) -> str:
         return f"{self.plane}:{self.name}"
 
-    def build(self, config: Mapping[str, Any] | None = None) -> Any:
-        return self.factory(**dict(config or {}))
+    def build(self, config: Mapping[str, Any] | None = None, source: Any = None) -> Any:
+        """Construct it, optionally on top of something already constructed.
 
-    def descriptor(self, config: Mapping[str, Any] | None = None) -> Descriptor:
-        """Describe without committing to a full build, where possible."""
-        if self.describe is not None:
+        ``source`` is passed as the leading positional argument, which is the
+        whole convention for chaining: a component that reads from another takes
+        it first and positionally. That is already how every chained connector in
+        this repo is written, so the convention is a description of practice
+        rather than a new rule — but it is a rule now, because a manifest naming
+        a chain has no other way to know where the previous stage goes.
+        """
+        settings = dict(config or {})
+        if source is None:
+            return self.factory(**settings)
+        try:
+            return self.factory(source, **settings)
+        except TypeError as error:
+            # Told to build on something, and cannot accept one. Worth its own
+            # message: the alternative is a TypeError from inside somebody's
+            # __init__ that reads as a config error.
+            raise TypeError(
+                f"{self.ref} was given a source to build on and does not take one "
+                f"positionally. A component in a chain reads from the stage before "
+                f"it as its first argument. ({error})"
+            ) from error
+
+    def descriptor(self, config: Mapping[str, Any] | None = None, source: Any = None) -> Descriptor:
+        """Describe without committing to a full build, where possible.
+
+        A chained component's description depends on what it is built on — a
+        connector reports the licence and the media capability of its source —
+        so a cheap describe hook is skipped when there is a source, because it
+        cannot have accounted for one.
+        """
+        if self.describe is not None and source is None:
             return self.describe(**dict(config or {}))
-        return self.build(config).descriptor()
+        return self.build(config, source).descriptor()
 
 
 class DuplicateRegistration(ValueError):
@@ -78,9 +106,7 @@ class Registry:
         replace: bool = False,
     ) -> Registration:
         if plane not in known_planes():
-            raise ValueError(
-                f"unknown plane {plane!r}; expected one of {known_planes()}"
-            )
+            raise ValueError(f"unknown plane {plane!r}; expected one of {known_planes()}")
         key = (plane, name)
         if key in self._entries and not replace:
             raise DuplicateRegistration(
@@ -120,8 +146,10 @@ class Registry:
             return self._entries[(plane, name)]
         except KeyError:
             available = self.names(plane)
-            hint = f"installed on the {plane} plane: {', '.join(available)}" if available else (
-                f"nothing is installed on the {plane} plane"
+            hint = (
+                f"installed on the {plane} plane: {', '.join(available)}"
+                if available
+                else (f"nothing is installed on the {plane} plane")
             )
             raise KeyError(f"no {plane} component named {name!r}; {hint}") from None
 

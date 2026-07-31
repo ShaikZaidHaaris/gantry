@@ -355,6 +355,32 @@ class WorldFrameConnector(Connector):
         self._fit = bool(fit_scale)
         self._cache: dict[str, EpisodeRecord] = {}
         self._fitted: dict[str, float] = {}
+        self._refuse_if_inert()
+
+    def _refuse_if_inert(self) -> None:
+        """Say at build time what would otherwise be said at the first read.
+
+        A stage holding no trajectory for anything upstream cannot place a
+        single episode in a world. Discovering that on the first ``open`` makes
+        it a runtime fault halfway through a run; discovering it here makes it a
+        buildable fact, which is what lets a chain declare the stage optional
+        and carry on in camera frame without it.
+
+        Partial coverage is not inertness and is not caught here. Asking for a
+        world frame for episodes that have no trajectory is a real request that
+        cannot be met, and :meth:`_derive` refuses it per episode.
+        """
+        upstream = self._source.episode_ids()
+        if any(
+            i in self._trajectories or f"{self._name}/{i}" in self._trajectories for i in upstream
+        ):
+            return
+        raise ConfigError(
+            f"{self._name}: no camera trajectory for any of the {len(upstream)} episodes "
+            f"upstream, so there is no episode this stage could place in a world. Record "
+            f"the trajectory at capture (ARKit/ARCore/Quest) or reconstruct it with COLMAP "
+            f"— or drop the stage and keep the poses in camera frame, which is what they are"
+        )
 
     def descriptor(self) -> Descriptor:
         upstream = self._source.descriptor()

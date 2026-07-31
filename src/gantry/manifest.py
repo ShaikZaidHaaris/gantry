@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -31,26 +31,101 @@ MANIFEST_VERSION = 1
 
 @dataclass(frozen=True)
 class ComponentSpec:
-    """One named component and the configuration it is built with."""
+    """One named component and the configuration it is built with.
+
+    ``over`` makes this a link in a chain: the component this one reads from,
+    built first and handed in. A chain is therefore a linked list of specs
+    rather than a separate type, which keeps one thing to parse, one thing to
+    serialise, and one thing for the runner to walk.
+
+    Chains exist because the interesting pipelines are compositions. Reading raw
+    ego video, estimating hands onto it, and turning those into robot actions is
+    three connectors stacked, and until a manifest could say so the whole
+    pipeline lived in hand-written scripts — declarative in principle and
+    bespoke in practice. A manifest that cannot express the thing it is for is
+    not a manifest.
+    """
 
     name: str
     config: Mapping[str, Any] = field(default_factory=dict)
+    #: The stage this one is built on top of, if any.
+    over: "ComponentSpec | None" = None
+    #: Whether the run continues without this link when it cannot be built.
+    #:
+    #: For stages that genuinely may not apply — lifting to a world frame needs
+    #: a camera trajectory, and half of real uploads do not have one. An
+    #: optional link that fails is a note in the record, not a failed run; a
+    #: required one that fails is a refusal.
+    optional: bool = False
 
     @classmethod
     def parse(cls, payload: Any, where: str) -> "ComponentSpec":
         if isinstance(payload, str):
             return cls(payload, {})
         if isinstance(payload, Mapping):
+            if "chain" in payload:
+                return cls._chain(payload["chain"], where)
             name = payload.get("name")
             if not isinstance(name, str) or not name:
                 raise ConfigError(f"{where}: needs a non-empty 'name'")
             config = payload.get("config", {})
             if not isinstance(config, Mapping):
                 raise ConfigError(f"{where}: 'config' must be an object")
-            return cls(name, dict(config))
+            return cls(name, dict(config), optional=bool(payload.get("optional", False)))
         raise ConfigError(f"{where}: expected a name or an object, got {type(payload).__name__}")
 
+    @classmethod
+    def _chain(cls, payload: Any, where: str) -> "ComponentSpec":
+        """A list of stages, innermost first, folded into a linked spec."""
+        if not isinstance(payload, list) or not payload:
+            raise ConfigError(
+                f"{where}: 'chain' must be a non-empty list of components, "
+                "innermost first — the one that reads from disk comes first and "
+                "each later one reads from the one before it"
+            )
+        built: "ComponentSpec | None" = None
+        for index, item in enumerate(payload):
+            link = cls.parse(item, f"{where}.chain[{index}]")
+            if index == 0 and link.optional:
+                raise ConfigError(
+                    f"{where}.chain[0]: the first stage cannot be optional; it is "
+                    "what everything after it reads from"
+                )
+            built = replace(link, over=built)
+        assert built is not None
+        return built
+
+    @property
+    def chain(self) -> tuple["ComponentSpec", ...]:
+        """This spec and everything under it, innermost first."""
+        out: list[ComponentSpec] = []
+        node: ComponentSpec | None = self
+        while node is not None:
+            out.append(node)
+            node = node.over
+        return tuple(reversed(out))
+
+    @property
+    def chained(self) -> bool:
+        return self.over is not None
+
+    @property
+    def ref(self) -> str:
+        """How this reads in a plan: ``egovideo -> handpose -> egoactions``."""
+        return " -> ".join(link.name for link in self.chain)
+
     def as_dict(self) -> dict[str, Any]:
+        if self.chained:
+            return {
+                "chain": [
+                    {
+                        "name": link.name,
+                        "config": dict(link.config),
+                        **({"optional": True} if link.optional else {}),
+                    }
+                    for link in self.chain
+                ]
+            }
         return {"name": self.name, "config": dict(self.config)}
 
 
@@ -156,11 +231,7 @@ class Manifest:
             if payload.get(plane) is not None:
                 components[plane] = ComponentSpec.parse(payload[plane], f"{where}.{plane}")
 
-        unknown = [
-            key
-            for key in payload
-            if key not in reserved and key not in known_planes()
-        ]
+        unknown = [key for key in payload if key not in reserved and key not in known_planes()]
         if unknown:
             raise ConfigError(
                 f"{where}: unknown key(s) {sorted(unknown)}; "
