@@ -51,9 +51,7 @@ def run(outcomes, task="lift_cube", stages=None, starts=None):
         events = ()
         if stages is not None and stages[i]:
             events = (Stage(stages[i]),)
-        eps.append(
-            Ep(Meta(f"r/{i}", f"seed_{1000 + i}", task), Labels(ok, annotations, events))
-        )
+        eps.append(Ep(Meta(f"r/{i}", f"seed_{1000 + i}", task), Labels(ok, annotations, events)))
     return Run(tuple(eps))
 
 

@@ -14,8 +14,13 @@ NEED = requires_channels("consumer", "policy")
 
 def joints(width, labels, name="action"):
     return ChannelSpec(
-        name, "vector", (width,), "float32",
-        units="rad", frame="base", semantics="joint_position",
+        name,
+        "vector",
+        (width,),
+        "float32",
+        units="rad",
+        frame="base",
+        semantics="joint_position",
         dim_labels=tuple(labels),
     )
 
@@ -77,13 +82,18 @@ def test_naming_nothing_to_drop_is_refused():
 
 def pose(width, encoding):
     return ChannelSpec(
-        "eef", "vector", (width,), "float32", units="m", frame="base",
-        semantics="pose", metadata={"rotation_repr": encoding},
+        "eef",
+        "vector",
+        (width,),
+        "float32",
+        units="m",
+        frame="base",
+        semantics="pose",
+        metadata={"rotation_repr": encoding},
     )
 
 
-POSITION = ChannelSpec("eef", "vector", (3,), "float32", units="m", frame="base",
-                       semantics="pose")
+POSITION = ChannelSpec("eef", "vector", (3,), "float32", units="m", frame="base", semantics="pose")
 
 
 def test_it_keeps_the_leading_three():

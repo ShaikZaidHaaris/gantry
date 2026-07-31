@@ -66,13 +66,9 @@ def _plane(context: Context) -> Verdict:
 def _contract(context: Context) -> Verdict:
     declared = context.scorer.descriptor().contract
     if not declared:
-        return Verdict.no(
-            "conformance.no_contract", f"{context.scorer.name} declares no contract"
-        )
+        return Verdict.no("conformance.no_contract", f"{context.scorer.name} declares no contract")
     try:
-        return ContractVersion.parse(declared).satisfies(
-            ContractVersion.parse(SCORER_CONTRACT)
-        )
+        return ContractVersion.parse(declared).satisfies(ContractVersion.parse(SCORER_CONTRACT))
     except Exception as error:  # noqa: BLE001
         return Verdict.no("conformance.contract_unparseable", f"{declared!r}: {error}")
 
@@ -107,8 +103,7 @@ def _one_judgement_per_criterion(context: Context) -> Verdict:
     if got != expected:
         return Verdict.no(
             "conformance.criteria_mismatch",
-            f"{context.scorer.name} judged {list(got)}; the task declares "
-            f"{list(expected)}",
+            f"{context.scorer.name} judged {list(got)}; the task declares {list(expected)}",
             hint="one judgement per criterion, in order, so a caller can line them "
             "up without matching on names",
         )
@@ -188,8 +183,7 @@ def _rationale_present(context: Context) -> Verdict:
         return Verdict.note(
             "conformance.silent_judgement",
             f"{context.scorer.name} gave no reason for {silent}",
-            hint="a disagreement between two judges is only diagnosable if both "
-            "said what they saw",
+            hint="a disagreement between two judges is only diagnosable if both said what they saw",
         )
     return Verdict.yes()
 
@@ -203,8 +197,7 @@ def _overall_treats_abstention_as_unknown(context: Context) -> Verdict:
     if context.scorer.overall(mixed) is not None:
         return Verdict.no(
             "conformance.abstention_became_a_verdict",
-            f"{context.scorer.name} resolved a trial containing an abstention to a "
-            "definite answer",
+            f"{context.scorer.name} resolved a trial containing an abstention to a definite answer",
             hint="a scorer that could not tell has not established that the trial "
             "failed; recording it as failed converts uncertainty into evidence",
         )
@@ -214,13 +207,21 @@ def _overall_treats_abstention_as_unknown(context: Context) -> Verdict:
 CHECKS = (
     Check("plane", "the descriptor declares the scorer plane", _plane),
     Check("contract", "the declared contract is compatible", _contract),
-    Check("capabilities", "evidence and cost are declared and well-formed", _capabilities_well_formed),
-    Check("criteria", "one judgement per criterion, in the task's order", _one_judgement_per_criterion),
+    Check(
+        "capabilities", "evidence and cost are declared and well-formed", _capabilities_well_formed
+    ),
+    Check(
+        "criteria", "one judgement per criterion, in the task's order", _one_judgement_per_criterion
+    ),
     Check("evidence", "evidence it cannot read is refused", _refuses_evidence_it_cannot_read),
     Check("deterministic", "determinism, where claimed, holds", _deterministic_if_claimed),
     Check("abstains", "abstention, where claimed, happens", _abstains_when_it_cannot_tell),
     Check("rationale", "judgements say why", _rationale_present),
-    Check("abstention_overall", "an abstention leaves the trial unknown", _overall_treats_abstention_as_unknown),
+    Check(
+        "abstention_overall",
+        "an abstention leaves the trial unknown",
+        _overall_treats_abstention_as_unknown,
+    ),
 )
 
 

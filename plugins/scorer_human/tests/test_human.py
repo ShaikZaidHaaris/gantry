@@ -107,9 +107,7 @@ def test_it_needs_video_and_says_so():
 
 
 def test_it_passes_the_conformance_kit():
-    verdict = check_scorer(
-        HumanScorer(session([True])), Evidence("seed_0", video="a.mp4"), task()
-    )
+    verdict = check_scorer(HumanScorer(session([True])), Evidence("seed_0", video="a.mp4"), task())
     assert verdict.ok, verdict.explain()
 
 
@@ -142,9 +140,7 @@ def test_frequent_abstention_is_noted_as_a_rubric_problem():
 
 def test_the_page_prints_the_rubric_verbatim(tmp_path):
     """Summarising it would measure agreement about a different sentence."""
-    page = write_page(
-        [{"trial": "seed_0", "video": "seed_0.mp4"}], task(), tmp_path / "index.html"
-    )
+    page = write_page([{"trial": "seed_0", "video": "seed_0.mp4"}], task(), tmp_path / "index.html")
     text = page.read_text()
     assert RUBRIC in text
 

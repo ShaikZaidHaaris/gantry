@@ -113,8 +113,7 @@ class Applied:
                 Verdict.note(
                     "curation.no_change",
                     "this plan changes nothing about the data",
-                    hint="verifying it would spend two retrains comparing a dataset "
-                    "with itself",
+                    hint="verifying it would spend two retrains comparing a dataset with itself",
                 )
             )
         return Verdict.all(checks)
@@ -130,9 +129,7 @@ class Applied:
         return "; ".join(bits)
 
 
-def select(
-    plan: CurationPlan, episodes: Sequence[Any]
-) -> tuple[tuple[Any, ...], Applied]:
+def select(plan: CurationPlan, episodes: Sequence[Any]) -> tuple[tuple[Any, ...], Applied]:
     """The episodes that survive this plan, and a record of what happened.
 
     Order is preserved: a curated dataset that shuffles its episodes relative

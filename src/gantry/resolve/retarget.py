@@ -59,9 +59,7 @@ class RetargeterRegistry:
     def __len__(self) -> int:
         return len(self._retargeters)
 
-    def find(
-        self, source: ChannelSpec, target: ChannelSpec
-    ) -> tuple[Step | None, Verdict]:
+    def find(self, source: ChannelSpec, target: ChannelSpec) -> tuple[Step | None, Verdict]:
         """The first retargeter that accepts this pair, and why the others did not.
 
         First rather than best, because there is no ordering to be best by: two

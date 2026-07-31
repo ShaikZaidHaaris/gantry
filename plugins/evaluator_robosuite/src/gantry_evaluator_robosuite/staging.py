@@ -152,8 +152,7 @@ def check_staging(task: TaskDefinition) -> Verdict:
         checks.append(
             Verdict.no(
                 f"{REALISATION}.unknown_object",
-                f"{task.name!r} maps {unknown} onto this world, but the task places "
-                "no such object",
+                f"{task.name!r} maps {unknown} onto this world, but the task places no such object",
             )
         )
     for thing in task.things:
@@ -311,4 +310,3 @@ def verify_honoured(env: Any, sampler: Any, env_name: str) -> None:
             "the task file's start regions would not be what ran; this environment "
             "cannot be driven from a task file"
         )
-

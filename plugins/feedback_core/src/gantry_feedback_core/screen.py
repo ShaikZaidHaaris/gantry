@@ -109,10 +109,14 @@ class Screen(FeedbackModule):
     # -- absolute ----------------------------------------------------------
 
     def _absolute(self, cohorts: Sequence[Cohort]) -> Report:
-        findings, measurements, notes = [], {}, [
-            "absolute mode reports only the success fraction; every other "
-            "threshold would be a constant fitted on some other task"
-        ]
+        findings, measurements, notes = (
+            [],
+            {},
+            [
+                "absolute mode reports only the success fraction; every other "
+                "threshold would be a constant fitted on some other task"
+            ],
+        )
         for cohort in cohorts:
             outcomes, unlabelled = outcomes_of(cohort.episodes)
             if not outcomes:
@@ -131,8 +135,7 @@ class Screen(FeedbackModule):
                     Finding(
                         code="screen.low_success",
                         summary=(
-                            f"{cohort.name}: {rate:.0%} of demonstrations succeed "
-                            f"({successes}/{n})"
+                            f"{cohort.name}: {rate:.0%} of demonstrations succeed ({successes}/{n})"
                         ),
                         severity="strong" if rate < 0.5 else "weak",
                         measurements={"success_rate": measurement},
@@ -143,8 +146,9 @@ class Screen(FeedbackModule):
                         cohorts=(cohort.name,),
                     )
                 )
-        return Report("screen", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "screen", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
+        )
 
     # -- reference ---------------------------------------------------------
 
@@ -183,8 +187,7 @@ class Screen(FeedbackModule):
                     continue
                 centre = float(np.median(values))
                 measurement = Measurement(
-                    centre, n=len(values), ci=st.bootstrap_ci(values, np.median),
-                    method="median"
+                    centre, n=len(values), ci=st.bootstrap_ci(values, np.median), method="median"
                 )
                 measurements[f"{cohort.name}.{name}"] = measurement
                 if threshold.holds(centre):
@@ -209,8 +212,9 @@ class Screen(FeedbackModule):
                         cohorts=(cohort.name, threshold.fitted_from),
                     )
                 )
-        return Report("screen", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "screen", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
+        )
 
     # -- comparative -------------------------------------------------------
 
@@ -226,8 +230,10 @@ class Screen(FeedbackModule):
             groups = {cohort: tables[cohort][name] for cohort in tables}
             for cohort, values in groups.items():
                 measurements[f"{cohort}.{name}"] = Measurement(
-                    float(np.median(values)), n=len(values),
-                    ci=st.bootstrap_ci(values, np.median), method="median"
+                    float(np.median(values)),
+                    n=len(values),
+                    ci=st.bootstrap_ci(values, np.median),
+                    method="median",
                 )
             statistic = next(s for s in known_statistics() if s.name == name)
             # Which end is "best" depends on the statistic, not on the sort.
@@ -262,8 +268,12 @@ class Screen(FeedbackModule):
                         f"(q={corrected.q:.3g}, delta={detail['delta']:+.2f})"
                     ),
                     severity="strong" if abs(detail["delta"]) >= 0.474 else "weak",
-                    evidence={**detail, "p": corrected.p, "q": corrected.q,
-                              "prescribable": statistic.prescribable},
+                    evidence={
+                        **detail,
+                        "p": corrected.p,
+                        "q": corrected.q,
+                        "prescribable": statistic.prescribable,
+                    },
                     prescription=(
                         f"Collect more demonstrations resembling {detail['best']!r}, "
                         f"which is the better cohort on {corrected.name}."
@@ -275,8 +285,9 @@ class Screen(FeedbackModule):
             )
         if not findings and shared:
             notes.append("no statistic separates these cohorts after FDR correction")
-        return Report("screen", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "screen", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
+        )
 
 
 def _prescribe(statistic: Statistic, value: float, threshold: Threshold) -> str | None:

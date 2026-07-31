@@ -100,7 +100,8 @@ def test_a_rollout_reading_plan_that_names_no_scenes_is_refused():
     # refused for being unauditable rather than assumed clean.
     bare = CurationPlan(
         actions=(CurationAction("drop", episodes=("a",)),),
-        signal="cupid", rung="influence",
+        signal="cupid",
+        rung="influence",
         predicted=Prediction(magnitude=0.1),
     )
     verdict = preflight(bare, list(range(200)))
@@ -112,9 +113,7 @@ def test_a_rollout_reading_plan_that_names_no_scenes_is_refused():
 
 
 def test_the_tenth_plan_from_one_signal_faces_a_stricter_threshold():
-    verdict = preflight(
-        plan(), list(range(200)), baseline_rate=0.35, plans_already_tested=9
-    )
+    verdict = preflight(plan(), list(range(200)), baseline_rate=0.35, plans_already_tested=9)
     assert verdict.ok  # a note, not a refusal — it tightens rather than forbids
     reason = verdict.because("curation.selection")[0]
     assert "0.005" in reason.message
@@ -145,7 +144,7 @@ def test_a_real_improvement_is_verified():
 
 def test_noise_is_refuted_not_reported_as_a_win():
     base = [True] * 7 + [False] * 13
-    cur = [True] * 8 + [False] * 12   # one scene better; nothing to see
+    cur = [True] * 8 + [False] * 12  # one scene better; nothing to see
     verifier, cohorts = make(base, cur)
     assert verifier.analyse(cohorts).findings[0].code == "curation.refuted"
 
@@ -199,7 +198,9 @@ def test_a_refuted_plan_still_produces_an_outcome():
     cur = [True] * 8 + [False] * 12
     verifier, cohorts = make(base, cur)
     outcome = verifier.outcome(
-        cohorts, baseline_run="runs/aaa", curated_run="runs/bbb",
+        cohorts,
+        baseline_run="runs/aaa",
+        curated_run="runs/bbb",
         cost={"gpu_minutes": 44},
     )
     assert not outcome.held

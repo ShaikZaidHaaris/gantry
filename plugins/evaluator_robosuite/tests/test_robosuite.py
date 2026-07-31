@@ -127,7 +127,9 @@ def evaluator(**kwargs) -> RobosuiteEvaluator:
 
 def test_conforms():
     ev = evaluator()
-    verdict = check_evaluator(ev, Pusher(), ev.task_for(scenes=2, horizon=20), Protocol(), strict=True)
+    verdict = check_evaluator(
+        ev, Pusher(), ev.task_for(scenes=2, horizon=20), Protocol(), strict=True
+    )
     assert verdict.ok, verdict.explain()
 
 
@@ -222,8 +224,12 @@ def test_the_recorded_episode_is_what_happened():
     record = ev.evaluate(Pusher(), ev.task_for(scenes=1, horizon=5), Protocol())
     episode = record.episodes[0]
     assert set(episode.channel_names) == {
-        "robot0_eef_pos", "robot0_eef_quat", "robot0_gripper_qpos", "object",
-        "actions", "reward",
+        "robot0_eef_pos",
+        "robot0_eef_quat",
+        "robot0_gripper_qpos",
+        "object",
+        "actions",
+        "reward",
     }
     assert episode.array("actions").shape == (5, 7)
     assert episode.validate(deep=True).ok
@@ -332,7 +338,8 @@ class Picky(Pusher):
 
     def observes(self):
         return requires_channels(
-            "picky", "policy",
+            "picky",
+            "policy",
             ChannelSpec("observation.state", "vector", (8,), "float32"),
         )
 
@@ -408,15 +415,19 @@ def test_restored_states_cannot_be_given_to_another_body():
     either errors on a shape mismatch or — where the widths happen to agree —
     puts the arm somewhere meaningless and reports it as a scene.
     """
-    ev = evaluator()                       # built from STATES
+    ev = evaluator()  # built from STATES
     assert ev.restores == "states"
     with pytest.raises(ConfigError, match="own home"):
         ev.for_embodiment(Body("sawyer"))
 
 
 def test_seeded_scenes_can_be_rebuilt_around_another_body():
-    ev = RobosuiteEvaluator(ENV_META, seeds=[11, 12, 13], factory=evaluator().  # noqa: SLF001
-                            _factory)
+    ev = RobosuiteEvaluator(
+        ENV_META,
+        seeds=[11, 12, 13],
+        factory=evaluator().  # noqa: SLF001
+        _factory,
+    )
     assert ev.restores == "seeds"
     other = ev.for_embodiment(Body("sawyer", {"robots": ["Sawyer"]}))
     assert other.env_meta["env_kwargs"]["robots"] == ["Sawyer"]
@@ -433,8 +444,14 @@ def test_a_body_that_does_not_say_what_it_is_is_refused():
 
 def test_a_body_can_carry_its_controller_and_gripper():
     ev = RobosuiteEvaluator(ENV_META, seeds=[1])
-    body = Body("ur5e", {"robots": ["UR5e"], "gripper_types": "Robotiq85Gripper",
-                         "controller_configs": {"type": "OSC_POSE"}})
+    body = Body(
+        "ur5e",
+        {
+            "robots": ["UR5e"],
+            "gripper_types": "Robotiq85Gripper",
+            "controller_configs": {"type": "OSC_POSE"},
+        },
+    )
     kwargs = ev.for_embodiment(body).env_meta["env_kwargs"]
     assert kwargs["robots"] == ["UR5e"]
     assert kwargs["gripper_types"] == "Robotiq85Gripper"
@@ -472,9 +489,7 @@ def test_a_multi_armed_body_gets_one_setting_per_arm():
 
     class OneArmed:
         name = "panda"
-        metadata = {
-            "robosuite": {"robots": ["Panda"], "controller_configs": {"type": "OSC_POSE"}}
-        }
+        metadata = {"robosuite": {"robots": ["Panda"], "controller_configs": {"type": "OSC_POSE"}}}
 
     two = _with_body({"env_name": "Lift"}, TwoArmed())["env_kwargs"]
     assert two["controller_configs"] == [{"type": "OSC_POSE"}] * 2

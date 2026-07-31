@@ -76,9 +76,7 @@ def _emits_a_chunk(context: Context) -> Verdict:
             )
             continue
         if len(chunk) < 1:
-            checks.append(
-                Verdict.no("conformance.chunk_empty", "act() returned an empty chunk")
-            )
+            checks.append(Verdict.no("conformance.chunk_empty", "act() returned an empty chunk"))
             continue
         checks.append(spec.accepts(chunk))
     return Verdict.all(checks)

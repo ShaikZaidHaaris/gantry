@@ -227,7 +227,9 @@ def bind_channel(
             if attempt is None or not attempt.ok:
                 continue
             notes = tuple(r for r in gap.reasons if r.code.endswith(".undeclared"))
-            binding = ChannelBinding(want, candidate.spec, attempt.chain, candidate.matched_by, notes)
+            binding = ChannelBinding(
+                want, candidate.spec, attempt.chain, candidate.matched_by, notes
+            )
             return binding, Verdict.yes(*gap.reasons)
         failures.extend(a.verdict for a in attempts if a is not None and not a.verdict.ok)
 
@@ -279,14 +281,17 @@ def check_capabilities(requirement: Requirement, provider: Descriptor) -> Verdic
         for reason in verdict.reasons
         if reason.detail.get("capability")
     ]
-    return Verdict.no(
-        "resolve.capability",
-        f"{requirement} needs {', '.join(str(name) for name in missing)}, "
-        f"which {provider.ref} does not provide",
-        hint="choose a provider that does, or a consumer that does not need it",
-        consumer=requirement.name,
-        capabilities=missing,
-    ) & verdict
+    return (
+        Verdict.no(
+            "resolve.capability",
+            f"{requirement} needs {', '.join(str(name) for name in missing)}, "
+            f"which {provider.ref} does not provide",
+            hint="choose a provider that does, or a consumer that does not need it",
+            consumer=requirement.name,
+            capabilities=missing,
+        )
+        & verdict
+    )
 
 
 # --------------------------------------------------------------------------
@@ -396,9 +401,7 @@ def resolve(
         channels = tuple(provided_channels or ())
         for requirement in consumers:
             wiring, binding = bind(requirement, channels, adapters, retargeters)
-            combined = Verdict.all(
-                [check_capabilities(requirement, provider.descriptor), binding]
-            )
+            combined = Verdict.all([check_capabilities(requirement, provider.descriptor), binding])
             if combined.ok and wiring is not None:
                 wirings.append(wiring)
                 satisfied.append(requirement.name)

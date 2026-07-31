@@ -576,6 +576,43 @@ class RoboTwinEvaluator(ClosedLoop):
             metadata=metadata,
         )
 
+    def provides(self) -> tuple[ChannelSpec, ...]:
+        """What the world publishes, for anything that has to bind against it.
+
+        Assembled here rather than by the caller because the caller would have
+        to know that a camera arrives at ``observation.<name>.rgb``, that the
+        pose state is a derived channel, and what encoding it is in — three
+        facts about this simulator that belong with this simulator.
+        """
+        cameras = tuple(
+            ChannelSpec(
+                f"observation.{camera}.rgb",
+                "image",
+                (None, None, 3),
+                "uint8",
+                rate_hz=CONTROL_HZ,
+                semantics="observation.image",
+                metadata={"camera": camera},
+            )
+            for camera in self._cameras
+        )
+        return (
+            *cameras,
+            state_spec(),
+            state_spec("endpose.vector"),
+            ChannelSpec(
+                "joint_action.vector",
+                "vector",
+                (width_of("qpos"),),
+                "float32",
+                rate_hz=CONTROL_HZ,
+                semantics="observation.joint_pos",
+                dim_labels=labels_for("qpos"),
+                discriminators=("arms",),
+                metadata={"arms": len(ARMS)},
+            ),
+        )
+
     def embodiment_for(self, scene: Scene) -> str:
         return self._embodiment
 

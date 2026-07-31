@@ -121,9 +121,7 @@ class TaskSpec:
     def validate(self) -> Verdict:
         checks = []
         if not self.scenes:
-            checks.append(
-                Verdict.no("task.no_scenes", f"task {self.name!r} defines no scenes")
-            )
+            checks.append(Verdict.no("task.no_scenes", f"task {self.name!r} defines no scenes"))
         ids = [scene.id for scene in self.scenes]
         duplicates = {i for i in ids if ids.count(i) > 1}
         if duplicates:

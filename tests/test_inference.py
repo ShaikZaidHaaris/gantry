@@ -217,8 +217,8 @@ def test_a_faithful_proxy_has_no_rank_violations():
 
 def test_swapping_a_wide_pair_costs_more_than_swapping_a_close_one():
     real = [0.60, 0.45, 0.30, 0.29]
-    swaps_far = [0.45, 0.60, 0.30, 0.29]     # inverts a 15pp gap
-    swaps_near = [0.60, 0.45, 0.29, 0.30]    # inverts a 1pp gap
+    swaps_far = [0.45, 0.60, 0.30, 0.29]  # inverts a 15pp gap
+    swaps_near = [0.60, 0.45, 0.29, 0.30]  # inverts a 1pp gap
     assert mmrv(real, swaps_far) > mmrv(real, swaps_near) > 0
 
 

@@ -57,9 +57,7 @@ def run(task, policy, outcomes, *, scorer="machine", embodiment="panda", version
     return Run(
         Provenance(components=tuple(components)),
         episodes,
-        {"success_rate": proportion(sum(1 for o in scored if o), len(scored))}
-        if scored
-        else {},
+        {"success_rate": proportion(sum(1 for o in scored if o), len(scored))} if scored else {},
     )
 
 
@@ -70,8 +68,12 @@ def measured(tmp_path) -> tuple[History, dict[str, str]]:
         "ph": h.put(run("lift_cube", "ph_official", [True] * 28 + [False] * 22), keep_record=False),
         "mh": h.put(run("lift_cube", "mh_official", [True] * 33 + [False] * 17), keep_record=False),
         "mg": h.put(run("lift_cube", "mg_official", [False] * 50), keep_record=False),
-        "ph_wide": h.put(run("lift_cube_wide", "ph_official", [True] * 9 + [False] * 41), keep_record=False),
-        "mh_wide": h.put(run("lift_cube_wide", "mh_official", [True] * 29 + [False] * 21), keep_record=False),
+        "ph_wide": h.put(
+            run("lift_cube_wide", "ph_official", [True] * 9 + [False] * 41), keep_record=False
+        ),
+        "mh_wide": h.put(
+            run("lift_cube_wide", "mh_official", [True] * 29 + [False] * 21), keep_record=False
+        ),
     }
     return h, keys
 
@@ -190,8 +192,8 @@ def test_a_pin_survives_later_runs(tmp_path):
 
 def test_a_body_specific_pin_beats_a_general_one(tmp_path):
     h, keys = measured(tmp_path)
-    h.pin(keys["mg"], task="lift_cube")                        # any body
-    h.pin(keys["ph"], task="lift_cube", embodiment="panda")    # this body
+    h.pin(keys["mg"], task="lift_cube")  # any body
+    h.pin(keys["ph"], task="lift_cube", embodiment="panda")  # this body
     assert h.baseline_for("lift_cube", "panda").policy == "ph_official"
     assert h.baseline_for("lift_cube", "sawyer").policy == "mg_official"
 
@@ -276,7 +278,7 @@ def test_pairing_an_unknown_run_reports_nothing_rather_than_raising(tmp_path):
 def test_a_policys_runs_group_into_the_matrix_the_aggregates_take(tmp_path):
     h, _ = measured(tmp_path)
     matrix = h.matrix_for("mh_official")
-    assert len(matrix) == 2                     # two tasks
+    assert len(matrix) == 2  # two tasks
     flat = [v for row in matrix for v in row]
     assert iqm(flat) == pytest.approx(0.62)
 

@@ -132,9 +132,11 @@ def from_schema(
             f"it has {sorted(by_name)}"
         )
     action_specs = tuple(by_name[key] for key in action)
-    state_names = list(state) if state is not None else [
-        spec.name for spec in schema if spec.name not in set(action)
-    ]
+    state_names = (
+        list(state)
+        if state is not None
+        else [spec.name for spec in schema if spec.name not in set(action)]
+    )
     rates = {spec.rate_hz for spec in schema if spec.rate_hz}
     return EmbodimentDescriptor(
         name=name,

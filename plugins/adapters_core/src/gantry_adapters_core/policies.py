@@ -74,13 +74,19 @@ class AdaptedPolicy:
         self._registry = adapters if adapters is not None else installed_adapters()
 
         gap = compatible(self._source, target)
-        if gap.ok:
+        # An `.undeclared` reason is one side saying something the other did not
+        # say -- the absence of a claim, not a conflict. The resolver carries
+        # these as notes rather than failures, and demanding an adapter "close"
+        # one would refuse every pair where an evaluator tags something extra.
+        self._notes = tuple(r for r in gap.reasons if r.code.endswith(".undeclared"))
+        real = tuple(r for r in gap.reasons if not r.code.endswith(".undeclared"))
+        if not real:
             # Nothing to do, and saying so is better than planning an empty
             # chain that reads as a conversion in the record.
             self._chain: Chain | None = None
             self._losses: tuple[str, ...] = ()
         else:
-            codes = tuple(reason.code for reason in gap.reasons)
+            codes = tuple(reason.code for reason in real)
             chain, unclosed = self._registry.close(self._source, target, codes)
             if chain is None:
                 raise ConfigError(
@@ -125,6 +131,13 @@ class AdaptedPolicy:
         return self._chain
 
     @property
+    def notes(self) -> tuple[Any, ...]:
+        """What could not be checked -- a tag declared on one side only. Carried
+        so a plan can show what it did not verify, rather than presenting an
+        unchecked match as a checked one."""
+        return self._notes
+
+    @property
     def losses(self) -> tuple[str, ...]:
         """What the conversion costs, in words. Empty is a claim, and it is the
         adapter's claim rather than this wrapper's."""
@@ -146,6 +159,7 @@ class AdaptedPolicy:
                 "action_adapted_to": self._target.name,
                 "action_adapter_chain": steps,
                 "action_adapter_losses": list(self._losses),
+                "action_adapter_unchecked": [r.code for r in self._notes],
             },
         )
 
@@ -218,7 +232,9 @@ def adapt_policy(
     including the observation side, which is why ``reading`` has to be passed
     here rather than checked later.
     """
-    if not reading and compatible(policy.action_spec(), to).ok:
+    gap = compatible(policy.action_spec(), to)
+    unresolved = [r for r in gap.reasons if not r.code.endswith(".undeclared")]
+    if not reading and not unresolved:
         return policy
     return AdaptedPolicy(policy, to, adapters=adapters, reading=reading, name=name)
 

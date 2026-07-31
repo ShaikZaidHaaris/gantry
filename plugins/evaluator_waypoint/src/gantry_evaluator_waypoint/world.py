@@ -306,7 +306,9 @@ class WaypointWorld(Evaluator):
                         f"{policy.name} returned a chunk of shape {chunk.shape}; "
                         "expected (horizon, 3)"
                     )
-                played = len(chunk) if protocol.execute is None else min(protocol.execute, len(chunk))
+                played = (
+                    len(chunk) if protocol.execute is None else min(protocol.execute, len(chunk))
+                )
                 for command in chunk[: max(1, played)]:
                     if step >= task.horizon or state.done:
                         break

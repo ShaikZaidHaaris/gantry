@@ -146,9 +146,7 @@ class Connector(ABC):
         return bool(self.descriptor().provides.get(CAP_WRITES, False))
 
     @classmethod
-    def write(
-        cls, episodes: "Sequence[EpisodeRecord]", path: str, **options: Any
-    ) -> Any:
+    def write(cls, episodes: "Sequence[EpisodeRecord]", path: str, **options: Any) -> Any:
         """Produce a dataset in this format. The inverse of reading it.
 
         A classmethod, because writing is a property of the format and not of

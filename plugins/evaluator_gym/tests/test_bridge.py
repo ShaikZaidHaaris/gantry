@@ -255,7 +255,9 @@ def test_a_milestone_is_recorded_once_at_first_arrival():
 
 def test_the_horizon_stops_a_trial_that_is_not_getting_there():
     gym = evaluator(horizon=3)
-    episode = gym.evaluate(Mover(limit=0.01), gym.task_for("reach", scenes=1), Protocol()).episodes[0]
+    episode = gym.evaluate(Mover(limit=0.01), gym.task_for("reach", scenes=1), Protocol()).episodes[
+        0
+    ]
     assert len(episode) == 3
     assert episode.labels.annotations["truncated"] is True
     assert episode.labels.success is False
@@ -326,6 +328,7 @@ def test_a_mapping_of_flags_is_read_the_same_way():
 
 
 # -- reading outcomes -------------------------------------------------------
+
 
 def test_an_unreported_outcome_stays_unknown_rather_than_becoming_a_failure():
     read = success_from_info("success")

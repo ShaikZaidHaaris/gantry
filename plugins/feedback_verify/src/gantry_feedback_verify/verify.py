@@ -61,8 +61,9 @@ VERSION = "0.1.0.dev0"
 BASELINE, CURATED = "baseline", "curated"
 
 
-def trials_needed(baseline: float, magnitude: float, *, alpha: float = 0.05,
-                  power: float = 0.8, cap: int = 5000) -> int:
+def trials_needed(
+    baseline: float, magnitude: float, *, alpha: float = 0.05, power: float = 0.8, cap: int = 5000
+) -> int:
     """Paired trials needed to see a change of ``magnitude``, by exact search.
 
     Exact rather than the normal approximation because robot evaluations run at
@@ -90,7 +91,7 @@ def trials_needed(baseline: float, magnitude: float, *, alpha: float = 0.05,
         # Under the null a discordant trial favours either arm equally; the
         # exact binomial tail is what McNemar reports.
         wins = int(round(k * (gain / discordant_rate + 0.5)))
-        tail = sum(comb(k, i) for i in range(wins, k + 1)) / (2 ** k)
+        tail = sum(comb(k, i) for i in range(wins, k + 1)) / (2**k)
         if 2 * tail <= alpha:
             return n
     return cap
@@ -157,6 +158,7 @@ def _paired(baseline: Sequence[Any], curated: Sequence[Any]) -> tuple[int, int, 
     different trials line up wrongly otherwise and the pairing is the whole
     source of the test's power.
     """
+
     def by_scene(episodes: Sequence[Any]) -> Mapping[str, bool]:
         out = {}
         for episode in episodes:
@@ -178,8 +180,7 @@ def _paired(baseline: Sequence[Any], curated: Sequence[Any]) -> tuple[int, int, 
 class CurationVerifier(FeedbackModule):
     """Judges one curation plan from a baseline run and a curated run."""
 
-    def __init__(self, plan: CurationPlan, *, alpha: float = 0.05,
-                 plans_already_tested: int = 0):
+    def __init__(self, plan: CurationPlan, *, alpha: float = 0.05, plans_already_tested: int = 0):
         self._plan = plan
         self._alpha = alpha
         self._tested = plans_already_tested
@@ -237,13 +238,11 @@ class CurationVerifier(FeedbackModule):
         )
 
         threshold = self._alpha / (self._tested + 1)
-        held = (
-            p is not None
-            and p < threshold
-            and delta.value >= self._plan.predicted.magnitude
-        )
+        held = p is not None and p < threshold and delta.value >= self._plan.predicted.magnitude
         if self._plan.predicted.direction == "-":
-            held = p is not None and p < threshold and -delta.value >= self._plan.predicted.magnitude
+            held = (
+                p is not None and p < threshold and -delta.value >= self._plan.predicted.magnitude
+            )
 
         finding = Finding(
             code="curation.verified" if held else "curation.refuted",
@@ -256,13 +255,16 @@ class CurationVerifier(FeedbackModule):
             ),
             severity="strong" if held else "info",
             measurements={
-                k: v for k, v in
-                (("delta", delta), ("baseline", before), ("curated", after))
+                k: v
+                for k, v in (("delta", delta), ("baseline", before), ("curated", after))
                 if v is not None
             },
             evidence={
-                "wins": wins, "losses": losses, "shared_scenes": shared,
-                "p": p, "threshold": threshold,
+                "wins": wins,
+                "losses": losses,
+                "shared_scenes": shared,
+                "p": p,
+                "threshold": threshold,
                 "plan": self._plan.summary(),
                 "rung": self._plan.rung,
                 "plans_already_tested": self._tested,
@@ -285,14 +287,20 @@ class CurationVerifier(FeedbackModule):
     # -- the ledger entry --------------------------------------------------
 
     def outcome(
-        self, cohorts: Sequence[Cohort], *, baseline_run: str, curated_run: str,
+        self,
+        cohorts: Sequence[Cohort],
+        *,
+        baseline_run: str,
+        curated_run: str,
         cost: Mapping[str, Any] | None = None,
     ) -> CurationOutcome:
         """The same judgement, in the form the ledger accumulates."""
         report = self.analyse(list(cohorts))
         if not report.findings:
             return CurationOutcome(
-                plan=self._plan, baseline_run=baseline_run, curated_run=curated_run,
+                plan=self._plan,
+                baseline_run=baseline_run,
+                curated_run=curated_run,
                 delta=Measurement(value=0.0, n=0, method="not run"),
                 verdict=Verdict.no("curation.unjudged", "; ".join(report.notes)),
                 cost=dict(cost or {}),

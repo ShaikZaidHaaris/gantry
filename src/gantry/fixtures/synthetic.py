@@ -53,9 +53,7 @@ class Trajectory:
         self.engagement = self.engagement[:steps]
         self.action = self.action[:steps]
         self.extra = {name: array[:steps] for name, array in self.extra.items()}
-        self.stage_steps = {
-            name: step for name, step in self.stage_steps.items() if step < steps
-        }
+        self.stage_steps = {name: step for name, step in self.stage_steps.items() if step < steps}
 
     def refresh_action(self) -> None:
         """Recompute the action from the motion it would produce."""
@@ -103,7 +101,9 @@ def _draft(
     engagement = np.zeros(len(position), dtype="float32")
     engagement[stage_steps[stages[1]] : stage_steps[stages[3]]] = 1.0
 
-    trajectory = Trajectory(position, engagement, np.zeros((len(position), 4), "float32"), stage_steps)
+    trajectory = Trajectory(
+        position, engagement, np.zeros((len(position), 4), "float32"), stage_steps
+    )
     trajectory.refresh_action()
 
     if include_view:
@@ -121,18 +121,31 @@ def _schema(
 ) -> tuple[ChannelSpec, ...]:
     specs = [
         ChannelSpec(
-            "position", "vector", (3,), "float32",
-            units=units, frame=frame, rate_hz=rate_hz, semantics="position",
+            "position",
+            "vector",
+            (3,),
+            "float32",
+            units=units,
+            frame=frame,
+            rate_hz=rate_hz,
+            semantics="position",
         ),
         ChannelSpec(
-            "engagement", "scalar", (), "float32",
-            units="fraction", rate_hz=rate_hz, semantics="actuation",
+            "engagement",
+            "scalar",
+            (),
+            "float32",
+            units="fraction",
+            rate_hz=rate_hz,
+            semantics="actuation",
         ),
         ChannelSpec("action", "vector", (4,), "float32", rate_hz=rate_hz, semantics="actuation"),
     ]
     if include_view:
         specs.append(
-            ChannelSpec("view", "image", (8, 8, 3), "uint8", rate_hz=rate_hz, semantics="observation")
+            ChannelSpec(
+                "view", "image", (8, 8, 3), "uint8", rate_hz=rate_hz, semantics="observation"
+            )
         )
     return tuple(specs)
 
@@ -153,7 +166,8 @@ def _record(
     labels = EpisodeLabels(
         success=trajectory.success,
         stage_events=tuple(
-            StageEvent(name, step) for name, step in sorted(trajectory.stage_steps.items(), key=lambda kv: kv[1])
+            StageEvent(name, step)
+            for name, step in sorted(trajectory.stage_steps.items(), key=lambda kv: kv[1])
         ),
     )
     return episode_from_arrays(

@@ -78,9 +78,7 @@ def test_an_alias_binds_a_differently_named_channel():
 
 
 def test_meaning_binds_when_names_differ_and_semantics_agree():
-    binding, verdict = bind_channel(
-        want(), [provided(name="tool_tip")], need(), AdapterRegistry()
-    )
+    binding, verdict = bind_channel(want(), [provided(name="tool_tip")], need(), AdapterRegistry())
     assert verdict.ok
     assert binding.matched_by == "semantics"
 
@@ -115,9 +113,7 @@ def test_shape_alone_never_matches():
 
 def test_width_mismatch_cannot_be_adapted_away():
     everything = AdapterRegistry([UNIT_CONVERTER, RESAMPLER])
-    binding, verdict = bind_channel(
-        want(shape=(7,)), [provided(shape=(3,))], need(), everything
-    )
+    binding, verdict = bind_channel(want(shape=(7,)), [provided(shape=(3,))], need(), everything)
     assert binding is None
     assert "resolve.channel_incompatible" in verdict.codes()
     assert "no adapter can change" in verdict.because("resolve.channel_incompatible")[0].hint
@@ -208,29 +204,67 @@ def test_different_quantities_are_never_adaptable_even_with_a_converter():
 
 
 def test_binding_every_channel_of_a_consumer():
-    requirement = need(want(), want(name="engagement", kind="scalar", shape=(), units="fraction",
-                                   semantics="actuation", frame=None))
+    requirement = need(
+        want(),
+        want(
+            name="engagement",
+            kind="scalar",
+            shape=(),
+            units="fraction",
+            semantics="actuation",
+            frame=None,
+        ),
+    )
     wiring, verdict = bind(
         requirement,
-        [provided(), provided(name="engagement", kind="scalar", shape=(), units="fraction",
-                              semantics="actuation", frame=None)],
+        [
+            provided(),
+            provided(
+                name="engagement",
+                kind="scalar",
+                shape=(),
+                units="fraction",
+                semantics="actuation",
+                frame=None,
+            ),
+        ],
     )
     assert verdict.ok
     assert len(wiring.bindings) == 2
 
 
 def test_an_optional_channel_may_simply_be_absent():
-    requirement = need(want(), want(name="view", kind="image", shape=(None, None, 3),
-                                    dtype="uint8", units=None, frame=None, semantics=None,
-                                    optional=True))
+    requirement = need(
+        want(),
+        want(
+            name="view",
+            kind="image",
+            shape=(None, None, 3),
+            dtype="uint8",
+            units=None,
+            frame=None,
+            semantics=None,
+            optional=True,
+        ),
+    )
     wiring, verdict = bind(requirement, [provided()])
     assert verdict.ok
     assert wiring.skipped == ("view",)
 
 
 def test_a_required_channel_may_not():
-    requirement = need(want(), want(name="view", kind="image", shape=(None, None, 3),
-                                    dtype="uint8", units=None, frame=None, semantics=None))
+    requirement = need(
+        want(),
+        want(
+            name="view",
+            kind="image",
+            shape=(None, None, 3),
+            dtype="uint8",
+            units=None,
+            frame=None,
+            semantics=None,
+        ),
+    )
     wiring, verdict = bind(requirement, [provided()])
     assert wiring is None
     assert "resolve.no_candidate" in verdict.codes()

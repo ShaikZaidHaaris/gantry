@@ -15,14 +15,20 @@ LIFT = {
     "instruction": "lift the cube off the table",
     "surfaces": ["table"],
     "objects": [
-        {"id": "cube", "kind": "box_20mm",
-         "start": {"surface": "table", "x": [-0.03, 0.03], "y": [-0.03, 0.03]}}
+        {
+            "id": "cube",
+            "kind": "box_20mm",
+            "start": {"surface": "table", "x": [-0.03, 0.03], "y": [-0.03, 0.03]},
+        }
     ],
     "success": [
-        {"check": "lifted", "args": {"object": "cube", "height": 0.04},
-         "rubric": "The cube is fully clear of the table surface, held in the "
-                   "gripper, and remains held for at least one second. A cube "
-                   "that is dropped immediately does not count."}
+        {
+            "check": "lifted",
+            "args": {"object": "cube", "height": 0.04},
+            "rubric": "The cube is fully clear of the table surface, held in the "
+            "gripper, and remains held for at least one second. A cube "
+            "that is dropped immediately does not count.",
+        }
     ],
     "horizon": 300,
     "trials": 20,
@@ -63,8 +69,7 @@ def test_it_names_no_particular_machine(tasks):
     stop this file being staged somewhere else.
     """
     blob = json.dumps(LIFT).lower()
-    for named in ("panda", "sawyer", "ur5e", "iiwa", "jaco", "kinova",
-                  "mujoco", "isaac", "franka"):
+    for named in ("panda", "sawyer", "ur5e", "iiwa", "jaco", "kinova", "mujoco", "isaac", "franka"):
         assert named not in blob, f"a task should not name {named!r}"
     # And the staging block is where a world-specific detail is allowed to
     # live, quarantined under that world's name.
@@ -120,34 +125,58 @@ def test_a_task_nobody_can_score_is_refused():
 
 
 def test_a_terse_rubric_is_flagged_without_blocking():
-    task = definition_from({**LIFT, "success": [
-        {"check": "lifted", "rubric": "cube up"}]})
+    task = definition_from({**LIFT, "success": [{"check": "lifted", "rubric": "cube up"}]})
     verdict = task.validate()
     assert "criterion.terse_rubric" in verdict.codes()
     assert verdict.ok, "a judgement, not an error"
 
 
 def test_success_referring_to_an_absent_object_is_refused(tmp_path):
-    bad = {**LIFT, "name": "bad", "success": [
-        {"check": "on", "args": {"object": "bowl", "target": "plate"},
-         "rubric": "The bowl is resting stably on the plate and not held."}]}
+    bad = {
+        **LIFT,
+        "name": "bad",
+        "success": [
+            {
+                "check": "on",
+                "args": {"object": "bowl", "target": "plate"},
+                "rubric": "The bowl is resting stably on the plate and not held.",
+            }
+        ],
+    }
     verdict = DeclaredTasks(write(tmp_path, bad)).audit()
     assert "task.criterion_unknown_object" in verdict.codes()
 
 
 def test_a_fixed_start_is_flagged_as_measuring_memorisation(tmp_path):
-    fixed = {**LIFT, "name": "fixed", "objects": [
-        {"id": "cube", "kind": "box_20mm",
-         "start": {"surface": "table", "x": [0.0, 0.0], "y": [0.0, 0.0]}}]}
+    fixed = {
+        **LIFT,
+        "name": "fixed",
+        "objects": [
+            {
+                "id": "cube",
+                "kind": "box_20mm",
+                "start": {"surface": "table", "x": [0.0, 0.0], "y": [0.0, 0.0]},
+            }
+        ],
+    }
     verdict = DeclaredTasks(write(tmp_path, fixed)).audit()
     assert "task.fixed_start" in verdict.codes()
     assert verdict.ok
 
 
 def test_an_object_on_an_undeclared_surface_is_refused():
-    verdict = definition_from({**LIFT, "objects": [
-        {"id": "cube", "kind": "box",
-         "start": {"surface": "shelf", "x": [0, 1], "y": [0, 1]}}]}).validate()
+    verdict = definition_from(
+        {
+            **LIFT,
+            "objects": [
+                {
+                    "id": "cube",
+                    "kind": "box",
+                    "start": {"surface": "shelf", "x": [0, 1], "y": [0, 1]},
+                }
+            ],
+        }
+    ).validate()
     assert "task.unknown_surface" in verdict.codes()
 
 

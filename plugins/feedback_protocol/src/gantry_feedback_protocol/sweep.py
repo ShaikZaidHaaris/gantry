@@ -94,11 +94,7 @@ def varying(arms: Sequence[Arm]) -> tuple[str, ...]:
     """Protocol keys that differ across the arms."""
     keys = {key for arm in arms for key in arm.protocol}
     return tuple(
-        sorted(
-            key
-            for key in keys
-            if len({repr(arm.protocol.get(key)) for arm in arms}) > 1
-        )
+        sorted(key for key in keys if len({repr(arm.protocol.get(key)) for arm in arms}) > 1)
     )
 
 
@@ -144,7 +140,10 @@ class ProtocolSweep(FeedbackModule):
 
     def descriptor(self) -> Descriptor:
         return feedback_descriptor(
-            "protocol", VERSION, min_cohorts=2, prescribes=True,
+            "protocol",
+            VERSION,
+            min_cohorts=2,
+            prescribes=True,
             # A sweep where the policy also changed is measuring the policy.
             # Declared rather than hand-checked: the base contract verifies it
             # from provenance for every module that declares it, so this one
@@ -207,8 +206,9 @@ class ProtocolSweep(FeedbackModule):
                 "no protocol lever varies across these cohorts, so there is nothing to "
                 "sweep; they were run the same way"
             )
-            return Report("protocol", (), measurements, tuple(notes),
-                          tuple(c.name for c in cohorts))
+            return Report(
+                "protocol", (), measurements, tuple(notes), tuple(c.name for c in cohorts)
+            )
         if len(swept) > 1:
             notes.append(
                 f"{len(swept)} levers vary at once ({', '.join(swept)}), so a winner "
@@ -218,11 +218,10 @@ class ProtocolSweep(FeedbackModule):
         ranked = sorted(arms, key=lambda arm: arm.rate, reverse=True)
         best, worst = ranked[0], ranked[-1]
         findings = [self._verdict(best, worst, swept, len(swept) == 1)]
-        notes.append(
-            "ranked by success rate; every arm ran the same policy on the same task"
+        notes.append("ranked by success rate; every arm ran the same policy on the same task")
+        return Report(
+            "protocol", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
         )
-        return Report("protocol", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
 
     def _verdict(self, best: Arm, worst: Arm, swept: Sequence[str], single: bool) -> Finding:
         gain = best.rate - worst.rate
@@ -259,10 +258,15 @@ class ProtocolSweep(FeedbackModule):
                 f"{gain:+.1%} over {worst.name}; {comparison}"
             ),
             severity="strong" if gain >= 0.05 and single else "weak",
-            measurements={best.name: Measurement(
-                best.rate, n=best.n, ci=wilson(sum(best.outcomes), best.n),
-                units="fraction", method="wilson",
-            )},
+            measurements={
+                best.name: Measurement(
+                    best.rate,
+                    n=best.n,
+                    ci=wilson(sum(best.outcomes), best.n),
+                    units="fraction",
+                    method="wilson",
+                )
+            },
             evidence=evidence,
             prescription=(
                 f"Run at {setting}. It costs nothing: same policy, same data, "

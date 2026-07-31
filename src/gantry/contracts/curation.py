@@ -206,9 +206,7 @@ class CurationAction:
                 f"{self.kind!r} is not one of {list(ACTION_KINDS)}",
             )
         if self.kind in ("drop", "keep") and not self.episodes:
-            checks.append(
-                Verdict.no("action.no_episodes", f"{self.kind!r} names no episodes")
-            )
+            checks.append(Verdict.no("action.no_episodes", f"{self.kind!r} names no episodes"))
         if self.kind == "weight":
             if not self.cohort:
                 checks.append(Verdict.no("action.no_cohort", "weight names no cohort"))
@@ -216,8 +214,7 @@ class CurationAction:
                 checks.append(
                     Verdict.no(
                         "action.bad_weight",
-                        f"weight {self.weight} on {self.cohort!r} is not a "
-                        "non-negative number",
+                        f"weight {self.weight} on {self.cohort!r} is not a non-negative number",
                     )
                 )
         if self.kind == "collect":
@@ -254,9 +251,7 @@ class CurationPlan:
         checks = [action.validate() for action in self.actions]
         checks.append(self.predicted.validate())
         if not self.actions:
-            checks.append(
-                Verdict.no("plan.empty", f"{self.signal!r} proposes nothing to do")
-            )
+            checks.append(Verdict.no("plan.empty", f"{self.signal!r} proposes nothing to do"))
         if self.rung not in RUNGS:
             checks.append(
                 Verdict.no(
@@ -329,9 +324,7 @@ class CurationPlan:
         predict, and requiring a falsifiable claim from it would force every
         clean dataset to be given an invented one.
         """
-        return any(
-            action.kind in ("drop", "weight", "collect") for action in self.actions
-        )
+        return any(action.kind in ("drop", "weight", "collect") for action in self.actions)
 
     @property
     def touches_existing_data(self) -> bool:
@@ -439,9 +432,7 @@ class Curator(ABC):
         """Identity and capabilities, read before anything is asked of it."""
 
     @abstractmethod
-    def propose(
-        self, episodes: Sequence[Any], runs: Sequence[Any] = ()
-    ) -> CurationPlan:
+    def propose(self, episodes: Sequence[Any], runs: Sequence[Any] = ()) -> CurationPlan:
         """Read the data, and say what to do about it.
 
         ``runs`` is empty for curators that do not need evaluation rollouts,
@@ -466,16 +457,13 @@ class Curator(ABC):
     def check_inputs(self, episodes: Sequence[Any], runs: Sequence[Any]) -> Verdict:
         checks = []
         if not episodes:
-            checks.append(
-                Verdict.no("curation.no_data", f"{self.name} was given no episodes")
-            )
+            checks.append(Verdict.no("curation.no_data", f"{self.name} was given no episodes"))
         if self.needs_runs and not runs:
             checks.append(
                 Verdict.no(
                     "curation.no_runs",
                     f"{self.name} decides from evaluation rollouts and was given none",
-                    hint="run the policy first; this rung cannot be reached from a "
-                    "dataset alone",
+                    hint="run the policy first; this rung cannot be reached from a dataset alone",
                 )
             )
         return Verdict.all(checks)

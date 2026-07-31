@@ -11,9 +11,7 @@ def test_yes_is_truthy_and_no_is_falsy():
 
 
 def test_conjunction_keeps_every_reason():
-    combined = Verdict.all(
-        [Verdict.no("a.1", "first"), Verdict.yes(), Verdict.no("b.2", "second")]
-    )
+    combined = Verdict.all([Verdict.no("a.1", "first"), Verdict.yes(), Verdict.no("b.2", "second")])
     assert not combined.ok
     assert combined.codes() == ("a.1", "b.2")
 

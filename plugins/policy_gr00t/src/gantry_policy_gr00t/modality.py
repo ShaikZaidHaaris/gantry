@@ -74,8 +74,14 @@ class Layout:
     annotation: Mapping[str, str] = field(default_factory=dict)
 
     @classmethod
-    def from_schema(cls, schema: Sequence[Any], *, state: str = "observation.state",
-                    action: str = "action", video: Sequence[str] = ()) -> "Layout":
+    def from_schema(
+        cls,
+        schema: Sequence[Any],
+        *,
+        state: str = "observation.state",
+        action: str = "action",
+        video: Sequence[str] = (),
+    ) -> "Layout":
         """Build from channel specs, which any connector already provides.
 
         The preferred path, and the one that keeps this plugin on its own plane.
@@ -253,8 +259,7 @@ class Wants:
 def _as_mapping(entry: Any, modality: str) -> Mapping[str, Any]:
     if isinstance(entry, Mapping):
         return {
-            (key.decode() if isinstance(key, bytes) else key): value
-            for key, value in entry.items()
+            (key.decode() if isinstance(key, bytes) else key): value for key, value in entry.items()
         }
     raise ConfigError(
         f"the server described {modality!r} as {type(entry).__name__}, expected an object "
@@ -281,8 +286,7 @@ def check(layout: Layout, wants: Wants) -> Verdict:
             checks.append(
                 Verdict.no(
                     "gr00t.language_key",
-                    f"the model reads {language!r} and the dataset annotates "
-                    f"{sorted(available)}",
+                    f"the model reads {language!r} and the dataset annotates {sorted(available)}",
                     hint="pass instruction= to send the text yourself",
                 )
             )

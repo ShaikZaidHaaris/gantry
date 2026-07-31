@@ -87,7 +87,9 @@ class ReplayPolicy(_Base):
     point is to establish the ceiling. Named so nobody mistakes it for a model.
     """
 
-    def __init__(self, action: ChannelSpec, *, observes: Sequence[ChannelSpec] = (), chunk: int = 1):
+    def __init__(
+        self, action: ChannelSpec, *, observes: Sequence[ChannelSpec] = (), chunk: int = 1
+    ):
         action = channel(action)
         super().__init__(action, tuple(observes) + (action,), chunk)
 
@@ -117,9 +119,11 @@ class ConstantPolicy(_Base):
     ):
         super().__init__(action, observes, chunk)
         action = self._action
-        self._value = np.broadcast_to(
-            np.asarray(value, dtype="float32"), action.shape or (1,)
-        ).reshape(action.shape).copy()
+        self._value = (
+            np.broadcast_to(np.asarray(value, dtype="float32"), action.shape or (1,))
+            .reshape(action.shape)
+            .copy()
+        )
 
     def descriptor(self) -> Descriptor:
         return policy_descriptor("constant", VERSION, chunk=self._chunk, deterministic=True)

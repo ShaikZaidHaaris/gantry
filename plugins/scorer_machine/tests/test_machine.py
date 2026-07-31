@@ -29,8 +29,7 @@ def lift_task(*criteria: Criterion) -> TaskDefinition:
         name="lift_cube",
         instruction="lift the cube",
         things=(Thing("cube", "cube_20mm", Region("table", (-0.03, 0.03), (-0.03, 0.03))),),
-        success=criteria
-        or (Criterion("lifted", {"object": "cube", "height": 0.04}, RUBRIC),),
+        success=criteria or (Criterion("lifted", {"object": "cube", "height": 0.04}, RUBRIC),),
     )
 
 

@@ -42,8 +42,7 @@ def _declares_codes(context: Context) -> Verdict:
     if not context.adapter.closes:
         return Verdict.no(
             "conformance.closes_nothing",
-            f"{context.adapter} declares no refusal codes, so the resolver can never "
-            "find it",
+            f"{context.adapter} declares no refusal codes, so the resolver can never find it",
         )
     undotted = [code for code in context.adapter.closes if "." not in code]
     if undotted:
@@ -67,11 +66,14 @@ def _is_applicable(context: Context) -> Verdict:
 def _accepts_its_pair(context: Context) -> Verdict:
     verdict = context.adapter.applies(context.source, context.target)
     if not verdict.ok:
-        return Verdict.no(
-            "conformance.declined",
-            f"{context.adapter} declined the pair it was given, so nothing else "
-            "could be checked",
-        ) & verdict
+        return (
+            Verdict.no(
+                "conformance.declined",
+                f"{context.adapter} declined the pair it was given, so nothing else "
+                "could be checked",
+            )
+            & verdict
+        )
     return Verdict.yes()
 
 
@@ -127,8 +129,7 @@ def _lossless_claim_is_true(context: Context) -> Verdict:
     if not context.adapter.preserves_length:
         return Verdict.note(
             "conformance.unverifiable_lossless",
-            f"{context.adapter} claims no loss but changes length, so the claim was "
-            "not checked",
+            f"{context.adapter} claims no loss but changes length, so the claim was not checked",
         )
     if context.source.width != context.target.width:
         return Verdict.no(
@@ -137,9 +138,7 @@ def _lossless_claim_is_true(context: Context) -> Verdict:
             f"{context.target.width} and declares no loss",
             hint="a width change discards or invents values; say which",
         )
-    forward = np.asarray(
-        context.adapter.transform(context.values, context.source, context.target)
-    )
+    forward = np.asarray(context.adapter.transform(context.values, context.source, context.target))
     back = np.asarray(context.adapter.transform(forward, context.target, context.source))
     if not np.allclose(back, context.values, rtol=1e-6, atol=1e-9):
         return Verdict.no(
@@ -155,7 +154,9 @@ CHECKS: tuple[Check, ...] = (
     Check("closes", "it declares dotted refusal codes", _declares_codes),
     Check("applicable", "it has a transform", _is_applicable),
     Check("accepts", "it accepts the pair under test", _accepts_its_pair),
-    Check("transform", "the transform keeps rank and honours its length claim", _transforms_soundly),
+    Check(
+        "transform", "the transform keeps rank and honours its length claim", _transforms_soundly
+    ),
     Check("deterministic", "the same input gives the same output", _is_deterministic),
     Check("lossless", "a no-loss claim survives a round trip", _lossless_claim_is_true),
 )

@@ -29,9 +29,9 @@ def test_numbers_survive_the_round_trip(round_trip):
         restored = connector.open(original.meta.id)
         assert len(restored) == len(original)
         for spec in original.schema:
-            assert np.allclose(
-                restored.array(spec.name), original.array(spec.name), atol=1e-6
-            ), spec.name
+            assert np.allclose(restored.array(spec.name), original.array(spec.name), atol=1e-6), (
+                spec.name
+            )
 
 
 def test_meaning_survives_only_with_the_sidecar(round_trip):

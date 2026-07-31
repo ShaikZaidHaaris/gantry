@@ -124,10 +124,7 @@ class _Hdf5Source:
         stop = self._length if stop is None else min(stop, self._length)
         with h5py.File(self._path, "r") as handle:
             group = handle["data"][self._demo]
-            return {
-                name: np.asarray(group[self._columns[name]][start:stop])
-                for name in wanted
-            }
+            return {name: np.asarray(group[self._columns[name]][start:stop]) for name in wanted}
 
 
 class RoboMimicConnector(Connector):
@@ -152,9 +149,7 @@ class RoboMimicConnector(Connector):
 
         with h5py.File(self._path, "r") as handle:
             if "data" not in handle:
-                raise ConfigError(
-                    f"{self._path}: no 'data' group, so this is not a RoboMimic file"
-                )
+                raise ConfigError(f"{self._path}: no 'data' group, so this is not a RoboMimic file")
             data = handle["data"]
             self._env = self._read_env(data)
             self._demos = self._order(list(data.keys()))
@@ -273,9 +268,7 @@ class RoboMimicConnector(Connector):
                 extra={"path": str(self._path)},
             ),
             schema=self._schema,
-            source=_Hdf5Source(
-                self._path, episode_id, self._columns, self._lengths[episode_id]
-            ),
+            source=_Hdf5Source(self._path, episode_id, self._columns, self._lengths[episode_id]),
             labels=EpisodeLabels(success=self._outcomes[episode_id]),
         )
 

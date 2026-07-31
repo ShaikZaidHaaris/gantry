@@ -96,9 +96,7 @@ def test_two_grippers_of_equal_width_are_still_not_interchangeable():
 
 
 def test_converting_a_shut_hand_gives_the_targets_own_shut_reading():
-    out = GripperAperture(RETHINK, PANDA).apply(
-        steps(RETHINK, 0.0), state(RETHINK), state(PANDA)
-    )
+    out = GripperAperture(RETHINK, PANDA).apply(steps(RETHINK, 0.0), state(RETHINK), state(PANDA))
     assert out[0, 6:] == pytest.approx(np.array(PANDA.closed), abs=1e-6)
 
 
@@ -182,9 +180,7 @@ def test_the_target_spec_relabels_the_hand_and_keeps_the_pose():
 
 
 def test_it_passes_the_conformance_kit():
-    verdict = check_retargeter(
-        GripperAperture(ROBOTIQ85, PANDA), state(ROBOTIQ85), state(PANDA)
-    )
+    verdict = check_retargeter(GripperAperture(ROBOTIQ85, PANDA), state(ROBOTIQ85), state(PANDA))
     assert verdict.ok, verdict.explain()
 
 

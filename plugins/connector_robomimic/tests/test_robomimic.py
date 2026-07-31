@@ -99,8 +99,14 @@ def test_a_scalar_first_consumer_is_refused_without_a_converter(dataset):
 
     provided = {s.name: s for s in RoboMimicConnector(dataset).schema("demo_0")}["robot0_eef_quat"]
     wanted = ChannelSpec(
-        "robot0_eef_quat", "vector", (4,), provided.dtype, units="1", frame="world",
-        semantics="state.eef_quat", discriminators=("rotation_repr",),
+        "robot0_eef_quat",
+        "vector",
+        (4,),
+        provided.dtype,
+        units="1",
+        frame="world",
+        semantics="state.eef_quat",
+        discriminators=("rotation_repr",),
         metadata={"rotation_repr": "quat_wxyz"},
     )
     assert "metadata.mismatch" in compatible(provided, wanted).codes()
@@ -112,11 +118,16 @@ def test_the_rotation_adapter_closes_it(dataset):
     from gantry.resolve import AdapterRegistry, bind_channel, requires_channels
     from gantry.spine import ChannelSpec
 
-
     provided = {s.name: s for s in RoboMimicConnector(dataset).schema("demo_0")}["robot0_eef_quat"]
     wanted = ChannelSpec(
-        "robot0_eef_quat", "vector", (4,), provided.dtype, units="1", frame="world",
-        semantics="state.eef_quat", discriminators=("rotation_repr",),
+        "robot0_eef_quat",
+        "vector",
+        (4,),
+        provided.dtype,
+        units="1",
+        frame="world",
+        semantics="state.eef_quat",
+        discriminators=("rotation_repr",),
         metadata={"rotation_repr": "quat_wxyz"},
     )
     # A bare quaternion is entirely rotation, which is the one unambiguous
@@ -137,9 +148,7 @@ def test_an_unrecognised_key_is_left_undescribed(dataset):
 
 
 def test_overrides_win_over_the_convention(dataset):
-    connector = RoboMimicConnector(
-        dataset, schema_overrides={"robot0_eef_pos": {"units": "mm"}}
-    )
+    connector = RoboMimicConnector(dataset, schema_overrides={"robot0_eef_pos": {"units": "mm"}})
     schema = {s.name: s for s in connector.schema("demo_0")}
     assert schema["robot0_eef_pos"].units == "mm"
 

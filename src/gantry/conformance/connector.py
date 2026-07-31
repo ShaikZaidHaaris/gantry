@@ -260,8 +260,7 @@ def _channels_described(context: Context) -> Verdict:
             if spec.kind not in NUMERIC_KINDS or spec.units or spec.semantics:
                 continue
             message = (
-                f"{episode.meta.uid}: channel {spec.name!r} declares neither units "
-                "nor semantics"
+                f"{episode.meta.uid}: channel {spec.name!r} declares neither units nor semantics"
             )
             hint = "supply a schema sidecar, or it can only be matched by name and width"
             checks.append(
@@ -280,7 +279,9 @@ CHECKS: tuple[Check, ...] = (
     Check("ids_unique", "episode ids are unique", _ids_unique),
     Check("schema_matches_open", "schema() agrees with open().schema", _schema_matches_open),
     Check("records_valid", "sampled records validate against their own schema", _records_valid),
-    Check("reads_selective", "reads honour the requested channels and window", _reads_are_selective),
+    Check(
+        "reads_selective", "reads honour the requested channels and window", _reads_are_selective
+    ),
     Check("reads_deterministic", "two opens return identical data", _reads_are_deterministic),
     Check("unknown_id", "an unknown id raises KeyError", _unknown_id_raises),
     Check("namespaced", "episode ids are namespaced by a source", _ids_are_namespaced),

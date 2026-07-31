@@ -284,9 +284,7 @@ class FeedbackModule(ABC):
         absent = [
             plane
             for plane in held
-            if all(
-                (cohort.provenance or empty).component(plane) is None for cohort in cohorts
-            )
+            if all((cohort.provenance or empty).component(plane) is None for cohort in cohorts)
         ]
         if absent and len(absent) == len(held):
             # Nothing downstream existed for any cohort — the ordinary shape of

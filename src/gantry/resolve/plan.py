@@ -68,9 +68,7 @@ class Wiring:
     @property
     def transforms(self) -> tuple[tuple[str, str], ...]:
         """``(name, kind)`` for each step, so an adapter reads apart from a retargeter."""
-        return tuple(
-            (step.name, step.kind) for binding in self.bindings for step in binding.chain
-        )
+        return tuple((step.name, step.kind) for binding in self.bindings for step in binding.chain)
 
     @property
     def lossy(self) -> bool:

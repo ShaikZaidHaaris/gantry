@@ -41,7 +41,9 @@ class ContractVersion:
         try:
             return cls(name, int(major), int(minor or 0))
         except ValueError as error:
-            raise ValueError(f"malformed contract version {text!r}; want 'name@major.minor'") from error
+            raise ValueError(
+                f"malformed contract version {text!r}; want 'name@major.minor'"
+            ) from error
 
     def __str__(self) -> str:
         return f"{self.name}@{self.major}.{self.minor}"
@@ -86,9 +88,7 @@ class Descriptor:
 
     def __post_init__(self) -> None:
         if self.plane not in known_planes():
-            raise ValueError(
-                f"unknown plane {self.plane!r}; expected one of {known_planes()}"
-            )
+            raise ValueError(f"unknown plane {self.plane!r}; expected one of {known_planes()}")
         if self.isolation not in ISOLATION:
             raise ValueError(f"unknown isolation {self.isolation!r}; expected one of {ISOLATION}")
         ContractVersion.parse(self.contract)

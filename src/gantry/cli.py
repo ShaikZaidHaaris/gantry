@@ -83,8 +83,10 @@ def cmd_plan(args: argparse.Namespace) -> int:
     if not verdict.ok:
         return EXIT_REFUSED
     kind = "evaluate then analyse" if manifest.evaluates else "analyse as recorded"
-    print(f"  would {kind}: {len(manifest.cohorts)} cohort(s), "
-          f"{len(manifest.feedback)} feedback module(s)")
+    print(
+        f"  would {kind}: {len(manifest.cohorts)} cohort(s), "
+        f"{len(manifest.feedback)} feedback module(s)"
+    )
     return EXIT_OK
 
 
@@ -296,8 +298,10 @@ def cmd_relink(args: argparse.Namespace) -> int:
         )
         out = args.rewrite_plan_out or (str(args.rewrite_plan) + ".relinked.json")
         write_plan(rewritten, out)
-        print(f"plan translated: {len(plan.drops)} name(s) -> {len(translated)} in the "
-              f"target's vocabulary, written to {out}")
+        print(
+            f"plan translated: {len(plan.drops)} name(s) -> {len(translated)} in the "
+            f"target's vocabulary, written to {out}"
+        )
     return 0
 
 
@@ -466,8 +470,10 @@ def cmd_annotate(args: argparse.Namespace) -> int:
         scorer = registry.get("scorer", args.scorer).factory
         page = scorer.annotate(trials, task, out / "index.html", rater=args.rater or "")
     except KeyError:
-        print(f"no scorer named {args.scorer!r}; installed: "
-              f"{list(registry.names('scorer')) or 'none'}")
+        print(
+            f"no scorer named {args.scorer!r}; installed: "
+            f"{list(registry.names('scorer')) or 'none'}"
+        )
         return 1
     except GantryError as error:
         print(f"{args.scorer!r}: {error}")
@@ -624,9 +630,7 @@ def build_parser() -> argparse.ArgumentParser:
     calibrate.add_argument("--machine", help="JSON of {trial: {criterion: passed}}")
     calibrate.add_argument("--scorer", default="human", help="which scorer wrote the sessions")
     calibrate.add_argument("--reference", help="the judge others are measured against")
-    calibrate.add_argument(
-        "--against", help="gate this judge; exits nonzero if it is uncalibrated"
-    )
+    calibrate.add_argument("--against", help="gate this judge; exits nonzero if it is uncalibrated")
     calibrate.set_defaults(func=cmd_calibrate)
 
     ci = subparsers.add_parser(

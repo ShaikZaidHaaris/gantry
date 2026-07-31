@@ -279,6 +279,4 @@ class TaskSource(ABC):
 
     def staged_by(self, world: str) -> tuple[str, ...]:
         """Which of these tasks a given world knows how to set up."""
-        return tuple(
-            name for name in self.names() if self.task(name).staged_by(world) is not None
-        )
+        return tuple(name for name in self.names() if self.task(name).staged_by(world) is not None)

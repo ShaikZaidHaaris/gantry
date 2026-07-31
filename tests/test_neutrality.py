@@ -23,15 +23,41 @@ ALLOWED_THIRD_PARTY = {"numpy"}
 # against source text outside of this file.
 FORBIDDEN_NAMES = [
     # dataset formats / hubs
-    "lerobot", "robomimic", "rlds", "tfds", "rosbag", "huggingface",
+    "lerobot",
+    "robomimic",
+    "rlds",
+    "tfds",
+    "rosbag",
+    "huggingface",
     # simulators
-    "robosuite", "mujoco", "libero", "isaac", "maniskill", "pybullet", "gymnasium",
+    "robosuite",
+    "mujoco",
+    "libero",
+    "isaac",
+    "maniskill",
+    "pybullet",
+    "gymnasium",
     # policies / model families
-    "gr00t", "groot", "octo", "openvla", "spatialvla", "diffusion_policy", "act_policy",
+    "gr00t",
+    "groot",
+    "octo",
+    "openvla",
+    "spatialvla",
+    "diffusion_policy",
+    "act_policy",
     # frameworks a plugin might need but core must not
-    "torch", "tensorflow", "jax", "transformers",
+    "torch",
+    "tensorflow",
+    "jax",
+    "transformers",
     # embodiments
-    "franka", "panda", "ur5", "widowx", "aloha", "yam", "unitree",
+    "franka",
+    "panda",
+    "ur5",
+    "widowx",
+    "aloha",
+    "yam",
+    "unitree",
 ]
 
 
@@ -79,8 +105,7 @@ def test_core_names_no_specific_implementation() -> None:
     # Word boundaries, not substrings: "yaml" contains a robot's name, and a
     # test that fires on innocent words is a test somebody eventually deletes.
     patterns = {
-        name: re.compile(rf"(?<![a-z0-9]){re.escape(name)}(?![a-z0-9])")
-        for name in FORBIDDEN_NAMES
+        name: re.compile(rf"(?<![a-z0-9]){re.escape(name)}(?![a-z0-9])") for name in FORBIDDEN_NAMES
     }
     for path in _core_files():
         text = path.read_text().lower()
@@ -88,5 +113,5 @@ def test_core_names_no_specific_implementation() -> None:
         if hits:
             offenders[str(path.relative_to(CORE))] = hits
     assert not offenders, (
-        "core named a specific implementation, which breaks plane neutrality: " f"{offenders}"
+        f"core named a specific implementation, which breaks plane neutrality: {offenders}"
     )

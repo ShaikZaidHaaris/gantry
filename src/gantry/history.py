@@ -130,8 +130,16 @@ def summarise(record: RunRecord) -> dict[str, Any]:
 
 
 _SUMMARY_FIELDS = {
-    "task", "embodiment", "policy", "evaluation", "scorer",
-    "rate", "n", "trials", "outcomes", "created_at",
+    "task",
+    "embodiment",
+    "policy",
+    "evaluation",
+    "scorer",
+    "rate",
+    "n",
+    "trials",
+    "outcomes",
+    "created_at",
 }
 
 
@@ -178,8 +186,7 @@ class History:
         directory.mkdir(parents=True, exist_ok=True)
         target = directory / f"{_pin_name(task, embodiment)}.json"
         target.write_text(
-            json.dumps({"task": task, "embodiment": embodiment, "run": key}, indent=2)
-            + "\n"
+            json.dumps({"task": task, "embodiment": embodiment, "run": key}, indent=2) + "\n"
         )
         return target
 
@@ -225,9 +232,7 @@ class History:
         if unknown:
             raise ValueError(f"history has no field(s) {sorted(unknown)}")
         return tuple(
-            row
-            for row in self
-            if all(getattr(row, key) == value for key, value in wanted.items())
+            row for row in self if all(getattr(row, key) == value for key, value in wanted.items())
         )
 
     # -- what it is for ----------------------------------------------------
@@ -240,18 +245,14 @@ class History:
                 return self.get(str(json.loads(path.read_text()).get("run", "")))
         return None
 
-    def rate_for(
-        self, task: str, embodiment: str | None = None
-    ) -> Measurement | None:
+    def rate_for(self, task: str, embodiment: str | None = None) -> Measurement | None:
         """What success rate this task has historically produced.
 
         The number sizing needs, from evidence rather than from whoever is
         typing. ``None`` until there is evidence.
         """
         rates = [
-            row.rate
-            for row in self.query(task=task, embodiment=embodiment)
-            if row.rate is not None
+            row.rate for row in self.query(task=task, embodiment=embodiment) if row.rate is not None
         ]
         if not rates:
             return None

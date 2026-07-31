@@ -95,9 +95,7 @@ def contract_for(name: str) -> str | None:
 def entry_point_groups() -> Mapping[str, str]:
     """Group -> plane, for discovery. Derived, never maintained by hand."""
     return {
-        plane.entry_point_group: plane.name
-        for plane in _PLANES.values()
-        if plane.entry_point_group
+        plane.entry_point_group: plane.name for plane in _PLANES.values() if plane.entry_point_group
     }
 
 
@@ -135,8 +133,7 @@ for _plane in (
     ),
     Plane(
         "curation",
-        "what to do to the data, said precisely enough to be applied and to be "
-        "found wrong",
+        "what to do to the data, said precisely enough to be applied and to be found wrong",
         contract="curation@1.0",
         entry_point_group="gantry.curators",
         cardinality=MANY,

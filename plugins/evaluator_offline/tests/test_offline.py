@@ -53,9 +53,11 @@ def test_error_recovers_the_noise_variance():
     """MSE of replay-plus-noise should land on sigma squared."""
     ev = evaluator()
     for sigma in (0.05, 0.2):
-        mse = ev.evaluate(
-            NoisyReplayPolicy(ACTION, sigma=sigma), ev.task_for()
-        ).metrics["action_mse"].value
+        mse = (
+            ev.evaluate(NoisyReplayPolicy(ACTION, sigma=sigma), ev.task_for())
+            .metrics["action_mse"]
+            .value
+        )
         assert mse == pytest.approx(sigma**2, rel=0.15)
 
 

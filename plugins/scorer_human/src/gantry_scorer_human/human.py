@@ -82,9 +82,7 @@ class Session:
                 )
             )
         if not self.judgements:
-            checks.append(
-                Verdict.no("session.empty", f"{self.rater!r} judged nothing")
-            )
+            checks.append(Verdict.no("session.empty", f"{self.rater!r} judged nothing"))
         abstained = sum(
             1
             for verdicts in self.judgements.values()
@@ -96,8 +94,7 @@ class Session:
             checks.append(
                 Verdict.note(
                     "session.abstains_often",
-                    f"{self.rater!r} could not tell on {abstained} of {total} "
-                    "judgement(s)",
+                    f"{self.rater!r} could not tell on {abstained} of {total} judgement(s)",
                     hint="a rubric that produces this many abstentions needs "
                     "rewriting before it reaches a bench",
                 )
@@ -109,18 +106,12 @@ class Session:
         total = sum(len(v) for v in self.judgements.values())
         if not total:
             return 0.0
-        return sum(
-            1 for v in self.judgements.values() for x in v.values() if x is None
-        ) / total
+        return sum(1 for v in self.judgements.values() for x in v.values() if x is None) / total
 
 
 def read_session(path: str | Path) -> Session:
     """Read a session back from the JSONL the page wrote."""
-    lines = [
-        json.loads(line)
-        for line in Path(path).read_text().splitlines()
-        if line.strip()
-    ]
+    lines = [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
     if not lines:
         return Session(rater="")
     rater = str(lines[0].get("rater", ""))
@@ -133,9 +124,7 @@ def read_session(path: str | Path) -> Session:
         if not trial or not criterion:
             continue
         verdict = row.get("passed")
-        judgements.setdefault(trial, {})[criterion] = (
-            None if verdict is None else bool(verdict)
-        )
+        judgements.setdefault(trial, {})[criterion] = None if verdict is None else bool(verdict)
         if row.get("note"):
             notes[trial] = str(row["note"])
         task = task or row.get("task")
@@ -158,8 +147,7 @@ def write_page(
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     criteria = [
-        {"check": c.check, "rubric": c.rubric}
-        for c in (getattr(task, "success", ()) or ())
+        {"check": c.check, "rubric": c.rubric} for c in (getattr(task, "success", ()) or ())
     ]
     payload = {
         "task": getattr(task, "name", "unknown"),
@@ -310,9 +298,7 @@ class HumanScorer(Scorer):
     """
 
     def __init__(self, session: Session | str | Path, *, name: str = "human"):
-        self._session = (
-            session if isinstance(session, Session) else read_session(session)
-        )
+        self._session = session if isinstance(session, Session) else read_session(session)
         self._name = name
 
     @property
@@ -354,9 +340,8 @@ class HumanScorer(Scorer):
         for criterion in getattr(task, "success", ()) or ():
             if criterion.check in recorded:
                 verdict = recorded[criterion.check]
-                why = (
-                    f"{self._session.rater or 'a rater'} watched the video"
-                    + (f": {note}" if note else "")
+                why = f"{self._session.rater or 'a rater'} watched the video" + (
+                    f": {note}" if note else ""
                 )
             else:
                 # Nobody scored this trial. An abstention rather than a failure:
@@ -365,8 +350,7 @@ class HumanScorer(Scorer):
                 # policy.
                 verdict = None
                 why = (
-                    f"{evidence.trial!r} was not scored in "
-                    f"{self._session.rater or 'this'} session"
+                    f"{evidence.trial!r} was not scored in {self._session.rater or 'this'} session"
                 )
             out.append(
                 Judgement(

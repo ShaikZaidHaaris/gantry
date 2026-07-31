@@ -13,7 +13,13 @@ from gantry.fixtures import (
 from gantry.fixtures import statistics as stats
 from gantry.spine import compatible
 
-BEHAVIOURAL = ["path_detour", "actuation_chatter", "actuation_jerk", "late_engagement", "never_completes"]
+BEHAVIOURAL = [
+    "path_detour",
+    "actuation_chatter",
+    "actuation_jerk",
+    "late_engagement",
+    "never_completes",
+]
 SCHEMA = ["unit_drift", "frame_drift"]
 
 
@@ -177,7 +183,9 @@ def test_unit_drift_is_caught_by_compatibility_not_by_any_statistic():
 def test_frame_drift_refuses_with_a_frame_code():
     hurt, well = paired("frame_drift")[0]
     assert np.array_equal(hurt.array("position"), well.array("position"))
-    assert "frame.mismatch" in compatible(hurt.channel("position"), well.channel("position")).codes()
+    assert (
+        "frame.mismatch" in compatible(hurt.channel("position"), well.channel("position")).codes()
+    )
 
 
 # -- the decoy: what a detector must NOT report ----------------------------

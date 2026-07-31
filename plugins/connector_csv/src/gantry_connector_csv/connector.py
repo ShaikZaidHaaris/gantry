@@ -198,8 +198,7 @@ class CsvConnector(Connector):
             header = tuple(next(csv.reader([header_line])))
             if EPISODE_COLUMN not in header:
                 raise ValueError(
-                    f"{self._path}: no {EPISODE_COLUMN!r} column; "
-                    f"found {list(header)[:8]}"
+                    f"{self._path}: no {EPISODE_COLUMN!r} column; found {list(header)[:8]}"
                 )
             episode_at = header.index(EPISODE_COLUMN)
             success_at = header.index(SUCCESS_COLUMN) if SUCCESS_COLUMN in header else None

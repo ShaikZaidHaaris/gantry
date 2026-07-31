@@ -121,9 +121,7 @@ class ComponentRef:
 
     def __post_init__(self) -> None:
         if self.plane not in known_planes():
-            raise ValueError(
-                f"unknown plane {self.plane!r}; expected one of {known_planes()}"
-            )
+            raise ValueError(f"unknown plane {self.plane!r}; expected one of {known_planes()}")
 
     @property
     def ref(self) -> str:

@@ -137,9 +137,7 @@ class FromFailures(Curator):
             cap=self._cap,
         )
 
-    def propose(
-        self, episodes: Sequence[Any], runs: Sequence[Any] = ()
-    ) -> CurationPlan:
+    def propose(self, episodes: Sequence[Any], runs: Sequence[Any] = ()) -> CurationPlan:
         seeds, tasks, stages = failure_scenes(runs)
         task = Counter(tasks).most_common(1)[0][0] if tasks else "unknown"
         named = [stage for stage, _ in stages.most_common() if stage != "unknown"]

@@ -124,7 +124,10 @@ class Harden(FeedbackModule):
 
     def descriptor(self) -> Descriptor:
         return feedback_descriptor(
-            "harden", VERSION, min_cohorts=2, prescribes=True,
+            "harden",
+            VERSION,
+            min_cohorts=2,
+            prescribes=True,
             holds=("policy", "evaluation"),
         )
 
@@ -185,8 +188,9 @@ class Harden(FeedbackModule):
             )
         if not findings:
             notes.append("nothing fired consistently enough to classify")
-        return Report("harden", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "harden", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
+        )
 
 
 def _summarise(name: str, verdict: str, firing: Sequence[PerCohort], total: int) -> str:

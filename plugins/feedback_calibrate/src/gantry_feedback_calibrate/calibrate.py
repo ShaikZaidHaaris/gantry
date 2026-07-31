@@ -100,9 +100,7 @@ class Corpus:
     """
 
     #: ``{judge: {trial: {criterion: passed}}}``
-    labels: Mapping[str, Mapping[str, Mapping[str, bool | None]]] = field(
-        default_factory=dict
-    )
+    labels: Mapping[str, Mapping[str, Mapping[str, bool | None]]] = field(default_factory=dict)
     #: Per-trial facts a bias check needs — episode length, presentation order.
     context: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     task: str | None = None
@@ -131,9 +129,7 @@ class Corpus:
 
     def abstention_rate(self, judge: str) -> float:
         verdicts = [
-            value
-            for trial in self.labels.get(judge, {}).values()
-            for value in trial.values()
+            value for trial in self.labels.get(judge, {}).values() for value in trial.values()
         ]
         if not verdicts:
             return 0.0
@@ -145,9 +141,7 @@ def agreement(corpus: Corpus, left: str, right: str) -> Measurement:
     a, b = corpus.aligned(left, right)
     pairs = [(x, y) for x, y in zip(a, b) if x is not None and y is not None]
     kappa = cohen_kappa(a, b)
-    raw = (
-        sum(1 for x, y in pairs if x == y) / len(pairs) if pairs else float("nan")
-    )
+    raw = sum(1 for x, y in pairs if x == y) / len(pairs) if pairs else float("nan")
     return Measurement(
         value=round(kappa, 4) if kappa == kappa else float("nan"),
         n=len(pairs),
@@ -328,9 +322,7 @@ class Calibration(FeedbackModule):
                 findings.append(
                     Finding(
                         code="judge.abstains_often",
-                        summary=(
-                            f"{judge} could not tell on {rate:.0%} of judgements"
-                        ),
+                        summary=(f"{judge} could not tell on {rate:.0%} of judgements"),
                         severity="info",
                         prescription=(
                             "Usually the rubric rather than the judge. Finding this "
@@ -345,8 +337,7 @@ class Calibration(FeedbackModule):
                 measurements[f"{judge}.length_bias"] = bias
                 if abs(bias.value) > 0.25:
                     findings.append(
-                        Finding
-                        (
+                        Finding(
                             code="judge.bias.length",
                             summary=(
                                 f"{judge}'s verdicts track episode length: passed "
@@ -373,7 +364,8 @@ class Calibration(FeedbackModule):
                     for trial in corpus.shared_trials()
                     for criterion in sorted(
                         set().union(*(set(corpus.labels[j].get(trial, {})) for j in judges))
-                        if trial else set()
+                        if trial
+                        else set()
                     )
                 ]
                 for judge in judges

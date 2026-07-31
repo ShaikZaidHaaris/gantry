@@ -92,8 +92,7 @@ class GripperCalibration:
             checks.append(
                 Verdict.no(
                     "gripper.ragged_calibration",
-                    f"{self.name}: closed has {len(self.closed)} values, open has "
-                    f"{len(self.open)}",
+                    f"{self.name}: closed has {len(self.closed)} values, open has {len(self.open)}",
                 )
             )
         elif float(np.linalg.norm(self.travel)) < MIN_TRAVEL:
@@ -268,9 +267,7 @@ class GripperAperture(Retargeter):
             "grip force and contact state are not represented at either end",
         )
 
-    def apply(
-        self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec
-    ) -> np.ndarray:
+    def apply(self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.ndarray:
         self.check(source, target).raise_if_refused(f"{self.name} cannot map this pair")
         array = np.atleast_2d(np.asarray(values, dtype=np.float64))
         pose, hand = array[:, :POSE_WIDTH], array[:, POSE_WIDTH:]

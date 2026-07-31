@@ -62,8 +62,13 @@ class Attribution(FeedbackModule):
         findings, measurements, notes = [], {}, []
         for cohort in cohorts:
             findings.extend(self._one(cohort, measurements, notes))
-        return Report("attribution", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "attribution",
+            tuple(findings),
+            measurements,
+            tuple(notes),
+            tuple(c.name for c in cohorts),
+        )
 
     def _one(self, cohort: Cohort, measurements: dict, notes: list) -> list[Finding]:
         episodes = [e for e in cohort.episodes if e.labels.success is not None]
@@ -100,12 +105,15 @@ class Attribution(FeedbackModule):
             with_duration = st.spearman(column.get(name, lengths), lengths)
 
             measurements[f"{cohort.name}.{name}"] = Measurement(
-                delta, n=len(episodes), method="cliffs_delta",
+                delta,
+                n=len(episodes),
+                method="cliffs_delta",
                 detail={"p": corrected.p, "q": corrected.q},
             )
             findings.append(
                 Finding(
-                    code="attribution.associated" if statistic.prescribable
+                    code="attribution.associated"
+                    if statistic.prescribable
                     else "attribution.context",
                     summary=(
                         f"{cohort.name}: {name} separates success from failure "

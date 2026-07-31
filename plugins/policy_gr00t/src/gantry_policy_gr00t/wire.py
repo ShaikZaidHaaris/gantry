@@ -196,7 +196,9 @@ class Client:
             raise ComponentError(f"{self.endpoint.address}: server refused {endpoint!r}")
         reply = Codec.from_bytes(raw)
         if isinstance(reply, Mapping) and "error" in reply:
-            raise ComponentError(f"{self.endpoint.address} raised on {endpoint!r}: {reply['error']}")
+            raise ComponentError(
+                f"{self.endpoint.address} raised on {endpoint!r}: {reply['error']}"
+            )
         return reply
 
     def _silent(self, endpoint: str, error: Exception) -> Exception:

@@ -339,9 +339,11 @@ def performance_profile(
     mediocre everywhere, one excellent on half the tasks and hopeless on the
     rest. A table of means cannot tell those apart and a profile cannot hide it.
     """
-    flat = np.concatenate(
-        [np.asarray(list(row), dtype=np.float64) for row in matrix if len(row)]
-    ) if any(len(r) for r in matrix) else np.array([])
+    flat = (
+        np.concatenate([np.asarray(list(row), dtype=np.float64) for row in matrix if len(row)])
+        if any(len(r) for r in matrix)
+        else np.array([])
+    )
     if flat.size == 0:
         return ()
     taus = (
@@ -463,15 +465,16 @@ def ppi_mean(
     rectifier = float((yr - lam * yp).mean())
     centre = lam * float(up.mean()) + rectifier
     var = (
-        float(np.var(yr - lam * yp, ddof=1)) / n
-        + (lam**2) * float(up.var(ddof=1)) / big
+        float(np.var(yr - lam * yp, ddof=1)) / n + (lam**2) * float(up.var(ddof=1)) / big
         if big > 1
         else float(np.var(yr - lam * yp, ddof=1)) / n
     )
     half = 1.959963985 * sqrt(max(var, 0.0))
     naive_half = 1.959963985 * float(yr.std(ddof=1)) / sqrt(n) if n > 1 else float("inf")
     leverage = (
-        float(np.clip(1.0 - half / naive_half, 0.0, 1.0)) if isfinite(naive_half) and naive_half > 0 else 0.0
+        float(np.clip(1.0 - half / naive_half, 0.0, 1.0))
+        if isfinite(naive_half) and naive_half > 0
+        else 0.0
     )
     return Rectified(
         float(np.clip(centre, 0.0, 1.0)),
@@ -507,8 +510,7 @@ def cohen_kappa(left: Sequence[Any], right: Sequence[Any]) -> float:
     observed = sum(1 for a, b in pairs if a == b) / n
     labels = {a for a, _ in pairs} | {b for _, b in pairs}
     expected = sum(
-        (sum(1 for a, _ in pairs if a == label) / n)
-        * (sum(1 for _, b in pairs if b == label) / n)
+        (sum(1 for a, _ in pairs if a == label) / n) * (sum(1 for _, b in pairs if b == label) / n)
         for label in labels
     )
     if expected >= 1.0:

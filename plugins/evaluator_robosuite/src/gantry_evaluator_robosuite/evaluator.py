@@ -130,7 +130,11 @@ def _with_body(env_meta: Mapping[str, Any], embodiment: Any) -> dict[str, Any]:
 #: OSC_POSE, which is what the robomimic datasets were collected with: three
 #: position deltas, three orientation deltas, one gripper command.
 OSC_POSE = ChannelSpec(
-    "actions", "vector", (7,), "float32", semantics="actuation",
+    "actions",
+    "vector",
+    (7,),
+    "float32",
+    semantics="actuation",
     dim_labels=("dx", "dy", "dz", "droll", "dpitch", "dyaw", "gripper"),
 )
 
@@ -216,7 +220,9 @@ class _Native:
             self._env.close()
 
 
-def build_native_env(env_meta: Mapping[str, Any], *, use_image_obs: bool = False, **kwargs: Any) -> Any:
+def build_native_env(
+    env_meta: Mapping[str, Any], *, use_image_obs: bool = False, **kwargs: Any
+) -> Any:
     """Rebuild the world with robosuite alone, no robomimic.
 
     Pass as ``factory=build_native_env`` where robomimic is absent or pinned
@@ -227,8 +233,7 @@ def build_native_env(env_meta: Mapping[str, Any], *, use_image_obs: bool = False
         import robosuite
     except ImportError as error:  # pragma: no cover - needs the simulator
         raise ConfigError(
-            "running robosuite needs the simulator: pip install "
-            "'gantry-evaluator-robosuite[sim]'"
+            "running robosuite needs the simulator: pip install 'gantry-evaluator-robosuite[sim]'"
         ) from error
     from robosuite.utils.errors import RandomizationError
 
@@ -272,8 +277,7 @@ def build_native_env(env_meta: Mapping[str, Any], *, use_image_obs: bool = False
             return robosuite.make(env_name=name, **settings, **extra)
         except AssertionError as error:
             raise ConfigError(
-                f"{name} will not host this configuration: "
-                f"{str(error).splitlines()[0].strip()}"
+                f"{name} will not host this configuration: {str(error).splitlines()[0].strip()}"
             ) from error
 
     if not placements:
@@ -469,7 +473,9 @@ class RobosuiteEvaluator(Evaluator):
 
     def requires(self) -> Requirement:
         return requires_channels(
-            self._name, "evaluation", self._action,
+            self._name,
+            "evaluation",
+            self._action,
             description=f"a policy commanding {self.task_name} through its controller",
         )
 
@@ -491,10 +497,17 @@ class RobosuiteEvaluator(Evaluator):
                 "bodies: the layout is drawn the same way and each starts at its own home"
             )
         return RobosuiteEvaluator(
-            self.env_meta, seeds=self.seeds, embodiment=embodiment,
-            name=self._name, observations=self._observations, action=self._action,
-            success=self._success, factory=self._factory, observe=self._observe,
-            use_image_obs=self._use_image_obs, instruction=self._instruction,
+            self.env_meta,
+            seeds=self.seeds,
+            embodiment=embodiment,
+            name=self._name,
+            observations=self._observations,
+            action=self._action,
+            success=self._success,
+            factory=self._factory,
+            observe=self._observe,
+            use_image_obs=self._use_image_obs,
+            instruction=self._instruction,
             definition=self.definition,
         )
 
@@ -520,14 +533,17 @@ class RobosuiteEvaluator(Evaluator):
         count = len(source) if scenes is None else min(scenes, len(source))
         if self.restores == "states":
             made = [
-                Scene(id=f"demo_{i}", instruction=self._instruction,
-                      metadata={"initial_state": i})
+                Scene(id=f"demo_{i}", instruction=self._instruction, metadata={"initial_state": i})
                 for i in range(count)
             ]
         else:
             made = [
-                Scene(id=f"seed_{self.seeds[i]}", instruction=self._instruction,
-                      seed=self.seeds[i], metadata={"initial_state": self.seeds[i]})
+                Scene(
+                    id=f"seed_{self.seeds[i]}",
+                    instruction=self._instruction,
+                    seed=self.seeds[i],
+                    metadata={"initial_state": self.seeds[i]},
+                )
                 for i in range(count)
             ]
         return TaskSpec(name=name or self.task_name, scenes=tuple(made), horizon=horizon)
@@ -580,9 +596,7 @@ class RobosuiteEvaluator(Evaluator):
         )
 
     def run(self, policy: Any, task: TaskSpec, protocol: Protocol) -> RunRecord:
-        trials = [
-            (scene, epoch) for scene in task.scenes for epoch in range(protocol.epochs)
-        ]
+        trials = [(scene, epoch) for scene in task.scenes for epoch in range(protocol.epochs)]
         if protocol.max_trials is not None:
             trials = trials[: protocol.max_trials]
 
@@ -603,7 +617,9 @@ class RobosuiteEvaluator(Evaluator):
         env = self.env
         if self.restores == "states":
             env.reset()
-            raw = env.reset_to({"states": self.initial_states[int(scene.metadata["initial_state"])]})
+            raw = env.reset_to(
+                {"states": self.initial_states[int(scene.metadata["initial_state"])]}
+            )
         else:
             # The simulator draws its own layout under a fixed seed, and the
             # robot starts at its own home pose. The only way a scene can mean
@@ -619,12 +635,10 @@ class RobosuiteEvaluator(Evaluator):
             # the run, not be recorded as twenty separate failures.
             self._checked = True
             self.fits(policy, observation).raise_if_refused(
-                f"{self.name} cannot show {getattr(policy, 'name', 'this policy')} "
-                "what it reads"
+                f"{self.name} cannot show {getattr(policy, 'name', 'this policy')} what it reads"
             )
         policy.reset(
-            EpisodeContext(scene.id, scene.instruction,
-                           seed=int(scene.metadata['initial_state']))
+            EpisodeContext(scene.id, scene.instruction, seed=int(scene.metadata["initial_state"]))
         )
 
         trial = _Trial()
@@ -686,20 +700,26 @@ class RobosuiteEvaluator(Evaluator):
         }
         if not trial.actions:
             return episode_from_labels(
-                id=eid, source=task.name,
+                id=eid,
+                source=task.name,
                 labels=EpisodeLabels(success=None, annotations=annotations),
-                task=task.name, embodiment=self._embodiment(),
+                task=task.name,
+                embodiment=self._embodiment(),
             )
         arrays = {key: np.asarray(values) for key, values in trial.frames.items()}
         arrays[self._action.name] = np.asarray(trial.actions, dtype="float32")
         arrays["reward"] = np.asarray(trial.rewards[: len(trial.actions)], dtype="float32")
         return episode_from_arrays(
-            arrays, self._schema(trial), id=eid, source=task.name,
+            arrays,
+            self._schema(trial),
+            id=eid,
+            source=task.name,
             labels=EpisodeLabels(
                 success=None if error else trial.success,
                 annotations={**annotations, "return": float(sum(trial.rewards))},
             ),
-            task=task.name, embodiment=self._embodiment(),
+            task=task.name,
+            embodiment=self._embodiment(),
         )
 
     def _embodiment(self) -> str | None:

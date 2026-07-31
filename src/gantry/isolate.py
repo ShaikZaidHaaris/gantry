@@ -42,6 +42,7 @@ from .spine import ChannelSpec, Descriptor, EpisodeRecord, Verdict
 #: Isolation levels that mean "not in this interpreter".
 ISOLATED = ("venv", "container")
 
+
 def PROXYABLE() -> tuple[str, ...]:
     """Planes that declared themselves proxyable. Others are refused."""
     from .spine import proxyable_planes
@@ -165,9 +166,7 @@ class RemoteConnector(Connector):
         python: str | os.PathLike[str] | None = None,
     ):
         self._worker = Worker(python)
-        reply = self._worker.ask(
-            op="build", plane="dataset", name=name, config=dict(config or {})
-        )
+        reply = self._worker.ask(op="build", plane="dataset", name=name, config=dict(config or {}))
         self._descriptor = Descriptor.from_dict(reply["descriptor"])
         self._ids: tuple[str, ...] | None = None
 

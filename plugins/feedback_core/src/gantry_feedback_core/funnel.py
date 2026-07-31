@@ -126,7 +126,9 @@ def declared_stages(cohort: Cohort) -> tuple[str, ...] | None:
     return tuple(str(stage) for stage in declared)
 
 
-def build(episodes: Sequence[EpisodeRecord], stages: Sequence[str] | None = None) -> tuple[Step, ...]:
+def build(
+    episodes: Sequence[EpisodeRecord], stages: Sequence[str] | None = None
+) -> tuple[Step, ...]:
     """Conditional pass rates along the chain."""
     ordered = tuple(stages) if stages else stage_order(episodes)
     steps: list[Step] = []
@@ -203,9 +205,7 @@ class Funnel(FeedbackModule):
         findings, measurements, notes = [], {}, []
         for cohort in cohorts:
             if not cohort.has_stage_events:
-                notes.append(
-                    f"{cohort.name}: no stage events, so there is no funnel to build"
-                )
+                notes.append(f"{cohort.name}: no stage events, so there is no funnel to build")
                 continue
             stages, origin = self.stages_for(cohort)
             if origin.startswith("inferred"):
@@ -263,5 +263,6 @@ class Funnel(FeedbackModule):
                     cohorts=(cohort.name,),
                 )
             )
-        return Report("funnel", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "funnel", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
+        )

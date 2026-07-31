@@ -284,7 +284,9 @@ class ServedPolicy(Policy):
 
     def _gave_up(self, url: str, error: Exception | None) -> Exception:
         detail = f"{type(error).__name__}: {error}" if error else "no response"
-        attempts = f" after {self.endpoint.attempts} attempt(s)" if self.endpoint.attempts > 1 else ""
+        attempts = (
+            f" after {self.endpoint.attempts} attempt(s)" if self.endpoint.attempts > 1 else ""
+        )
         if not self._answered:
             return ConfigError(f"{self._name}: {url} has not answered once{attempts} ({detail})")
         return ComponentError(f"{self._name}: {url} did not answer{attempts} ({detail})")

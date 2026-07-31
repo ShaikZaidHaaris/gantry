@@ -120,7 +120,9 @@ def test_operator_context_survives(write):
 
 
 def test_ids_are_namespaced_by_the_task(write):
-    assert EvalLogConnector(write()).open("layout-0").meta.uid.startswith("kitchenbench/pour_pasta/")
+    assert (
+        EvalLogConnector(write()).open("layout-0").meta.uid.startswith("kitchenbench/pour_pasta/")
+    )
 
 
 # -- what the log genuinely does not contain -------------------------------
@@ -241,9 +243,7 @@ def test_invalid_json_is_refused(tmp_path):
 def test_the_funnel_is_refused_on_an_outcome_only_log(write):
     """The refusal that names what would run instead."""
     registry = Registry()
-    registry.register(
-        "dataset", "evallog", lambda **config: EvalLogConnector(**config)
-    )
+    registry.register("dataset", "evallog", lambda **config: EvalLogConnector(**config))
     resolution = resolve(
         registry,
         components={"dataset": {"name": "evallog", "config": {"path": str(write())}}},

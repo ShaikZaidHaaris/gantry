@@ -136,9 +136,7 @@ class Ledger:
                     round(sorted(e.delta for e in held)[len(held) // 2], 4) if held else None
                 ),
                 "rungs": sorted({e.rung for e in entries}),
-                "gpu_minutes": sum(
-                    float(e.cost.get("gpu_minutes", 0) or 0) for e in entries
-                ),
+                "gpu_minutes": sum(float(e.cost.get("gpu_minutes", 0) or 0) for e in entries),
             }
         return out
 
@@ -169,10 +167,7 @@ class Ledger:
         for a signal nobody has tested is the framework asserting something it
         does not know, and the whole point of the ledger is to stop guessing.
         """
-        relevant = [
-            e for e in self
-            if e.signal == signal and (task is None or task in e.tasks)
-        ]
+        relevant = [e for e in self if e.signal == signal and (task is None or task in e.tasks)]
         if not relevant:
             return None
         return round(sum(1 for e in relevant if e.held) / len(relevant), 3)

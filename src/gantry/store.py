@@ -142,8 +142,7 @@ def read_run(path: str | os.PathLike[str]) -> RunRecord:
 
     episodes = tuple(_episode_from_dict(entry, stored) for entry in payload.get("episodes") or ())
     metrics = {
-        name: measurement_from_dict(value)
-        for name, value in (payload.get("metrics") or {}).items()
+        name: measurement_from_dict(value) for name, value in (payload.get("metrics") or {}).items()
     }
     return RunRecord(provenance_from_dict(payload.get("provenance") or {}), episodes, metrics)
 

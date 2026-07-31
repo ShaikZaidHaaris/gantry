@@ -31,9 +31,7 @@ class Ep:
 def dataset(succeed: int, fail: int, unlabelled: int = 0, source="mg"):
     out = [Ep(Meta(f"{source}/{i}"), Labels(True)) for i in range(succeed)]
     out += [Ep(Meta(f"{source}/{succeed + i}"), Labels(False)) for i in range(fail)]
-    out += [
-        Ep(Meta(f"{source}/{succeed + fail + i}"), Labels(None)) for i in range(unlabelled)
-    ]
+    out += [Ep(Meta(f"{source}/{succeed + fail + i}"), Labels(None)) for i in range(unlabelled)]
     return out
 
 

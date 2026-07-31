@@ -153,9 +153,7 @@ class MatrixRanking(FeedbackModule):
                 cohorts=tuple(per_task),
             )
 
-        dropped = sorted(
-            {task for rates in per_task.values() for task in rates} - set(shared)
-        )
+        dropped = sorted({task for rates in per_task.values() for task in rates} - set(shared))
         if dropped:
             notes.append(
                 f"ranked over {len(shared)} shared task(s); {len(dropped)} attempted "
@@ -165,8 +163,7 @@ class MatrixRanking(FeedbackModule):
             )
 
         matrices = {
-            name: tuple((rates[task],) for task in shared)
-            for name, rates in per_task.items()
+            name: tuple((rates[task],) for task in shared) for name, rates in per_task.items()
         }
         floor_share = {
             name: sum(1 for task in shared if rates[task] <= FLOOR) / len(shared)

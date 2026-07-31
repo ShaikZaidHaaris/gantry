@@ -126,9 +126,7 @@ class Relinked:
         return Verdict.all(checks)
 
 
-def relink(
-    source: Sequence[Any], target: Sequence[Any], *, channel: str | None = None
-) -> Relinked:
+def relink(source: Sequence[Any], target: Sequence[Any], *, channel: str | None = None) -> Relinked:
     """Match converted episodes back to the ones they came from, by content.
 
     ``source`` is the collection the evidence lives in; ``target`` is the copy
@@ -154,9 +152,7 @@ def relink(
             ambiguous.append(uid)
         else:
             unmatched.append(uid)
-    return Relinked(
-        links=links, unmatched=tuple(unmatched), ambiguous=tuple(ambiguous)
-    )
+    return Relinked(links=links, unmatched=tuple(unmatched), ambiguous=tuple(ambiguous))
 
 
 def rename(plan_names: Sequence[str], links: Mapping[str, str]) -> tuple[str, ...]:

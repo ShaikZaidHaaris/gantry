@@ -142,8 +142,7 @@ def test_a_missing_component_on_the_new_plane_is_reported_like_any_other():
     verdict = check_manifest(manifest, Registry())
     assert "manifest.not_installed" in verdict.codes()
     assert any(
-        r.detail.get("plane") == "scheduling"
-        for r in verdict.because("manifest.not_installed")
+        r.detail.get("plane") == "scheduling" for r in verdict.because("manifest.not_installed")
     )
 
 

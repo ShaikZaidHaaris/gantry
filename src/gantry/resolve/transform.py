@@ -98,9 +98,7 @@ class Chain:
     def then(self, step: Step) -> "Chain":
         return Chain(self.steps + (step,))
 
-    def run(
-        self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec
-    ) -> np.ndarray:
+    def run(self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.ndarray:
         """Apply every step in planned order."""
         for step in self.steps:
             values = step.apply(values, source, target)

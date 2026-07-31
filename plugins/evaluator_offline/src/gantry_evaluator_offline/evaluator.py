@@ -161,9 +161,7 @@ class OfflineEvaluator(Evaluator):
         """
         self._episodes = {episode.meta.id: episode for episode in episodes}
         self._action_name = action_name
-        self._action_spec = action_spec or (
-            episodes[0].channel(action_name) if episodes else None
-        )
+        self._action_spec = action_spec or (episodes[0].channel(action_name) if episodes else None)
 
     @property
     def bound(self) -> bool:
@@ -202,9 +200,7 @@ class OfflineEvaluator(Evaluator):
         wildcard shape rather than guessed at. Binding narrows it to the
         recorded channel's actual spec.
         """
-        spec = self._action_spec or ChannelSpec(
-            self._action_name, "vector", (None,), "float32"
-        )
+        spec = self._action_spec or ChannelSpec(self._action_name, "vector", (None,), "float32")
         return requires_channels(
             "offline",
             "evaluation",

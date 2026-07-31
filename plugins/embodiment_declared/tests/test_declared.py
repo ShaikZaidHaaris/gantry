@@ -16,12 +16,22 @@ SPEC = {
     "version": "1.0",
     "control_hz": 20,
     "state": [
-        {"name": "joint_pos", "kind": "vector", "shape": [7], "units": "rad",
-         "semantics": "joint_position"}
+        {
+            "name": "joint_pos",
+            "kind": "vector",
+            "shape": [7],
+            "units": "rad",
+            "semantics": "joint_position",
+        }
     ],
     "action": [
-        {"name": "action", "kind": "vector", "shape": [7], "units": "rad",
-         "dim_labels": ["j1", "j2", "j3", "j4", "j5", "j6", "grip"]}
+        {
+            "name": "action",
+            "kind": "vector",
+            "shape": [7],
+            "units": "rad",
+            "dim_labels": ["j1", "j2", "j3", "j4", "j5", "j6", "grip"],
+        }
     ],
     "kinematics": "arm.urdf",
     "notes": "gripper: 1 open, -1 closed",
@@ -85,20 +95,36 @@ def test_a_channel_without_a_name_is_refused():
 
 def test_an_incoherent_machine_is_refused():
     with pytest.raises(IncompatibleError):
-        from_mapping({
-            "name": "x", "version": "1", "control_hz": -5,
-            "action": [{"name": "a", "kind": "vector", "shape": [3]}],
-        })
+        from_mapping(
+            {
+                "name": "x",
+                "version": "1",
+                "control_hz": -5,
+                "action": [{"name": "a", "kind": "vector", "shape": [3]}],
+            }
+        )
 
 
 # -- from a dataset's schema ------------------------------------------------
 
 
 SCHEMA = (
-    ChannelSpec("observation.state", "vector", (8,), "float32", rate_hz=20.0,
-                dim_labels=("x", "y", "z", "roll", "pitch", "yaw", "g.0", "g.1")),
-    ChannelSpec("action", "vector", (7,), "float32", rate_hz=20.0,
-                dim_labels=("x", "y", "z", "roll", "pitch", "yaw", "gripper")),
+    ChannelSpec(
+        "observation.state",
+        "vector",
+        (8,),
+        "float32",
+        rate_hz=20.0,
+        dim_labels=("x", "y", "z", "roll", "pitch", "yaw", "g.0", "g.1"),
+    ),
+    ChannelSpec(
+        "action",
+        "vector",
+        (7,),
+        "float32",
+        rate_hz=20.0,
+        dim_labels=("x", "y", "z", "roll", "pitch", "yaw", "gripper"),
+    ),
 )
 
 

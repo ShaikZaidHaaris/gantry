@@ -97,7 +97,9 @@ def _rate_is_declared(context: Context) -> Verdict:
 CHECKS: tuple[Check, ...] = (
     Check("describes_itself", "the descriptor is internally coherent", _describes_itself),
     Check("contract", "implements a compatible embodiment contract", _contract),
-    Check("channels_described", "physical channels declare units or meaning", _channels_are_described),
+    Check(
+        "channels_described", "physical channels declare units or meaning", _channels_are_described
+    ),
     Check("actions_labelled", "wide action channels name their dimensions", _actions_are_labelled),
     Check("control_rate", "a control rate is declared", _rate_is_declared),
 )
@@ -152,10 +154,13 @@ def check_retargeter(
 
     accepted = retargeter.check(source, target)
     if not accepted.ok:
-        return Verdict.no(
-            "conformance.declined",
-            f"{retargeter} declined the pair it was given, so nothing could be checked",
-        ) & accepted
+        return (
+            Verdict.no(
+                "conformance.declined",
+                f"{retargeter} declined the pair it was given, so nothing could be checked",
+            )
+            & accepted
+        )
 
     values = np.arange(samples * source.width, dtype=float).reshape(samples, source.width)
     try:
@@ -163,8 +168,7 @@ def check_retargeter(
     except Exception as error:  # noqa: BLE001
         return Verdict.no(
             "conformance.apply_raised",
-            f"{retargeter} accepted the pair then raised on apply: "
-            f"{type(error).__name__}: {error}",
+            f"{retargeter} accepted the pair then raised on apply: {type(error).__name__}: {error}",
         )
 
     if out.ndim != 2 or out.shape[0] != samples:
@@ -179,8 +183,7 @@ def check_retargeter(
         checks.append(
             Verdict.no(
                 "conformance.width",
-                f"{retargeter} produced width {out.shape[1]} but the target is "
-                f"{target.width}",
+                f"{retargeter} produced width {out.shape[1]} but the target is {target.width}",
             )
         )
 
@@ -189,16 +192,13 @@ def check_retargeter(
         checks.append(
             Verdict.no(
                 "conformance.silent_loss",
-                f"{retargeter} maps {source.width} values to {target.width} and declares "
-                "no loss",
+                f"{retargeter} maps {source.width} values to {target.width} and declares no loss",
                 hint="this is the shape that produces plausible motion and a clean "
                 "provenance; say what goes",
             )
         )
     if losses and any(not str(loss).strip() for loss in losses):
-        checks.append(
-            Verdict.no("conformance.empty_loss", f"{retargeter} declares a blank loss")
-        )
+        checks.append(Verdict.no("conformance.empty_loss", f"{retargeter} declares a blank loss"))
 
     second = np.asarray(retargeter.apply(values, source, target))
     if not np.array_equal(out, second):

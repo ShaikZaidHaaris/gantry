@@ -95,7 +95,9 @@ class Gr00tPolicy(Policy):
         else:
             if endpoint is None:
                 endpoint = Endpoint()
-            self.client = Client(Endpoint(**endpoint) if isinstance(endpoint, Mapping) else endpoint)
+            self.client = Client(
+                Endpoint(**endpoint) if isinstance(endpoint, Mapping) else endpoint
+            )
 
         self.wants = Wants.from_server(self.client.modality_config())
         check(self.layout, self.wants).raise_if_refused(
@@ -111,9 +113,7 @@ class Gr00tPolicy(Policy):
 
     def _depth(self) -> int:
         """How far back anything the model reads reaches."""
-        reach = [
-            -min(self.wants.deltas.get(modality, (0,))) for modality in (STATE, VIDEO)
-        ]
+        reach = [-min(self.wants.deltas.get(modality, (0,))) for modality in (STATE, VIDEO)]
         return max(1, max(reach) + 1)
 
     # -- contract ----------------------------------------------------------
@@ -270,7 +270,9 @@ class Gr00tPolicy(Policy):
         self.client.close()
 
 
-def observation_specs(layout: Layout, wants: Wants, state_channel: str = STATE_CHANNEL) -> Sequence[ChannelSpec]:
+def observation_specs(
+    layout: Layout, wants: Wants, state_channel: str = STATE_CHANNEL
+) -> Sequence[ChannelSpec]:
     """What a dataset must provide to drive this model.
 
     Useful before anything is run: hand it to a connector's schema and see what
@@ -278,7 +280,10 @@ def observation_specs(layout: Layout, wants: Wants, state_channel: str = STATE_C
     """
     specs = [
         ChannelSpec(
-            state_channel, "vector", (layout.width(STATE),), "float32",
+            state_channel,
+            "vector",
+            (layout.width(STATE),),
+            "float32",
             dim_labels=layout.labels(STATE),
         )
     ]

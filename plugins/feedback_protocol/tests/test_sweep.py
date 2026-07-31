@@ -233,6 +233,7 @@ def test_a_lever_nobody_declared_is_not_swept():
 
 def test_a_scene_annotation_wins_over_the_episode_id():
     """Two runs that numbered their episodes differently still pair up."""
+
     def annotated(name: str, ids: list[str], scenes: list[str], outcomes: list[bool]) -> Cohort:
         return Cohort(
             name,

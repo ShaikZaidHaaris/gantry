@@ -222,8 +222,13 @@ def test_the_recorded_episode_is_what_happened():
     record = ev.evaluate(Nudger(), ev.task_for(tasks=1, inits=1, horizon=6), Protocol())
     episode = record.episodes[0]
     assert set(episode.channel_names) == {
-        "agentview_image", "robot0_eye_in_hand_image", "robot0_eef_pos",
-        "robot0_eef_quat", "robot0_gripper_qpos", "action", "reward",
+        "agentview_image",
+        "robot0_eye_in_hand_image",
+        "robot0_eef_pos",
+        "robot0_eef_quat",
+        "robot0_gripper_qpos",
+        "action",
+        "reward",
     }
     assert episode.array("action").shape == (6, 7)
     assert episode.array("agentview_image").shape == (6, SIZE, SIZE, 3)

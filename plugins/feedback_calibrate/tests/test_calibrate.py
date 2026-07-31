@@ -18,8 +18,8 @@ def labels(outcomes, criterion="lifted"):
 
 
 HUMAN = [1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0]
-AGREES = [1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0]      # one disagreement
-COIN = [1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1]        # unrelated
+AGREES = [1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0]  # one disagreement
+COIN = [1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1]  # unrelated
 
 
 def corpus(**judges):
@@ -150,9 +150,7 @@ def test_it_finds_the_hedge_in_our_own_door_rubric():
 
 
 def test_a_decidable_rubric_has_no_hedges():
-    assert hedges(
-        "The cube is clear of the table by at least 4 cm and held in the gripper."
-    ) == ()
+    assert hedges("The cube is clear of the table by at least 4 cm and held in the gripper.") == ()
 
 
 def test_a_hedged_rubric_is_reported_with_what_to_do_about_it():

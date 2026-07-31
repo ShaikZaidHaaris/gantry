@@ -121,8 +121,10 @@ class FixtureSuite:
         assert defect.statistic is not None
         hurt = _stdlib_statistics.median(defect.statistic(e) for e in affected)
         well = _stdlib_statistics.median(defect.statistic(e) for e in clean)
-        moved = (hurt < well - defect.margin) if defect.direction == "lower" else (
-            hurt > well + defect.margin
+        moved = (
+            (hurt < well - defect.margin)
+            if defect.direction == "lower"
+            else (hurt > well + defect.margin)
         )
         if not moved:
             return Verdict.no(

@@ -93,7 +93,9 @@ def serve(stdin=None, stdout=None) -> None:
         else:
             try:
                 if operation == "build":
-                    reply = session.build(request["plane"], request["name"], request.get("config", {}))
+                    reply = session.build(
+                        request["plane"], request["name"], request.get("config", {})
+                    )
                 elif operation == "close":
                     stdout.write(json.dumps({"ok": True}) + "\n")
                     stdout.flush()

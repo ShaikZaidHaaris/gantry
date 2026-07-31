@@ -146,9 +146,7 @@ class Retargeter(ABC):
         """
 
     @abstractmethod
-    def apply(
-        self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec
-    ) -> np.ndarray:
+    def apply(self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.ndarray:
         """Transform an array of shape ``(steps, *source.shape)``."""
 
     def check(self, source: ChannelSpec, target: ChannelSpec) -> Verdict:
@@ -159,8 +157,7 @@ class Retargeter(ABC):
         if source.width != target.width and not self.losses(source, target):
             return Verdict.no(
                 "retarget.undeclared_loss",
-                f"{self.name} maps {source.width} values to {target.width} "
-                "but declares no loss",
+                f"{self.name} maps {source.width} values to {target.width} but declares no loss",
                 hint="a width change discards or invents information; say which",
             )
         return verdict

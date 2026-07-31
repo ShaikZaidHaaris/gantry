@@ -300,8 +300,7 @@ class EpisodeRecord:
             checks.append(
                 Verdict.note(
                     "schema.undeclared",
-                    f"{self.meta.uid}: source carries undeclared channel(s) "
-                    f"{sorted(undeclared)}",
+                    f"{self.meta.uid}: source carries undeclared channel(s) {sorted(undeclared)}",
                     hint="undeclared channels are invisible to the resolver",
                 )
             )

@@ -62,9 +62,7 @@ def funnel():
 
 
 def attribution():
-    return requires_channels(
-        "attribution", "feedback", POSITION, capabilities={"outcomes": True}
-    )
+    return requires_channels("attribution", "feedback", POSITION, capabilities={"outcomes": True})
 
 
 # -- registry --------------------------------------------------------------
@@ -274,14 +272,32 @@ def test_a_lossy_adapter_reaches_the_plan_and_then_provenance():
         registry(),
         components={"dataset": {"name": "fake"}},
         consumers=[
-            requires_channels("screen", "feedback", ChannelSpec(
-                "position", "vector", (3,), "float32", units="m", frame="world",
-                semantics="position", rate_hz=20.0,
-            ))
+            requires_channels(
+                "screen",
+                "feedback",
+                ChannelSpec(
+                    "position",
+                    "vector",
+                    (3,),
+                    "float32",
+                    units="m",
+                    frame="world",
+                    semantics="position",
+                    rate_hz=20.0,
+                ),
+            )
         ],
         provided_channels=[
-            ChannelSpec("position", "vector", (3,), "float32", units="m", frame="world",
-                        semantics="position", rate_hz=30.0)
+            ChannelSpec(
+                "position",
+                "vector",
+                (3,),
+                "float32",
+                units="m",
+                frame="world",
+                semantics="position",
+                rate_hz=30.0,
+            )
         ],
         adapters=AdapterRegistry([resampler]),
     )

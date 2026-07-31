@@ -17,10 +17,22 @@ CLEAN = Cohort("clean", make_clean(n=30, seed=4).episodes)
 
 @pytest.mark.parametrize(
     "module",
-    [Screen("comparative"), Screen("reference", reference="a"), Screen("absolute"),
-     Funnel(), Attribution(), Harden()],
-    ids=["screen-comparative", "screen-reference", "screen-absolute",
-         "funnel", "attribution", "harden"],
+    [
+        Screen("comparative"),
+        Screen("reference", reference="a"),
+        Screen("absolute"),
+        Funnel(),
+        Attribution(),
+        Harden(),
+    ],
+    ids=[
+        "screen-comparative",
+        "screen-reference",
+        "screen-absolute",
+        "funnel",
+        "attribution",
+        "harden",
+    ],
 )
 def test_conforms_strictly(module):
     verdict = check_feedback(module, [A, B], strict=True)
@@ -51,8 +63,12 @@ class _Drifts(_Base):
 
     def analyse(self, cohorts):
         _Drifts._count += 1
-        return Report("broken", (), {"drift": Measurement(float(_Drifts._count), n=1)},
-                      cohorts=tuple(c.name for c in cohorts))
+        return Report(
+            "broken",
+            (),
+            {"drift": Measurement(float(_Drifts._count), n=1)},
+            cohorts=tuple(c.name for c in cohorts),
+        )
 
 
 class _BareNumber(_Base):

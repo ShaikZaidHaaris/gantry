@@ -136,6 +136,26 @@ class Concluding(Protocol):
         """Whether the attempt succeeded, now that it is over. ``None`` to abstain."""
 
 
+class Speaking(Protocol):
+    """A world that chooses the language goal itself, at reset.
+
+    Optional and checked for by ``hasattr``, like :class:`Concluding`. A scene
+    can only carry an instruction someone wrote down in advance, and several
+    suites pick the sentence when the scene is built — sampling from a set of
+    phrasings, or naming whichever object the randomiser actually placed.
+
+    Without this hook the policy is prompted with the planned sentence while the
+    world scores the one it chose. That is not an error anywhere: the run
+    completes, every array is well formed, and a language-conditioned model
+    simply does the wrong task. It shows up only as a low number, which is
+    indistinguishable from a checkpoint that did not train.
+    """
+
+    @property
+    def instruction(self) -> str | None:
+        """The goal this attempt is actually being scored against."""
+
+
 @dataclass
 class Trial:
     """One attempt, accumulating."""
@@ -316,7 +336,12 @@ class ClosedLoop(Evaluator):
         world = self.world_for(scene)
         trial = Trial()
         observation = world.begin(scene)
-        policy.reset(EpisodeContext(scene.id, scene.instruction, seed))
+        # The world's own sentence wins, because it is the one being scored.
+        # A scene's instruction is what somebody planned; a suite that samples
+        # its phrasing or names the object the randomiser placed knows better,
+        # and only after begin().
+        spoken = getattr(world, "instruction", None)
+        policy.reset(EpisodeContext(scene.id, spoken or scene.instruction, seed))
         expected = self.action().shape
 
         while trial.steps < task.horizon:

@@ -68,9 +68,7 @@ class DropDimensions(Retargeter):
         if source.dim_labels is None:
             return None
         keep = [
-            index
-            for index, label in enumerate(source.dim_labels)
-            if label not in set(self._drop)
+            index for index, label in enumerate(source.dim_labels) if label not in set(self._drop)
         ]
         return tuple(keep)
 
@@ -113,9 +111,7 @@ class DropDimensions(Retargeter):
             "anything they carried is gone",
         )
 
-    def apply(
-        self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec
-    ) -> np.ndarray:
+    def apply(self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.ndarray:
         keep = self._indices(source)
         if keep is None:
             raise ValueError(f"{source.name!r} has no dimension labels")
@@ -155,8 +151,7 @@ class PoseToPosition(Retargeter):
         if rotation is None:
             return Verdict.no(
                 "retarget.not_a_pose",
-                f"{source.name!r} declares no rotation encoding, so it cannot be read "
-                "as a pose",
+                f"{source.name!r} declares no rotation encoding, so it cannot be read as a pose",
                 hint="set rotation_repr in the channel's metadata; a width alone "
                 "never establishes that something is a pose",
             )
@@ -172,7 +167,5 @@ class PoseToPosition(Retargeter):
         encoding = source.metadata.get("rotation_repr", "the rotation")
         return (f"discarded the orientation ({encoding}) from {source.name!r}",)
 
-    def apply(
-        self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec
-    ) -> np.ndarray:
+    def apply(self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.ndarray:
         return np.asarray(values)[:, :3]

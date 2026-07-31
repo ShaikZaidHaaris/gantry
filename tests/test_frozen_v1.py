@@ -114,7 +114,9 @@ def test_every_core_plane_is_fully_described():
     for name in CORE_PLANES:
         plane = get_plane(name)
         assert plane is not None and plane.description
-        assert plane.entry_point_group, f"{name} has no entry-point group, so nothing installs into it"
+        assert plane.entry_point_group, (
+            f"{name} has no entry-point group, so nothing installs into it"
+        )
 
 
 # --------------------------------------------------------------------------
@@ -142,8 +144,10 @@ def test_every_public_method_is_documented(interface, methods):
     undocumented = [
         name
         for name in methods
-        if not (getattr(inspect.getattr_static(interface, name, None), "__doc__", None)
-                or getattr(getattr(interface, name, None), "__doc__", None))
+        if not (
+            getattr(inspect.getattr_static(interface, name, None), "__doc__", None)
+            or getattr(getattr(interface, name, None), "__doc__", None)
+        )
     ]
     assert not undocumented, f"{interface.__name__}: undocumented {undocumented}"
 
@@ -231,9 +235,7 @@ def test_every_frozen_code_is_still_emitted_somewhere():
     import pathlib
 
     root = pathlib.Path(contracts.__file__).parent.parent
-    source = "\n".join(
-        path.read_text() for path in root.rglob("*.py") if "tests" not in str(path)
-    )
+    source = "\n".join(path.read_text() for path in root.rglob("*.py") if "tests" not in str(path))
     missing = sorted(code for code in FROZEN_CODES if f'"{code}"' not in source)
     assert not missing, f"these pinned refusal codes are no longer emitted: {missing}"
 

@@ -436,3 +436,70 @@ def test_an_operator_who_cannot_answer_loses_the_trial_not_the_run():
     assert len(record.episodes) == 2
     assert all(e.labels.success is None for e in record.episodes)
     assert "lunch" in record.episodes[0].labels.annotations["error"]
+
+
+# -- the world may choose the sentence ------------------------------------------
+#
+# A scene can only carry an instruction someone wrote down in advance. Several
+# suites pick the phrasing when the scene is built -- sampling from a set, or
+# naming whichever object the randomiser actually placed. Without a way to say
+# so, the policy is prompted with the planned sentence while the world scores
+# the one it chose: no error anywhere, every array well formed, and a
+# language-conditioned model quietly doing the wrong task.
+
+
+class Talkative(Counter):
+    """A world that names its goal only once the scene exists."""
+
+    def __init__(self, says="pick up the red block", **kwargs):
+        super().__init__(**kwargs)
+        self.says = says
+        self.instruction = None
+
+    def begin(self, scene):
+        out = super().begin(scene)
+        self.instruction = self.says
+        return out
+
+
+class Talking(Suite):
+    def __init__(self, world, **kwargs):
+        super().__init__(**kwargs)
+        self._talker = world
+
+    def world_for(self, scene):
+        return self._talker
+
+
+def test_the_sentence_the_world_chose_is_the_one_the_policy_is_given():
+    world = Talkative(says="pick up the red block")
+    suite = Talking(world)
+    policy = Steady()
+    suite.run(
+        policy,
+        TaskSpec("t", scenes=(Scene(id="s0", seed=0, instruction="do something"),)),
+        Protocol(),
+    )
+    assert policy.context.instruction == "pick up the red block"
+
+
+def test_a_world_with_nothing_to_say_leaves_the_scene_alone():
+    world = Talkative(says=None)
+    suite = Talking(world)
+    policy = Steady()
+    suite.run(
+        policy,
+        TaskSpec("t", scenes=(Scene(id="s0", seed=0, instruction="the planned one"),)),
+        Protocol(),
+    )
+    assert policy.context.instruction == "the planned one"
+
+
+def test_a_world_that_never_heard_of_instructions_is_unaffected():
+    """The hook is optional and checked for, not required."""
+    policy = Steady()
+    suite = Suite()
+    suite.run(
+        policy, TaskSpec("t", scenes=(Scene(id="s0", seed=0, instruction="planned"),)), Protocol()
+    )
+    assert policy.context.instruction == "planned"

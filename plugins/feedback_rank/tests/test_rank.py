@@ -123,6 +123,7 @@ def test_a_matrix_that_is_mostly_floor_is_not_aggregated_silently():
     One trained task and twelve zero-shot ones: the aggregate is decided by how
     many tasks were included, not by performance.
     """
+
     def thirteen(name, real):
         per = {"lift_cube": (int(real * 50), 50)}
         per.update({f"zero_shot_{i}": (0, 50) for i in range(12)})
@@ -180,5 +181,7 @@ def test_a_fully_separated_set_gets_one_letter_each():
 
 def test_the_module_holds_everything_except_the_policy():
     assert set(MatrixRanking().descriptor().provides["holds"]) == {
-        "task", "evaluation", "embodiment"
+        "task",
+        "evaluation",
+        "embodiment",
     }

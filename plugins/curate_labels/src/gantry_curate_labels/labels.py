@@ -78,9 +78,7 @@ class FailedDemonstrations(Curator):
             drop_unlabelled=self._drop_unlabelled,
         )
 
-    def propose(
-        self, episodes: Sequence[Any], runs: Sequence[Any] = ()
-    ) -> CurationPlan:
+    def propose(self, episodes: Sequence[Any], runs: Sequence[Any] = ()) -> CurationPlan:
         failed, unlabelled, passed = [], [], []
         for episode in episodes:
             uid = uid_of(episode)

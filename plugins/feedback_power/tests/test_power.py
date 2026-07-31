@@ -74,7 +74,9 @@ def cohort(name, task, ok, n):
 
 def test_twenty_trials_cannot_see_a_ten_point_effect():
     """The habit this exists to break."""
-    verdict = plan_for(Budget(trials=20, magnitude=0.10), history=measured_history(), task="lift_cube")
+    verdict = plan_for(
+        Budget(trials=20, magnitude=0.10), history=measured_history(), task="lift_cube"
+    )
     assert not verdict.ok
     assert "power.underpowered" in verdict.codes()
 
@@ -87,7 +89,9 @@ def test_a_sufficient_budget_proceeds():
 
 def test_the_refusal_carries_the_number_that_would_work():
     """A refusal nobody can act on is just an obstacle."""
-    verdict = plan_for(Budget(trials=20, magnitude=0.05), history=measured_history(), task="lift_cube")
+    verdict = plan_for(
+        Budget(trials=20, magnitude=0.05), history=measured_history(), task="lift_cube"
+    )
     reason = verdict.because("power.underpowered")[0]
     assert reason.detail["needed"] > 20
     assert 0 < reason.detail["smallest_detectable"] < 1
@@ -96,7 +100,9 @@ def test_the_refusal_carries_the_number_that_would_work():
 
 def test_it_also_says_what_this_budget_could_see_instead():
     """The other actionable direction: keep the budget, weaken the claim."""
-    verdict = plan_for(Budget(trials=20, magnitude=0.05), history=measured_history(), task="lift_cube")
+    verdict = plan_for(
+        Budget(trials=20, magnitude=0.05), history=measured_history(), task="lift_cube"
+    )
     detectable = verdict.because("power.underpowered")[0].detail["smallest_detectable"]
     assert plan_for(
         Budget(trials=20, magnitude=detectable + 0.01),
@@ -108,13 +114,17 @@ def test_it_also_says_what_this_budget_could_see_instead():
 def test_the_baseline_comes_from_history_not_from_the_caller():
     """An invented rate produces an invented trial count, which is how an
     underpowered run gets approved by its own author."""
-    verdict = plan_for(Budget(trials=20, magnitude=0.05), history=measured_history(), task="lift_cube")
+    verdict = plan_for(
+        Budget(trials=20, magnitude=0.05), history=measured_history(), task="lift_cube"
+    )
     baseline = verdict.because("power.underpowered")[0].detail["baseline"]
-    assert baseline == pytest.approx(0.61, abs=0.01)   # (0.56 + 0.66) / 2
+    assert baseline == pytest.approx(0.61, abs=0.01)  # (0.56 + 0.66) / 2
 
 
 def test_an_untested_task_is_noted_and_sized_conservatively():
-    verdict = plan_for(Budget(trials=50, magnitude=0.10), history=measured_history(), task="open_door")
+    verdict = plan_for(
+        Budget(trials=50, magnitude=0.10), history=measured_history(), task="open_door"
+    )
     assert "power.no_history" in verdict.codes()
 
 

@@ -78,7 +78,11 @@ PROPRIO = ("robot0_eef_pos", "robot0_eef_quat", "robot0_gripper_qpos")
 
 #: OSC_POSE: six pose deltas and a gripper command.
 ACTION = ChannelSpec(
-    "action", "vector", (7,), "float32", semantics="actuation",
+    "action",
+    "vector",
+    (7,),
+    "float32",
+    semantics="actuation",
     dim_labels=("dx", "dy", "dz", "droll", "dpitch", "dyaw", "gripper"),
 )
 
@@ -126,8 +130,7 @@ def load_suite(name: str) -> Any:
         from libero.libero import benchmark
     except ImportError as error:  # pragma: no cover - needs the simulator
         raise ConfigError(
-            "listing LIBERO tasks needs the package: pip install "
-            "'gantry-evaluator-libero[sim]'"
+            "listing LIBERO tasks needs the package: pip install 'gantry-evaluator-libero[sim]'"
         ) from error
     registry = benchmark.get_benchmark_dict()
     if name not in registry:
@@ -195,7 +198,9 @@ class LiberoEvaluator(Evaluator):
 
     def requires(self) -> Requirement:
         return requires_channels(
-            self._name, "evaluation", ACTION,
+            self._name,
+            "evaluation",
+            ACTION,
             description="a policy emitting OSC_POSE deltas and a gripper command",
         )
 
@@ -228,9 +233,7 @@ class LiberoEvaluator(Evaluator):
                         metadata={"task_index": index, "init_index": init},
                     )
                 )
-        return TaskSpec(
-            name=name or self.suite_name, scenes=tuple(scenes), horizon=horizon
-        )
+        return TaskSpec(name=name or self.suite_name, scenes=tuple(scenes), horizon=horizon)
 
     # -- the environment ---------------------------------------------------
 
@@ -265,11 +268,7 @@ class LiberoEvaluator(Evaluator):
     # -- running -----------------------------------------------------------
 
     def run(self, policy: Any, task: TaskSpec, protocol: Protocol) -> RunRecord:
-        trials = [
-            (scene, epoch)
-            for scene in task.scenes
-            for epoch in range(protocol.epochs)
-        ]
+        trials = [(scene, epoch) for scene in task.scenes for epoch in range(protocol.epochs)]
         if protocol.max_trials is not None:
             trials = trials[: protocol.max_trials]
 
@@ -342,18 +341,23 @@ class LiberoEvaluator(Evaluator):
         eid = f"{scene.id}#{epoch}" if protocol.epochs > 1 else scene.id
         if not trial.actions:
             return episode_from_labels(
-                id=eid, source=task.name,
+                id=eid,
+                source=task.name,
                 labels=EpisodeLabels(
                     success=None,
                     annotations={"epoch": epoch, **({"error": error} if error else {})},
                 ),
-                task=task.name, embodiment="panda",
+                task=task.name,
+                embodiment="panda",
             )
         arrays = {key: np.asarray(values) for key, values in trial.frames.items()}
         arrays["action"] = np.asarray(trial.actions, dtype="float32")
         arrays["reward"] = np.asarray(trial.rewards[: len(trial.actions)], dtype="float32")
         return episode_from_arrays(
-            arrays, self._schema(trial), id=eid, source=task.name,
+            arrays,
+            self._schema(trial),
+            id=eid,
+            source=task.name,
             labels=EpisodeLabels(
                 success=None if error else trial.success,
                 annotations={
@@ -363,7 +367,8 @@ class LiberoEvaluator(Evaluator):
                     **({"error": error} if error else {}),
                 },
             ),
-            task=task.name, embodiment="panda",
+            task=task.name,
+            embodiment="panda",
         )
 
     def _provenance(self, policy, task, protocol, failures) -> Provenance:

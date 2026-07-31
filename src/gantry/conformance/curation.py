@@ -69,13 +69,9 @@ def _contract(context: Context) -> Verdict:
             f"{context.curator.name} declares no contract version",
         )
     try:
-        return ContractVersion.parse(declared).satisfies(
-            ContractVersion.parse(CURATION_CONTRACT)
-        )
+        return ContractVersion.parse(declared).satisfies(ContractVersion.parse(CURATION_CONTRACT))
     except Exception as error:  # noqa: BLE001
-        return Verdict.no(
-            "conformance.contract_unparseable", f"{declared!r}: {error}"
-        )
+        return Verdict.no("conformance.contract_unparseable", f"{declared!r}: {error}")
 
 
 def _rung_declared(context: Context) -> Verdict:
@@ -84,8 +80,7 @@ def _rung_declared(context: Context) -> Verdict:
     if declared not in RUNGS:
         return Verdict.no(
             "conformance.rung",
-            f"{context.curator.name} declares rung {declared!r}, expected one of "
-            f"{list(RUNGS)}",
+            f"{context.curator.name} declares rung {declared!r}, expected one of {list(RUNGS)}",
         )
     if context.plan.rung != declared:
         return Verdict.no(
@@ -105,7 +100,7 @@ def _falsifiable(context: Context) -> Verdict:
     """A plan predicts something a result could contradict."""
     prediction = context.plan.predicted
     if not context.plan.proposes_a_change:
-        return Verdict.yes()   # nothing proposed, nothing to falsify
+        return Verdict.yes()  # nothing proposed, nothing to falsify
     if prediction.magnitude <= 0:
         return Verdict.no(
             "conformance.unfalsifiable",
@@ -128,8 +123,7 @@ def _actionable(context: Context) -> Verdict:
     if not known:
         return Verdict.note(
             "conformance.no_identity",
-            "the episodes given to the kit expose no uid, so actionability was "
-            "not checked",
+            "the episodes given to the kit expose no uid, so actionability was not checked",
         )
     named = set(context.plan.drops) | set(context.plan.keeps)
     missing = sorted(named - known)

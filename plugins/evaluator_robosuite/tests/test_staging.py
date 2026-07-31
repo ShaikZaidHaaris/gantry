@@ -27,9 +27,7 @@ def task(**over):
     base = dict(
         name="lift_cube",
         instruction="lift the cube",
-        things=(
-            Thing("cube", "cube_20mm", Region("table", (-0.03, 0.03), (-0.03, 0.03))),
-        ),
+        things=(Thing("cube", "cube_20mm", Region("table", (-0.03, 0.03), (-0.03, 0.03))),),
         success=(Criterion("lifted", {"object": "cube", "height": 0.04}, RUBRIC),),
         trials=5,
         horizon=250,
@@ -258,8 +256,7 @@ def test_world_settings_reach_the_environment_and_override_the_file():
     from gantry.contracts.task import TaskDefinition
 
     t = task(
-        staging={"robosuite": {"env_name": "Lift", "places": {"cube": "cube"},
-                               "control_freq": 20}}
+        staging={"robosuite": {"env_name": "Lift", "places": {"cube": "cube"}, "control_freq": 20}}
     )
     assert isinstance(t, TaskDefinition)
     # The file's own setting, when nothing overrides it.
