@@ -205,6 +205,34 @@ def main() -> None:
 
     commanded = np.concatenate([e.array("action") for e in record.episodes])
     successes = [bool(e.labels.success) for e in record.episodes]
+
+    # What happened on the way. A binary at 12% is almost no information per
+    # episode; reaching, disturbing and lifting happen far more often and each
+    # separates a policy partway there from one that is nowhere near.
+    stages: dict[str, int] = {}
+    per_episode = []
+    for episode in record.episodes:
+        names = set(episode.labels.stages)
+        per_episode.append(sorted(names))
+        for name in names:
+            stages[name] = stages.get(name, 0) + 1
+    n = max(1, len(record.episodes))
+    reached = sum(1 for names in per_episode if any(x.endswith(".reached") for x in names))
+    moved = sum(1 for names in per_episode if any(x.endswith(".moved") for x in names))
+    lifted = sum(1 for names in per_episode if any(x.endswith(".lifted") for x in names))
+    both_lifted = sum(
+        1 for names in per_episode
+        if sum(1 for x in names if x.endswith(".lifted")) >= 2
+    )
+    # A ladder, so a number reads as "got this far". Deliberately not a
+    # single weighted score: the weights would be mine, and the rungs are facts.
+    ladder = {
+        "reached_any": round(reached / n, 4),
+        "moved_any": round(moved / n, 4),
+        "lifted_any": round(lifted / n, 4),
+        "lifted_both": round(both_lifted / n, 4),
+        "solved": round(sum(successes) / n, 4),
+    }
     result = {
         "arm": ARM,
         "task": TASK,
@@ -216,10 +244,15 @@ def main() -> None:
         "steps_per_episode": [int(len(e)) for e in record.episodes],
         "instruction": record.episodes[0].labels.annotations.get("instruction_given"),
         "action_chain": [f"{s.name}@{s.version}" for s in (getattr(converted, "chain", None) or ())],
+        # The ladder, which is where the signal is at a 12% success rate.
+        "ladder": ladder,
+        "stage_counts": dict(sorted(stages.items())),
+        "stages_per_episode": per_episode,
         # The number that says whether the success rate means anything.
         "reachability": reachability(commanded),
         "seconds": round(time.time() - started, 1),
     }
+    print(f"[{ARM}] ladder: {ladder}", flush=True)
     write_run(record, RUN)
     OUT.write_text(json.dumps(result, indent=2))
     print(json.dumps(result, indent=2), flush=True)
