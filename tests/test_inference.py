@@ -56,8 +56,31 @@ def test_a_predicted_effect_of_nothing_is_uncountable():
 
 def test_the_sizes_it_reports_are_the_ones_this_project_actually_needed():
     # 20 trials was the habit; these are the numbers that showed it was wrong.
-    assert trials_needed(0.35, 0.10) > 20
-    assert trials_needed(0.35, 0.30) <= 20
+    # Even a thirty-point difference -- enormous, the kind nobody would need
+    # statistics to notice -- needs more than twenty paired trials to be sure
+    # of catching. A ten-point one needs an order of magnitude more.
+    assert trials_needed(0.35, 0.30) > 20
+    assert trials_needed(0.35, 0.10) > 5 * trials_needed(0.35, 0.30) / 2
+
+
+def test_the_power_argument_is_honoured_rather_than_decorative():
+    """It used to be accepted and ignored, so every number returned was the
+    count at which the *expected* result was just barely significant -- a coin
+    flip on catching a real effect, sold as a plan."""
+    assert (
+        trials_needed(0.12, 0.08, power=0.5)
+        < trials_needed(0.12, 0.08, power=0.8)
+        < trials_needed(0.12, 0.08, power=0.9)
+    )
+
+
+def test_a_budget_meets_the_power_it_was_sized_for():
+    """The contract, checked directly rather than through the search."""
+    from gantry.spine.inference import _detection_rate
+
+    needed = trials_needed(0.12, 0.08, power=0.8)
+    assert _detection_rate(needed, 0.16, 0.75, 0.05) >= 0.8
+    assert _detection_rate(needed - 1, 0.16, 0.75, 0.05) < 0.8
 
 
 # -- stopping ----------------------------------------------------------------

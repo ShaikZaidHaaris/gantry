@@ -97,6 +97,12 @@ class Benchmark(Base):
     simulator: Mapped[str] = mapped_column(String)
     #: Reference numbers a user calibrates hope against, JSON.
     reference_json: Mapped[str] = mapped_column(Text, default="{}")
+    #: What an hour of this benchmark actually costs us, measured from our own
+    #: runs rather than quoted from a price list. Kept per benchmark because a
+    #: task with a 1,500-step limit costs four times what a 400-step one does,
+    #: and quoting one price for both would be wrong in whichever direction the
+    #: customer noticed.
+    cost_json: Mapped[str] = mapped_column(Text, default="{}")
 
 
 class Submission(Base):
@@ -187,7 +193,10 @@ def emit(session: Session, submission_id: str, kind: str, **payload) -> None:
 #: Columns added after the first schema shipped. Real migrations land with
 #: Postgres; until then this keeps a developer's existing demo database
 #: working instead of asking them to delete it.
-LATER = {"gates": {"measures_json": "'{}'", "abstained_json": "'[]'", "progress_json": "'{}'"}}
+LATER = {
+    "gates": {"measures_json": "'{}'", "abstained_json": "'[]'", "progress_json": "'{}'"},
+    "benchmarks": {"cost_json": "'{}'"},
+}
 
 #: Seconds without a heartbeat before a running job is presumed dead. Workers
 #: beat on a background thread every :data:`~worker.run.BEAT` seconds, which
@@ -268,6 +277,24 @@ def init_db() -> None:
                             "baseline": {"wins": 12, "n": 100},
                             "expert": 0.893,
                             "note": "baseline trained on the simulator's own 50 demonstrations",
+                        }
+                    ),
+                    # Measured on an L40S (g6e.2xlarge, $2.24/hr on demand):
+                    # a 3,000-step LoRA fine-tune took 1h45m, and closed-loop
+                    # scenes at the 400-step cap averaged 2 minutes each. Two
+                    # arms are trained and evaluated -- the contributor's data
+                    # and its own shuffled control -- and the baseline is not
+                    # retrained, because it is the same model every time and
+                    # charging for it again would be charging twice.
+                    cost_json=json.dumps(
+                        {
+                            "gpu_cents_per_hour": 224,
+                            "train_seconds": 6300,
+                            "seconds_per_trial": 120,
+                            "arms_trained": 2,
+                            "arms_evaluated": 2,
+                            "probe_seconds": 600,
+                            "measured_on": "L40S g6e.2xlarge, pick_dual_bottles, 3000-step LoRA",
                         }
                     ),
                 )

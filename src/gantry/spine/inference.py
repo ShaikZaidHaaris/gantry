@@ -43,7 +43,8 @@ auditable rather than merely repeatable.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import comb, isfinite, log, sqrt
+from functools import lru_cache
+from math import comb, exp, inf, isfinite, lgamma, log, log1p, sqrt
 from typing import Any, Sequence
 
 import numpy as np
@@ -51,6 +52,72 @@ import numpy as np
 # --------------------------------------------------------------------------
 # sizing
 # --------------------------------------------------------------------------
+
+
+def _log_pmf(n: int, k: int, p: float) -> float:
+    if p <= 0.0:
+        return 0.0 if k == 0 else -inf
+    if p >= 1.0:
+        return 0.0 if k == n else -inf
+    return (
+        lgamma(n + 1)
+        - lgamma(k + 1)
+        - lgamma(n - k + 1)
+        + k * log(p)
+        + (n - k) * log1p(-p)
+    )
+
+
+@lru_cache(maxsize=4096)
+def _critical(discordant: int, alpha: float) -> int | None:
+    """Wins among ``discordant`` pairs needed for two-sided significance.
+
+    Under the null the two arms are equally likely to win a disagreement, so
+    the count of wins is Binomial(k, 1/2) and this is the exact sign test.
+    ``None`` when no split of this many disagreements can reach ``alpha`` --
+    with five or fewer, even a clean sweep does not.
+
+    Accumulated from the top down in one pass, and in float rather than exact
+    integers. The obvious version recomputes the whole upper tail for every
+    candidate and does it in bignum arithmetic, which is quadratic in the number
+    of disagreements and unusable at the sizes this search reaches.
+    """
+    tail = 0.0
+    for wins in range(discordant, -1, -1):
+        tail += exp(_log_pmf(discordant, wins, 0.5))
+        if 2 * tail > alpha:
+            # This many wins is no longer significant, so one more is the
+            # smallest that is -- unless we failed on the very first step, in
+            # which case even a clean sweep does not reach alpha.
+            return None if wins == discordant else wins + 1
+    return 0
+
+
+def _detection_rate(trials: int, discordant_rate: float, win_share: float, alpha: float) -> float:
+    """Chance this many trials return a significant result when the effect is real.
+
+    The number of disagreements is itself random, which is the part that makes
+    small robot evaluations so much weaker than they look: a run can simply fail
+    to produce enough disagreements to conclude anything, however real the
+    effect is. So this averages the test's chance of firing over the
+    distribution of how many disagreements turn up, rather than assuming the
+    expected number arrives.
+    """
+    mean = trials * discordant_rate
+    spread = sqrt(max(trials * discordant_rate * (1.0 - discordant_rate), 1.0))
+    low = max(0, int(mean - 8 * spread))
+    high = min(trials, int(mean + 8 * spread) + 1)
+
+    total = 0.0
+    for k in range(low, high + 1):
+        weight = exp(_log_pmf(trials, k, discordant_rate))
+        if weight < 1e-12:
+            continue
+        wins = _critical(k, alpha)
+        if wins is None:
+            continue
+        total += weight * sum(exp(_log_pmf(k, w, win_share)) for w in range(wins, k + 1))
+    return total
 
 
 def trials_needed(
@@ -69,28 +136,54 @@ def trials_needed(
     function exists to prevent.
 
     Modelled on the paired test that will do the judging, so what matters is the
-    rate at which the two arms *disagree* — the trials where both succeed or
+    rate at which the two arms *disagree* -- the trials where both succeed or
     both fail carry no information about which is better and inflating them does
     not help.
+
+    Two corrections, both of which made the old numbers far too small
+    ----------------------------------------------------------------
+    ``power`` used to be accepted and then ignored. The search returned the
+    trial count at which the *expected* result was just barely significant,
+    which is a coin flip on whether a real effect is caught -- fifty percent
+    power sold as a plan. It is now the count at which the effect is caught
+    ``power`` of the time, and the chance of too few disagreements turning up
+    at all is part of that average, because that is how a small evaluation
+    actually fails.
+
+    And the share of disagreements favouring the better arm was computed as
+    ``gain / discordant_rate + 0.5``, which with a discordant rate of twice the
+    gain is exactly 1.0: every single disagreement going the right way. The
+    comment directly above it said the opposite -- that an equal amount of
+    noise-driven disagreement runs the other way. Taking the comment as the
+    intent: noise costs ``gain/2`` in each direction, so of the ``2*gain``
+    disagreements, ``1.5*gain`` favour the better arm. Three in four, not four
+    in four.
+
+    Together these took the answer for "+8 points on a 12% baseline" from 35
+    trials to several hundred. The 35 was the kind of number that gets an
+    underpowered experiment approved by its own author.
     """
     target = min(max(baseline + magnitude, 0.0), 1.0)
     gain = abs(target - baseline)
     if gain <= 0:
         return cap
-    # Conservative: assume improvement is the only source of disagreement, then
-    # add an equal amount of noise-driven disagreement in the other direction.
+
+    # Improvement drives `gain` of the disagreement; noise adds `gain/2` in each
+    # direction. So `2*gain` of trials disagree and three quarters of those
+    # favour the better arm.
     discordant_rate = min(1.0, gain * 2)
-    for n in range(4, cap + 1):
-        expected_discordant = n * discordant_rate
-        if expected_discordant < 4:
-            continue
-        k = int(round(expected_discordant))
-        wins = int(round(k * (gain / discordant_rate + 0.5)))
-        wins = min(max(wins, 0), k)
-        tail = sum(comb(k, i) for i in range(wins, k + 1)) / (2**k)
-        if 2 * tail <= alpha:
-            return n
-    return cap
+    win_share = min(1.0, 0.5 + gain / (2 * discordant_rate))
+
+    if _detection_rate(cap, discordant_rate, win_share, alpha) < power:
+        return cap
+    low, high = 4, cap
+    while low < high:
+        middle = (low + high) // 2
+        if _detection_rate(middle, discordant_rate, win_share, alpha) >= power:
+            high = middle
+        else:
+            low = middle + 1
+    return low
 
 
 # --------------------------------------------------------------------------

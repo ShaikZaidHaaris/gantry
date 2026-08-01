@@ -14,7 +14,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { useState } from "react";
-import type { Benchmark, Gate, Progress, Submission } from "./types";
+import type { Benchmark, Gate, Plan, Progress, Submission } from "./types";
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -62,6 +62,23 @@ export function useSubmission(id: string | undefined): UseQueryResult<Submission
     queryKey: keys.submission(id ?? ""),
     queryFn: () => json<Submission>(`/api/submissions/${id}`),
     enabled: Boolean(id),
+  });
+}
+
+/** What a trial count buys. Keyed on the inputs so moving the slider is
+ *  instant once a position has been seen, and `placeholderData` keeps the last
+ *  answer on screen while the next one loads — a panel that blanks between
+ *  positions is unreadable while being dragged. */
+export function usePlan(benchmark: string | undefined, trials: number, magnitude: number) {
+  return useQuery({
+    queryKey: ["plan", benchmark, trials, magnitude] as const,
+    queryFn: () =>
+      json<Plan>(
+        `/api/benchmarks/${benchmark}/plan?trials=${trials}&magnitude=${magnitude}`,
+      ),
+    enabled: Boolean(benchmark),
+    placeholderData: (previous) => previous,
+    staleTime: 60 * 60 * 1000,
   });
 }
 

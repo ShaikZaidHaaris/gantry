@@ -2,6 +2,7 @@
 
 import { Link, useParams } from "react-router-dom";
 import { useSubmission, useSubmissionEvents } from "../api/client";
+import { BudgetPanel } from "../components/BudgetPanel";
 import { DataReport } from "../components/DataReport";
 import { GateTimeline } from "../components/GateTimeline";
 import { ErrorNote, Skeleton, StatusPill, ago, bytes, submissionStatus } from "../components/ui";
@@ -31,6 +32,13 @@ export function SubmissionDetail() {
 
   const detected = data.dataset?.detected;
   const report = data.gates.find((g) => g.key === "g1");
+  // The gate whose price is a choice, if it has not run. Not simply the next
+  // paid gate: the signal check is fixed work at a fixed price, and putting a
+  // trial slider on it would offer a decision that does not exist. The budget
+  // question also belongs here rather than in the upload wizard — nobody should
+  // pick a trial count before knowing their data is readable, and a price
+  // quoted before intake is a price for work that may never happen.
+  const sized = data.gates.find((g) => g.sized && g.status === "queued");
 
   return (
     <div className="page">
@@ -97,6 +105,16 @@ export function SubmissionDetail() {
             </span>
           </h2>
           <DataReport gate={report} />
+        </>
+      )}
+
+      {sized && report?.status === "passed" && (
+        <>
+          <h2>
+            What to run next
+            <span className="h2-sub">what a budget can conclude, before it is spent</span>
+          </h2>
+          <BudgetPanel benchmark={data.benchmark?.key} gateName={sized.name} />
         </>
       )}
 

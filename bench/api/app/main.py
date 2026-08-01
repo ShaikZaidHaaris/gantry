@@ -44,11 +44,15 @@ app = FastAPI(title="Gantry Bench API", version="1")
 #: The gauntlet, in order, with what each costs and how it is described to a
 #: user. Held here rather than in the UI so the API, the worker and the page
 #: cannot disagree about what the gates are.
+#: The gauntlet. ``sized`` marks the gate whose price is a *choice*: the robot
+#: test runs as many scenes as you buy, and how many you buy decides what the
+#: run can conclude. The others are fixed work at a fixed price, and offering a
+#: trial slider for them would be a control over nothing.
 GATES = [
-    {"key": "g0", "name": "Intake", "question": "Can we read this at all?", "cost_cents": 0, "eta": "seconds"},
-    {"key": "g1", "name": "Data report", "question": "What is this footage like?", "cost_cents": 0, "eta": "about a minute"},
-    {"key": "g2", "name": "Signal check", "question": "Is there anything learnable here?", "cost_cents": 100, "eta": "about ten minutes"},
-    {"key": "g3", "name": "Robot test", "question": "Does the robot actually get better?", "cost_cents": 3400, "eta": "a few hours"},
+    {"key": "g0", "name": "Intake", "question": "Can we read this at all?", "cost_cents": 0, "eta": "seconds", "sized": False},
+    {"key": "g1", "name": "Data report", "question": "What is this footage like?", "cost_cents": 0, "eta": "about a minute", "sized": False},
+    {"key": "g2", "name": "Signal check", "question": "Is there anything learnable here?", "cost_cents": 100, "eta": "about ten minutes", "sized": False},
+    {"key": "g3", "name": "Robot test", "question": "Does the robot actually get better?", "cost_cents": 3400, "eta": "a few hours", "sized": True},
 ]
 
 
@@ -82,6 +86,7 @@ def as_gate(row: Gate) -> dict:
         "question": spec["question"],
         "eta": spec["eta"],
         "cost_cents": spec["cost_cents"],
+        "sized": spec["sized"],
         "status": row.status,
         "verdict": json.loads(row.verdict_json or "{}"),
         "findings": json.loads(row.findings_json or "[]"),
@@ -161,6 +166,91 @@ def benchmarks(session: Session = Depends(db)):
             for b in rows
         ],
         "gates": GATES,
+    }
+
+
+#: Cheapest experiment we will sell. Below this the arithmetic is not close --
+#: it is not an experiment, and quoting a price for one would be selling a
+#: number rather than an answer.
+FLOOR_TRIALS = 20
+
+
+def costing(bench: Benchmark, trials: int) -> dict:
+    """What this many trials costs and how long it takes, from measured rates.
+
+    Both arms are trained and evaluated: the contributor's data and its own
+    shuffled control. The baseline is not retrained -- it is the same model
+    every time, and charging for it again would be charging twice.
+    """
+    cost = json.loads(bench.cost_json or "{}")
+    rate = cost.get("gpu_cents_per_hour", 0) / 3600.0
+    trained = cost.get("arms_trained", 2)
+    evaluated = cost.get("arms_evaluated", 2)
+    seconds = trained * cost.get("train_seconds", 0) + evaluated * trials * cost.get(
+        "seconds_per_trial", 0
+    )
+    return {
+        "seconds": int(seconds),
+        "cents": int(round(seconds * rate)),
+        "arms_trained": trained,
+        "arms_evaluated": evaluated,
+        "measured_on": cost.get("measured_on", ""),
+    }
+
+
+@app.get("/api/benchmarks/{key}/plan")
+def plan(key: str, trials: int = 50, magnitude: float = 0.08, session: Session = Depends(db)):
+    """What a budget can and cannot see, before it is spent.
+
+    The one number nobody in this space quotes. A contributor choosing a trial
+    count is choosing what the run is able to conclude, and the honest way to
+    present that choice is to say what each option can detect -- not to let them
+    pick fifty, get a null, and read it as "the data did not help" when fifty
+    trials could never have separated the effect they cared about.
+
+    Every figure here is computed by the pipeline's own sizing, against the
+    baseline this benchmark has actually recorded. Nothing on this route
+    invents a rate: with no measured baseline the sizing falls back to the
+    noisiest case and says so, rather than picking a flattering one.
+    """
+    from gantry.spine.inference import trials_needed
+    from gantry_feedback_power import Budget, plan_for
+    from gantry_feedback_power.power import _smallest_detectable
+
+    bench = session.scalar(select(Benchmark).where(Benchmark.key == key))
+    if bench is None:
+        raise HTTPException(404, "no such benchmark")
+
+    reference = json.loads(bench.reference_json or "{}")
+    base = reference.get("baseline") or {}
+    baseline = (base.get("wins") / base["n"]) if base.get("n") else None
+
+    trials = max(FLOOR_TRIALS, min(2000, int(trials)))
+    verdict = plan_for(Budget(trials=trials, magnitude=magnitude), baseline=baseline)
+    alpha = Budget(trials=trials, magnitude=magnitude).corrected_alpha()
+
+    # Sized against the noisiest case when nothing has been recorded, matching
+    # what plan_for does, so the two cannot disagree about what was assumed.
+    assumed = 0.5 if baseline is None else baseline
+    return {
+        "benchmark": bench.key,
+        "trials": trials,
+        "magnitude": magnitude,
+        "baseline": {
+            "rate": round(assumed, 4),
+            "measured": baseline is not None,
+            "wins": base.get("wins"),
+            "n": base.get("n"),
+            "note": reference.get("note", ""),
+        },
+        "detects": round(_smallest_detectable(assumed, trials, alpha), 4),
+        "needed": trials_needed(assumed, magnitude, alpha=alpha),
+        "ok": verdict.ok,
+        "reasons": [
+            {"code": r.code, "summary": r.message, "hint": r.hint or "", "detail": dict(r.detail)}
+            for r in verdict.reasons
+        ],
+        "cost": costing(bench, trials),
     }
 
 

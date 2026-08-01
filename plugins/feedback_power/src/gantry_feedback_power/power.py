@@ -154,20 +154,25 @@ def plan_for(
 
     if budget.trials < needed:
         detectable = _smallest_detectable(baseline, budget.trials, alpha)
+        hint = (
+            f"run {needed}, or ask about an effect this budget can see — at "
+            f"{budget.trials} trials that is roughly {detectable:+.3f}"
+            if detectable is not None
+            else f"run {needed}. There is no effect size {budget.trials} trials can "
+            "reliably separate at this baseline, so there is no smaller question "
+            "to ask instead"
+        )
         checks.append(
             Verdict.no(
                 "power.underpowered",
                 f"separating a {budget.magnitude:+.3f} change in {budget.metric} from "
                 f"a baseline of {baseline:.0%} needs about {needed} paired trials, and "
                 f"{budget.trials} are planned",
-                hint=(
-                    f"run {needed}, or ask about an effect this budget can see — at "
-                    f"{budget.trials} trials that is roughly {detectable:+.3f}"
-                ),
+                hint=hint,
                 needed=needed,
                 planned=budget.trials,
                 baseline=round(baseline, 4),
-                smallest_detectable=round(detectable, 4),
+                smallest_detectable=None if detectable is None else round(detectable, 4),
             )
         )
     elif budget.trials > needed * 4:
@@ -175,7 +180,7 @@ def plan_for(
             Verdict.note(
                 "power.generous",
                 f"{budget.trials} trials would detect a change about "
-                f"{_smallest_detectable(baseline, budget.trials, alpha):+.3f} in size, "
+                f"{(_smallest_detectable(baseline, budget.trials, alpha) or 0.0):+.3f} in size, "
                 f"far smaller than the {budget.magnitude:+.3f} claimed",
                 hint="usually means the claim was hedged rather than the budget "
                 "generous; a smaller claim is the stronger one to make",
@@ -186,14 +191,20 @@ def plan_for(
 
 def _smallest_detectable(
     baseline: float, trials: int, alpha: float, *, resolution: float = 0.005
-) -> float:
-    """The smallest effect this many trials could separate, by search."""
+) -> float | None:
+    """The smallest effect this many trials could separate, by search.
+
+    ``None`` when the answer is "none": a budget too small to reliably detect
+    *any* effect. It used to return 1.0 in that case, which reads as "this
+    budget can detect a hundred-point change" -- a reassuring sentence about a
+    hopeless experiment, and precisely backwards from what this module is for.
+    """
     magnitude = resolution
     while magnitude < 1.0:
         if trials_needed(baseline, magnitude, alpha=alpha, cap=trials + 1) <= trials:
             return magnitude
         magnitude += resolution
-    return 1.0
+    return None
 
 
 class PowerCheck(FeedbackModule):

@@ -82,30 +82,44 @@ def test_twenty_trials_cannot_see_a_ten_point_effect():
 
 
 def test_a_sufficient_budget_proceeds():
+    # 200, not the 60 this once said. Sixty was adequate only under a sizing
+    # that ignored its own power argument; separating ten points at a 61%
+    # baseline actually takes 168 paired trials.
     assert plan_for(
-        Budget(trials=60, magnitude=0.10), history=measured_history(), task="lift_cube"
+        Budget(trials=200, magnitude=0.10), history=measured_history(), task="lift_cube"
     ).ok
 
 
 def test_the_refusal_carries_the_number_that_would_work():
     """A refusal nobody can act on is just an obstacle."""
     verdict = plan_for(
+        Budget(trials=60, magnitude=0.05), history=measured_history(), task="lift_cube"
+    )
+    reason = verdict.because("power.underpowered")[0]
+    assert reason.detail["needed"] > 60
+    assert 0 < reason.detail["smallest_detectable"] < 1
+    assert "run" in reason.hint
+
+
+def test_a_hopeless_budget_says_so_rather_than_offering_a_hundred_points():
+    """At twenty trials there is no effect size worth quoting, and the search
+    used to answer 1.0 -- a reassuring sentence about a hopeless experiment."""
+    verdict = plan_for(
         Budget(trials=20, magnitude=0.05), history=measured_history(), task="lift_cube"
     )
     reason = verdict.because("power.underpowered")[0]
-    assert reason.detail["needed"] > 20
-    assert 0 < reason.detail["smallest_detectable"] < 1
-    assert "run" in reason.hint
+    assert reason.detail["smallest_detectable"] is None
+    assert "no smaller question" in reason.hint
 
 
 def test_it_also_says_what_this_budget_could_see_instead():
     """The other actionable direction: keep the budget, weaken the claim."""
     verdict = plan_for(
-        Budget(trials=20, magnitude=0.05), history=measured_history(), task="lift_cube"
+        Budget(trials=60, magnitude=0.05), history=measured_history(), task="lift_cube"
     )
     detectable = verdict.because("power.underpowered")[0].detail["smallest_detectable"]
     assert plan_for(
-        Budget(trials=20, magnitude=detectable + 0.01),
+        Budget(trials=60, magnitude=detectable + 0.01),
         history=measured_history(),
         task="lift_cube",
     ).ok
@@ -167,8 +181,8 @@ def test_the_tightened_threshold_is_stated_before_the_money_is_spent():
 
 def test_correction_can_turn_an_adequate_budget_inadequate():
     """Which is the point: the tenth look is not the same claim as the first."""
-    first = plan_for(Budget(trials=30, magnitude=0.10), baseline=0.6)
-    fiftieth = plan_for(Budget(trials=30, magnitude=0.10, attempts=49), baseline=0.6)
+    first = plan_for(Budget(trials=200, magnitude=0.10), baseline=0.6)
+    fiftieth = plan_for(Budget(trials=200, magnitude=0.10, attempts=49), baseline=0.6)
     assert first.ok
     assert not fiftieth.ok
 
@@ -186,9 +200,11 @@ def test_it_says_what_a_finished_run_could_ever_have_seen():
 
 
 def test_an_adequate_run_produces_no_complaint():
-    report = PowerCheck(magnitude=0.30).analyse([cohort("ph", "lift_cube", 28, 50)])
+    # 56 paired trials separate thirty points at this rate, so fifty-six is the
+    # bar and fifty is not it.
+    report = PowerCheck(magnitude=0.30).analyse([cohort("ph", "lift_cube", 34, 60)])
     assert [f.code for f in report.findings] == []
-    assert report.measurements["ph.success_rate"].value == pytest.approx(0.56)
+    assert report.measurements["ph.success_rate"].value == pytest.approx(34 / 60)
 
 
 def test_a_cohort_with_no_outcomes_is_reported_rather_than_skipped():

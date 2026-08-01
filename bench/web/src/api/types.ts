@@ -61,6 +61,10 @@ export interface Gate {
   question: string;
   eta: string;
   cost_cents: number;
+  /** Whether this gate's price is a choice. Only the robot test runs as many
+   *  scenes as you buy; the rest are fixed work, and a trial slider for them
+   *  would be a control over nothing. */
+  sized: boolean;
   status: GateStatus;
   verdict: { summary?: string };
   findings: Finding[];
@@ -115,4 +119,34 @@ export interface Benchmark {
   embodiment: string;
   simulator: string;
   reference: { baseline?: { wins: number; n: number }; expert?: number; note?: string };
+}
+
+/** What a budget can and cannot see, computed by the pipeline's own sizing.
+ *
+ *  `detects` is the smallest effect this many trials can be relied on to
+ *  separate. It is null when the answer is "none" — a budget too small to
+ *  detect anything at this baseline. Null is not zero and must not render as
+ *  a reassuring number. */
+export interface Plan {
+  benchmark: string;
+  trials: number;
+  magnitude: number;
+  baseline: {
+    rate: number;
+    measured: boolean;
+    wins: number | null;
+    n: number | null;
+    note: string;
+  };
+  detects: number | null;
+  needed: number;
+  ok: boolean;
+  reasons: { code: string; summary: string; hint: string; detail: Record<string, unknown> }[];
+  cost: {
+    seconds: number;
+    cents: number;
+    arms_trained: number;
+    arms_evaluated: number;
+    measured_on: string;
+  };
 }
