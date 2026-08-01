@@ -13,7 +13,8 @@ import {
   useQueryClient,
   type UseQueryResult,
 } from "@tanstack/react-query";
-import type { Benchmark, Gate, Submission } from "./types";
+import { useState } from "react";
+import type { Benchmark, Gate, Progress, Submission } from "./types";
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -109,21 +110,42 @@ export function useConfirmMeaning(id: string) {
   });
 }
 
-/** Listen to one submission's event log and refetch when anything happens.
+/** Listen to one submission, live. Two channels, deliberately different.
  *
- *  The stream carries *what* happened, never the state itself -- the record is
- *  refetched so there is one source of truth. A page that rendered from the
- *  event payload would slowly drift from the record it claims to show. */
-export function useSubmissionEvents(id: string | undefined) {
+ *  Default `message` frames are the durable log. They carry *what* happened and
+ *  never the state itself; the record is refetched so there is one source of
+ *  truth. A page that rendered from the event payload would slowly drift from
+ *  the record it claims to show.
+ *
+ *  `progress` frames are where the running gate is. These are returned rather
+ *  than cached, because refetching the whole submission every time a training
+ *  step ticks would be absurd — and because progress is the one thing on the
+ *  page that is genuinely allowed to be a moment out of date.
+ *
+ *  The connection is *not* closed on error. EventSource reconnects on its own
+ *  and sends `Last-Event-ID`, which the server uses to replay exactly what was
+ *  missed. Closing the source is what made a dropped connection permanent, and
+ *  a four-hour run is where a connection actually drops. */
+export function useSubmissionEvents(id: string | undefined): Progress | null {
   const client = useQueryClient();
+  const [progress, setProgress] = useState<Progress | null>(null);
+
   useEffect(() => {
     if (!id) return;
+    setProgress(null);
     const source = new EventSource(`/api/submissions/${id}/events`);
     source.onmessage = () => {
+      // Anything durable happened: a gate started, finished, was queued. The
+      // position it was last at no longer means anything.
+      setProgress(null);
       client.invalidateQueries({ queryKey: keys.submission(id) });
       client.invalidateQueries({ queryKey: keys.submissions });
     };
-    source.onerror = () => source.close();
+    source.addEventListener("progress", (event) => {
+      setProgress(JSON.parse((event as MessageEvent).data) as Progress);
+    });
     return () => source.close();
   }, [id, client]);
+
+  return progress;
 }

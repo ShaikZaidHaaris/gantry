@@ -14,7 +14,16 @@ from __future__ import annotations
 import json
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+#: What a gate is handed to say where it is: phase, and optionally how far
+#: through and a note. Typed here so a gate can be run outside a worker -- in a
+#: test, or by hand -- without one.
+Report = Callable[..., None]
+
+
+def _quiet(*_args, **_kwargs) -> None:
+    """Default report: say nothing. A gate must run without a worker."""
 
 #: What a channel has to be for the rest of the gauntlet to have any chance.
 #: Not a whitelist of names -- a dataset may call things what it likes -- but
@@ -162,13 +171,20 @@ def check(detected: dict) -> list[dict]:
     return out
 
 
-def run(archive: Path, workdir: Path) -> dict:
-    """The gate contract: a verdict, findings, and what we detected."""
+def run(archive: Path, workdir: Path, report: Report = _quiet) -> dict:
+    """The gate contract: a verdict, findings, and what we detected.
+
+    ``report`` says where we are. Called rather than returned because the whole
+    point is to be heard while the gate is still running.
+    """
+    report("unpacking", note=archive.name)
     root, problems = unpack(archive, workdir / "unpacked")
     if root is None:
         return {"status": "refused", "detected": {}, "findings": problems, "summary": problems[0]["summary"]}
 
+    report("reading the manifest")
     detected = describe(root)
+    report("checking", note=f"{detected.get('episodes', 0)} episodes")
     findings = check(detected)
     blocking = [f for f in findings if f["severity"] == "strong"]
     status = "refused" if blocking else "passed"

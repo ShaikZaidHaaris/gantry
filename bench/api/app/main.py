@@ -14,7 +14,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
@@ -36,6 +36,7 @@ from .db import (
     init_db,
     new_id,
     now,
+    sweep_stale,
 )
 
 app = FastAPI(title="Gantry Bench API", version="1")
@@ -86,6 +87,10 @@ def as_gate(row: Gate) -> dict:
         "findings": json.loads(row.findings_json or "[]"),
         "measures": json.loads(row.measures_json or "{}"),
         "abstained": json.loads(row.abstained_json or "[]"),
+        # Only while running. A finished gate's last position is noise, and
+        # showing "step 2,999 of 3,000" next to a green tick reads as a run that
+        # stopped one short.
+        "progress": json.loads(row.progress_json or "{}") if row.status == "running" else {},
         "started_at": row.started_at,
         "finished_at": row.finished_at,
     }
@@ -161,6 +166,7 @@ def benchmarks(session: Session = Depends(db)):
 
 @app.get("/api/submissions")
 def list_submissions(who=Depends(viewer), session: Session = Depends(db)):
+    sweep_stale(session)
     rows = session.scalars(
         select(Submission).where(Submission.org_id == who["org_id"]).order_by(Submission.created_at.desc())
     ).all()
@@ -190,6 +196,7 @@ async def create_submission(body: dict, who=Depends(viewer), session: Session = 
 
 @app.get("/api/submissions/{sub_id}")
 def get_submission(sub_id: str, who=Depends(viewer), session: Session = Depends(db)):
+    sweep_stale(session)
     sub = session.get(Submission, sub_id)
     if sub is None or sub.org_id != who["org_id"]:
         raise HTTPException(404, "no such submission")
@@ -255,37 +262,81 @@ def confirm_meaning(sub_id: str, body: dict, who=Depends(viewer), session: Sessi
     return as_submission(session, sub, deep=True)
 
 
-@app.get("/api/submissions/{sub_id}/events")
-async def stream_events(sub_id: str, request_after: int = 0):
-    """Server-sent events: the append-only log, tailed.
+#: How often the stream looks for something new. Also the rate progress frames
+#: coalesce at: a worker beating ten times a second still produces one frame
+#: per tick here, so a chatty gate cannot flood a browser.
+POLL = 1.0
 
-    The UI never polls a submission for state; it listens here and refetches
-    the record when something happened. One log, one truth.
+#: Polls with nothing to say before the stream closes. EventSource reconnects
+#: on its own, so this is a ceiling on how long one connection is held open,
+#: not on how long a user can watch.
+IDLE_LIMIT = 900
+
+
+@app.get("/api/submissions/{sub_id}/events")
+async def stream_events(sub_id: str, request: Request, after: int = 0):
+    """The live channel. Two frame types, on purpose.
+
+    ``message`` frames are the durable log -- queued, started, finished. Each
+    carries an ``id:``, so a browser that loses its connection reconnects with
+    ``Last-Event-ID`` and is sent exactly what it missed. Without the id line,
+    EventSource's own resume does nothing and a user who reloads during a
+    four-hour run silently loses every event that happened while they were
+    away. That is the reload most likely to happen.
+
+    ``progress`` frames are where the running gate is up to. They carry no id
+    and are not replayable, which is right: nobody wants a replay of a
+    progress bar, and the current position already arrives with the record on
+    reconnect. They are read off the gate row rather than a queue, so the
+    stream coalesces at its own rate no matter how fast a worker reports --
+    a training loop beating ten times a second still produces one frame here.
     """
 
     async def gen():
-        last = request_after
+        last = int(request.headers.get("last-event-id") or after or 0)
+        seen: str | None = None
         idle = 0
-        while idle < 900:
+        while idle < IDLE_LIMIT and not await request.is_disconnected():
+            frames: list[str] = []
             with SessionLocal() as session:
+                sweep_stale(session)
                 rows = session.scalars(
                     select(Event).where(Event.submission_id == sub_id, Event.id > last).order_by(Event.id)
                 ).all()
                 for row in rows:
                     last = row.id
                     payload = {"id": row.id, "ts": row.ts, "kind": row.kind, **json.loads(row.payload_json or "{}")}
-                    yield f"data: {json.dumps(payload)}\n\n"
-            if rows:
+                    frames.append(f"id: {row.id}\ndata: {json.dumps(payload)}\n\n")
+
+                running = session.scalars(
+                    select(Gate).where(Gate.submission_id == sub_id, Gate.status == "running")
+                ).first()
+                current = (
+                    json.dumps({"gate": running.key, **json.loads(running.progress_json or "{}")})
+                    if running
+                    else None
+                )
+                # Only on change. An unchanged bar re-sent every second is a
+                # heartbeat wearing a progress bar's clothes, and it makes a
+                # stalled stage look busy.
+                if current != seen:
+                    seen = current
+                    if current:
+                        frames.append(f"event: progress\ndata: {current}\n\n")
+
+            for frame in frames:
+                yield frame
+            if frames:
                 idle = 0
             else:
                 idle += 1
                 yield ": keep-alive\n\n"
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(POLL)
 
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
     )
 
 
@@ -391,14 +442,44 @@ def finish_job(job_id: str, body: dict, session: Session = Depends(db)):
     return {"ok": True}
 
 
+#: What a worker may say about where it is. Anything else is dropped rather
+#: than stored, so a gate cannot smuggle arbitrary state through the progress
+#: channel and have the UI grow a special case for it.
+#:
+#: ``total`` is allowed to be absent. A stage that genuinely does not know how
+#: much work is left says so and gets an indeterminate bar; inventing a
+#: denominator to make the bar move is the one thing this must not do.
+PROGRESS_FIELDS = ("phase", "current", "total", "note")
+
+
 @app.post("/api/jobs/{job_id}/heartbeat")
 def heartbeat(job_id: str, body: dict, session: Session = Depends(db)):
+    """Liveness, and optionally where the gate is up to.
+
+    Progress overwrites in place and never appends to the event log. A
+    three-thousand-step training run would otherwise put three thousand rows
+    into a log whose entire value is that a person can read it.
+    """
     row = session.get(Job, job_id)
     if row is None:
         raise HTTPException(404, "no such job")
     row.heartbeat_at = now()
-    if body.get("progress"):
-        emit(session, row.submission_id, "gate.progress", gate=row.gate_key, **body["progress"])
+    progress = body.get("progress")
+    if progress:
+        gate = session.scalar(
+            select(Gate).where(Gate.submission_id == row.submission_id, Gate.key == row.gate_key)
+        )
+        if gate is not None:
+            # Empty is absent. A note of "" is not a note, and passing it
+            # through means the UI renders a blank element and has to learn to
+            # check for one.
+            gate.progress_json = json.dumps(
+                {
+                    k: progress[k]
+                    for k in PROGRESS_FIELDS
+                    if progress.get(k) is not None and progress[k] != ""
+                }
+            )
     session.commit()
     return {"ok": True}
 

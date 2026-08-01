@@ -29,6 +29,7 @@ from sqlalchemy import (
     Text,
     create_engine,
     event,
+    select,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -142,6 +143,15 @@ class Gate(Base):
     #: Modules that declined, with their reason. Never dropped: a report that
     #: silently omits what it could not judge reads as a clean bill of health.
     abstained_json: Mapped[str] = mapped_column(Text, default="[]")
+    #: Where the running gate is up to, overwritten in place.
+    #:
+    #: Deliberately *not* in the event log. Progress is volatile and high rate --
+    #: a three-thousand-step training run would append three thousand rows to a
+    #: log whose whole value is that a person can read it. The log keeps the
+    #: narrative (queued, started, finished); this keeps the current position,
+    #: and the stream polls it. It also means a reload during a four-hour run
+    #: shows where the run actually is rather than an empty bar.
+    progress_json: Mapped[str] = mapped_column(Text, default="{}")
     started_at: Mapped[str] = mapped_column(String, default="")
     finished_at: Mapped[str] = mapped_column(String, default="")
     cost_cents: Mapped[int] = mapped_column(Integer, default=0)
@@ -177,7 +187,60 @@ def emit(session: Session, submission_id: str, kind: str, **payload) -> None:
 #: Columns added after the first schema shipped. Real migrations land with
 #: Postgres; until then this keeps a developer's existing demo database
 #: working instead of asking them to delete it.
-LATER = {"gates": {"measures_json": "'{}'", "abstained_json": "'[]'"}}
+LATER = {"gates": {"measures_json": "'{}'", "abstained_json": "'[]'", "progress_json": "'{}'"}}
+
+#: Seconds without a heartbeat before a running job is presumed dead. Workers
+#: beat on a background thread every :data:`~worker.run.BEAT` seconds, which
+#: continues through a gate's longest blocking call, so this only trips when the
+#: worker process is genuinely gone.
+STALE_AFTER = 90.0
+
+
+def sweep_stale(session: Session, *, after: float = STALE_AFTER) -> int:
+    """Fail jobs whose worker stopped beating, and say it was our fault.
+
+    A gate stuck on "running" forever is the worst of the failure modes: it
+    looks like patience is the answer, so nobody investigates, and the user
+    eventually concludes their data broke something. Marked ``failed`` rather
+    than ``refused`` -- the vocabulary already keeps our machinery breaking
+    separate from a judgement on somebody's data, and this is squarely the
+    former.
+
+    Swept lazily on read here. A real deployment runs it on a timer; doing it
+    on read means a submission nobody is looking at stays stale a while longer,
+    which is harmless and much less machinery.
+    """
+    from datetime import datetime, timezone
+
+    stale = 0
+    cutoff = datetime.now(timezone.utc).timestamp() - after
+    for job in session.scalars(select(Job).where(Job.status == "running")).all():
+        try:
+            beat = datetime.fromisoformat(job.heartbeat_at).timestamp()
+        except (TypeError, ValueError):
+            continue
+        if beat > cutoff:
+            continue
+        job.status = "failed"
+        job.error = f"the worker stopped responding after {int(after)}s"
+        gate = session.scalar(
+            select(Gate).where(Gate.submission_id == job.submission_id, Gate.key == job.gate_key)
+        )
+        if gate is not None:
+            gate.status = "failed"
+            gate.finished_at = now()
+            gate.verdict_json = json.dumps(
+                {"summary": "the machine running this check stopped responding — this is our fault, not your data's"}
+            )
+        submission = session.get(Submission, job.submission_id)
+        if submission is not None:
+            submission.status = "failed"
+        emit(session, job.submission_id, "gate.finished", gate=job.gate_key, status="failed",
+             summary="the worker stopped responding")
+        stale += 1
+    if stale:
+        session.commit()
+    return stale
 
 
 def init_db() -> None:

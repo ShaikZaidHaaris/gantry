@@ -4,12 +4,12 @@ import { Link, useParams } from "react-router-dom";
 import { useSubmission, useSubmissionEvents } from "../api/client";
 import { DataReport } from "../components/DataReport";
 import { GateTimeline } from "../components/GateTimeline";
-import { ErrorNote, Skeleton, StatusPill, ago, bytes } from "../components/ui";
+import { ErrorNote, Skeleton, StatusPill, ago, bytes, submissionStatus } from "../components/ui";
 
 export function SubmissionDetail() {
   const { id } = useParams();
   const { data, isPending, error } = useSubmission(id);
-  useSubmissionEvents(id);
+  const live = useSubmissionEvents(id);
 
   if (isPending) {
     return (
@@ -30,7 +30,6 @@ export function SubmissionDetail() {
   if (!data) return null;
 
   const detected = data.dataset?.detected;
-  const running = data.status === "running";
   const report = data.gates.find((g) => g.key === "g1");
 
   return (
@@ -39,10 +38,7 @@ export function SubmissionDetail() {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <h1>{data.name}</h1>
-            <StatusPill
-              status={running ? "running" : data.status === "refused" ? "refused" : "passed"}
-              label={running ? "Running" : data.status === "refused" ? "Refused" : "Ready"}
-            />
+            <StatusPill {...submissionStatus(data)} />
           </div>
           <p>
             {data.benchmark?.name} · {data.benchmark?.simulator}
@@ -88,7 +84,7 @@ export function SubmissionDetail() {
       ) : null}
 
       <h2>Progress</h2>
-      <GateTimeline gates={data.gates} currentGate={data.current_gate} />
+      <GateTimeline gates={data.gates} currentGate={data.current_gate} live={live} />
 
       {/* The report appears only once the gate that produces it has finished.
           Nothing on this page pretends to have a result before it has one. */}

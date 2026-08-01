@@ -2,23 +2,9 @@
 
 import { Link } from "react-router-dom";
 import { useSubmissions } from "../api/client";
-import type { GateStatus, Submission } from "../api/types";
-import { Empty, ErrorNote, Skeleton, StatusPill, ago } from "../components/ui";
+import { Empty, ErrorNote, Skeleton, StatusPill, ago, submissionStatus } from "../components/ui";
 
 const COLUMNS = "1.4fr 1fr 150px 130px 90px";
-
-/** What the row's pill should say: the submission's own state, expressed
- *  through the gate it is at, so the table is readable without opening a row. */
-function rowStatus(sub: Submission): { status: GateStatus; label: string } {
-  const gate = sub.gates.find((g) => g.key === sub.current_gate);
-  if (sub.status === "running" && gate) return { status: "running", label: `${gate.name}…` };
-  if (sub.status === "refused") return { status: "refused", label: "Refused" };
-  if (sub.status === "failed") return { status: "failed", label: "Our error" };
-  if (sub.status === "draft") return { status: "queued", label: "Draft — no data yet" };
-  if (sub.status === "queued") return { status: "queued", label: "Queued" };
-  const done = [...sub.gates].reverse().find((g) => g.status === "passed");
-  return { status: "passed", label: done ? `${done.name} passed` : "Ready" };
-}
 
 export function Submissions() {
   const { data, isPending, error } = useSubmissions();
@@ -69,7 +55,7 @@ export function Submissions() {
         )}
 
         {data?.submissions.map((sub) => {
-          const pill = rowStatus(sub);
+          const pill = submissionStatus(sub);
           const detected = sub.dataset?.detected;
           return (
             <Link

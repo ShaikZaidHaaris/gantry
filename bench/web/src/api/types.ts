@@ -42,6 +42,19 @@ export interface Abstention {
   reason: string;
 }
 
+/** Where a running gate is up to.
+ *
+ *  `total` is optional on purpose: a stage that does not know how much work is
+ *  left says so and gets an indeterminate bar. Inventing a denominator to make
+ *  the bar move is a lie the user cannot check. */
+export interface Progress {
+  gate?: string;
+  phase: string;
+  current?: number;
+  total?: number;
+  note?: string;
+}
+
 export interface Gate {
   key: "g0" | "g1" | "g2" | "g3";
   name: string;
@@ -53,6 +66,8 @@ export interface Gate {
   findings: Finding[];
   measures: Record<string, Measure>;
   abstained: Abstention[];
+  /** Present only while running. A finished gate's last position is noise. */
+  progress: Progress | Record<string, never>;
   started_at: string;
   finished_at: string;
 }

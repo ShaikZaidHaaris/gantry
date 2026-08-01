@@ -1,7 +1,8 @@
 /** The parts every screen is built from. Small on purpose. */
 
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { Finding, GateStatus, Severity } from "../api/types";
+import type { Finding, GateStatus, Severity, Submission } from "../api/types";
 
 /** One vocabulary for state, product-wide. "failed" is *our* machinery, and is
  *  worded so it never reads as a judgement on the user's data. */
@@ -21,6 +22,28 @@ export function StatusPill({ status, label }: { status: GateStatus; label?: stri
       {label ?? PILL_LABEL[status]}
     </span>
   );
+}
+
+/** What a submission's pill says, everywhere it appears.
+ *
+ *  Here rather than per screen. The detail page had its own shortened version
+ *  that treated anything not running and not refused as "Ready", so a
+ *  submission whose worker died showed a green Ready beside a gate reading "Our
+ *  error". One vocabulary means the two cannot disagree.
+ *
+ *  Note what each word protects. "Refused" is a judgement on somebody's data;
+ *  "Our error" is a judgement on our machine. A submission is never told the
+ *  first when the second is true. */
+export function submissionStatus(sub: Submission): { status: GateStatus; label: string } {
+  const gate = sub.gates.find((g) => g.key === sub.current_gate);
+  if (sub.status === "running") return { status: "running", label: gate ? `${gate.name}…` : "Running" };
+  if (sub.status === "refused") return { status: "refused", label: "Refused" };
+  if (sub.status === "abstained") return { status: "abstained", label: "Can't tell" };
+  if (sub.status === "failed") return { status: "failed", label: "Our error" };
+  if (sub.status === "draft") return { status: "queued", label: "Draft — no data yet" };
+  if (sub.status === "queued") return { status: "queued", label: "Queued" };
+  const done = [...sub.gates].reverse().find((g) => g.status === "passed");
+  return { status: "passed", label: done ? `${done.name} passed` : "Ready" };
 }
 
 export function Empty({
@@ -100,6 +123,27 @@ export function ago(iso: string): string {
   if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.round(seconds / 3600)}h ago`;
   return `${Math.round(seconds / 86400)}d ago`;
+}
+
+/** A clock that runs while a gate does.
+ *
+ *  Its own component with its own interval, rather than a string computed
+ *  during render. A string only updates when something else re-renders the
+ *  page, so a gate whose stage lasts twenty minutes would show the same figure
+ *  for twenty minutes — which is precisely the "is this alive?" question the
+ *  running gate exists to answer. */
+export function Elapsed({ since }: { since: string }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  if (!since) return null;
+  const seconds = Math.max(0, (Date.now() - new Date(since).getTime()) / 1000);
+  if (seconds < 60) return <>{Math.floor(seconds)}s</>;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return <>{`${minutes}m ${Math.floor(seconds % 60)}s`}</>;
+  return <>{`${Math.floor(minutes / 60)}h ${minutes % 60}m`}</>;
 }
 
 export function duration(from: string, to: string): string {

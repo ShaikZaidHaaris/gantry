@@ -27,6 +27,15 @@ Two rules it inherits from the pipeline and must not break:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Callable
+
+#: What a gate is handed to say where it is. See ``intake.Report``.
+Report = Callable[..., None]
+
+
+def _quiet(*_args, **_kwargs) -> None:
+    """Default report: say nothing. A gate must run without a worker."""
+
 
 #: Modules are routed by what they declare they need, not by name. ``outcomes``
 #: or ``stage_events`` means the module reads rollouts, which an upload has
@@ -61,8 +70,9 @@ def data_side_modules():
     return found
 
 
-def run(archive: Path, workdir: Path) -> dict:
+def run(archive: Path, workdir: Path, report: Report = _quiet) -> dict:
     """The gate contract. Intake already unpacked; read what it left."""
+    report("finding the dataset")
     root = next((workdir / "unpacked").rglob("meta/info.json"), None)
     if root is None:
         return {
@@ -71,12 +81,18 @@ def run(archive: Path, workdir: Path) -> dict:
             "findings": [],
         }
 
+    report("opening the clips")
     cohort = _cohort(root.parents[1], "your data")
     findings: list[dict] = []
     measures: dict[str, dict] = {}
     abstained: list[dict] = []
 
-    for name, module in data_side_modules():
+    modules = data_side_modules()
+    for index, (name, module) in enumerate(modules):
+        # Named, not just counted. A module that hangs is findable this way and
+        # invisible the other, and on a large upload the slow one is the whole
+        # question.
+        report("running checks", current=index, total=len(modules), note=name)
         try:
             check = getattr(module, "check_inputs", None)
             if check is not None:
@@ -84,12 +100,16 @@ def run(archive: Path, workdir: Path) -> dict:
                 if not verdict.ok:
                     abstained.append({"module": name, "reason": verdict.explain()})
                     continue
-            report = module.analyse([cohort])
+            # ``said``, not ``report``: ``report`` is the progress callable this
+            # gate was handed, and rebinding it here meant the second module in
+            # the loop called a dataclass. Two different things called the same
+            # word, one of them the gate contract.
+            said = module.analyse([cohort])
         except Exception as error:  # noqa: BLE001 - one module, not the gate
             abstained.append({"module": name, "reason": f"{type(error).__name__}: {error}"})
             continue
 
-        for finding in report.findings:
+        for finding in said.findings:
             findings.append(
                 {
                     "code": finding.code,
@@ -102,9 +122,9 @@ def run(archive: Path, workdir: Path) -> dict:
             )
         # Kept apart from findings: a measurement is not a complaint, and a
         # module that measured a lot while flagging nothing has said something.
-        for key, value in report.measurements.items():
+        for key, value in said.measurements.items():
             measures[key] = {**value.as_dict(), "module": name}
-        for note in getattr(report, "notes", ()) or ():
+        for note in getattr(said, "notes", ()) or ():
             abstained.append({"module": name, "reason": note})
 
     # G1 never refuses. Its job is to describe; whether the footage is worth
@@ -117,7 +137,7 @@ def run(archive: Path, workdir: Path) -> dict:
         summary = f"{len(findings)} finding(s), none blocking"
     else:
         summary = "nothing to flag in the footage"
-    summary += f" · {len(cohort.episodes)} clip(s) read by {len(data_side_modules())} module(s)"
+    summary += f" · {len(cohort.episodes)} clip(s) read by {len(modules)} module(s)"
 
     return {
         "status": "passed",

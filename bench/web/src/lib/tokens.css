@@ -272,3 +272,28 @@ h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px
            font-size: 12.5px; color: var(--text-2); }
 .abstain:first-child { border-top: 0; }
 .abstain .mod { color: var(--text-3); min-width: 84px; flex: none; }
+
+/* a running gate ----------------------------------------------------------- */
+/* The only place in the product where motion is allowed to be continuous, and
+   only because "is this still alive?" is a real question during a four-hour
+   run. Everything else animates on state change or not at all. */
+.running { margin-top: 9px; max-width: 520px; }
+.running .phase { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px;
+                  margin-bottom: 6px; }
+.running .what { font-weight: 550; color: var(--text); }
+.running .note-i { color: var(--text-3); font: 11.5px var(--mono); overflow: hidden;
+                   text-overflow: ellipsis; white-space: nowrap; }
+.running .spacer { margin-left: auto; }
+.running .count { color: var(--text-3); font-size: 11.5px; flex: none; }
+
+/* An indeterminate bar says "working, and we do not know how long". Distinct
+   from a bar sitting at 0%, which says "nothing has happened" — and inventing
+   a denominator so the bar could move would be a lie the user cannot check. */
+.bar.indeterminate { position: relative; }
+.bar.indeterminate > i {
+  position: absolute; width: 32%; animation: slide 1.5s ease-in-out infinite;
+}
+@keyframes slide { 0% { left: -32% } 100% { left: 100% } }
+@media (prefers-reduced-motion: reduce) {
+  .bar.indeterminate > i { animation: none; left: 0; width: 100%; opacity: 0.35 }
+}
