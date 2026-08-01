@@ -3,6 +3,7 @@ import { useMe } from "./api/client";
 import { NewSubmission } from "./routes/NewSubmission";
 import { SubmissionDetail } from "./routes/SubmissionDetail";
 import { Compare } from "./routes/Compare";
+import { VerdictPage } from "./routes/VerdictPage";
 import { Submissions } from "./routes/Submissions";
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/submissions/new" element={<NewSubmission />} />
         <Route path="/submissions/:id" element={<SubmissionDetail />} />
         <Route path="/compare" element={<Compare />} />
+        <Route path="/submissions/:id/verdict" element={<VerdictPage />} />
       </Routes>
     </div>
   );

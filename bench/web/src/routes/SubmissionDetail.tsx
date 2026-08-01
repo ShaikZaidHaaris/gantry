@@ -125,6 +125,9 @@ export function SubmissionDetail() {
           <h2>
             Robot test
             <span className="h2-sub">closed-loop, on scenes the policy has never seen</span>
+            <Link className="h2-link" to={`/submissions/${data.id}/verdict`}>
+              Open as a document →
+            </Link>
           </h2>
           <Verdict gate={robot} />
         </>

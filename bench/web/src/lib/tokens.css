@@ -432,3 +432,54 @@ h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px
 .headtohead .reading { font-size: 12.5px; color: var(--text-2); line-height: 1.55; max-width: 76ch }
 .board-foot { font-size: 12px; color: var(--text-3); line-height: 1.6; max-width: 78ch;
               border-top: 1px solid var(--border); padding-top: 12px; margin-top: 18px }
+
+/* the verdict as a document ------------------------------------------------ */
+.doc { max-width: 860px; }
+.doc-actions { display: flex; align-items: center; margin-bottom: 24px; }
+.doc-actions .spacer { margin-left: auto; }
+.doc-head { border-bottom: 2px solid var(--text); padding-bottom: 16px; margin-bottom: 28px; }
+.doc-brand { font-weight: 650; font-size: 13px; letter-spacing: -0.1px; margin-bottom: 12px;
+             display: flex; gap: 8px; align-items: center; }
+.doc-head h1 { font-size: 24px; font-weight: 650; letter-spacing: -0.4px; margin-bottom: 10px;
+               text-wrap: balance; }
+.doc-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 4px 20px; font-size: 12px; color: var(--text-2); }
+.doc-meta b { color: var(--text-3); font-weight: 600; text-transform: uppercase;
+              letter-spacing: 0.05em; font-size: 10px; margin-right: 6px; }
+.doc-foot { margin-top: 32px; padding-top: 14px; border-top: 1px solid var(--border);
+            font-size: 11.5px; line-height: 1.6; color: var(--text-3); }
+h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
+
+/* print -------------------------------------------------------------------- */
+/* The browser is the renderer. A server-side PDF would be a second layout that
+   drifts from this one — and what drifts out is whatever was added last, which
+   is usually a caveat. */
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root { --canvas: #fff; --shadow: none; --shadow-lg: none; }
+  body { background: #fff; font-size: 10.5pt; }
+  .topbar, .no-print, .fold-head, .h2-link { display: none !important; }
+  .page { max-width: none; padding: 0; }
+  .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+
+  /* A finding must not be split across a page, and a heading must not be
+     orphaned from what it introduces. Both matter more here than the page
+     count: half a caveat reads as no caveat. */
+  .finding, .lrow, .headtohead, .statement { break-inside: avoid; }
+  .report-step { break-inside: avoid-page; }
+  .report-step-head, h2, h3 { break-after: avoid; }
+
+  /* Folded sections are open on paper. Nothing on a printed verdict should
+     require a click to reveal, least of all the part listing what was not
+     measured. */
+  .fold-body { display: block !important; }
+
+  /* Colour is not guaranteed on paper, so every bar keeps an outline and every
+     rate keeps its digits. A greyscale print of this page still says the same
+     thing. */
+  .rung-bar, .interval, .measure-bar .track { border: 1px solid #999; }
+  .rung-bar .fill, .interval .point, .measure-bar .dot { background: #333 !important; }
+  .rung-bar .ci, .interval .span, .measure-bar .ci { background: #ccc !important; }
+  .sev { border: 1px solid #333; }
+  a { text-decoration: none; color: inherit; }
+}
