@@ -642,3 +642,136 @@ def test_eval_mode_is_set_so_the_limit_is_loaded_at_all():
 
     source = inspect.getsource(config_for)
     assert '"eval_mode"' in source
+
+
+# -- what happened on the way ---------------------------------------------------
+#
+# The baseline solves this task 12 times in 100. Ranking two datasets on that
+# needs 326 trials per arm to see an eight-point difference -- 34 GPU-hours for
+# four arms. Reaching an object, disturbing it and lifting it all happen far
+# more often than solving does, and each separates a policy partway there from
+# one that is nowhere near.
+
+
+class Moving(FakeTask):
+    """A fake whose objects a policy can actually shift."""
+
+    def __init__(self, lift=0.0, nudge=0.0, gripper_at=None, **kwargs):
+        super().__init__(**kwargs)
+        self.lift = lift
+        self.nudge = nudge
+        self.gripper_at = np.array(gripper_at if gripper_at is not None else [9.0, 9.0, 9.0])
+        self.start = np.array([[0.1, 0.2, 0.74], [-0.1, 0.2, 0.74]])
+
+    def positions(self):
+        now = self.start.copy()
+        if self.steps:
+            now[0, 2] += self.lift
+            now[0, 0] += self.nudge
+        return now
+
+    def get_obs(self):
+        raw = super().get_obs()
+        pose = np.zeros(7, dtype="float32")
+        pose[3] = 1.0
+        pose[:3] = self.gripper_at
+        raw["endpose"] = {
+            "left_endpose": pose,
+            "left_gripper": 0.3,
+            "right_endpose": pose,
+            "right_gripper": 0.7,
+        }
+        return raw
+
+
+def moving(**kwargs):
+    built = []
+
+    def factory(task, **_):
+        made = Moving(**kwargs)
+        built.append(made)
+        return made
+
+    made = RoboTwinEvaluator("pick_dual_bottles", action_type="ee", factory=factory, horizon=4)
+    made.built = built
+    return made
+
+
+def stages_of(made):
+    record = made.run(Chunker(16), made.task_for(scenes=1), Protocol())
+    return set(record.episodes[0].labels.stages)
+
+
+def patch_objects(made, monkeypatch=None):
+    """Point the world at the fake's objects, since there is no SAPIEN here."""
+    world = made.world
+
+    class Handle:
+        def __init__(self, env, index):
+            self.env, self.index = env, index
+
+        def get_pose(self):
+            class P:
+                p = self.env.positions()[self.index]
+
+            return P()
+
+    world_env = world.env
+    original = world.begin
+
+    def begin(scene):
+        out = original(scene)
+        world.objects = tuple(Handle(world_env, i) for i in range(2))
+        world._origin = world_env.start.copy()
+        out["objects.positions"] = world_env.positions().reshape(-1)
+        return out
+
+    world.begin = begin
+    return made
+
+
+def test_lifting_an_object_is_reported_even_when_the_task_is_not_solved():
+    made = patch_objects(moving(lift=0.10, win_at=999))
+    stages = stages_of(made)
+    assert "object0.lifted" in stages
+    assert "solved" not in stages
+
+
+def test_nudging_an_object_is_distinguished_from_lifting_it():
+    """A policy that knocks something over has done something different from one
+    that picked it up, and a binary outcome calls both of them zero."""
+    made = patch_objects(moving(nudge=0.08, win_at=999))
+    stages = stages_of(made)
+    assert "object0.moved" in stages
+    assert "object0.lifted" not in stages
+
+
+def test_touching_nothing_reports_nothing():
+    made = patch_objects(moving(win_at=999))
+    assert stages_of(made) == set()
+
+
+def test_a_gripper_near_an_object_counts_as_having_reached_it():
+    made = patch_objects(moving(gripper_at=[0.1, 0.2, 0.76], win_at=999))
+    stages = stages_of(made)
+    assert "left.reached" in stages and "right.reached" in stages
+
+
+def test_a_gripper_across_the_table_has_not():
+    made = patch_objects(moving(gripper_at=[0.9, 0.9, 0.9], win_at=999))
+    assert not [s for s in stages_of(made) if s.endswith(".reached")]
+
+
+def test_a_milestone_is_reported_once_not_every_step_after():
+    """The rollout ignores repeats, but reporting them would make 'reached' read
+    as an event that kept happening."""
+    made = patch_objects(moving(lift=0.10, win_at=999))
+    record = made.run(Chunker(16), made.task_for(scenes=1), Protocol())
+    events = [e.name for e in record.episodes[0].labels.stage_events]
+    assert events.count("object0.lifted") == 1
+
+
+def test_the_evaluator_declares_that_it_reports_stages():
+    """A feedback module that reads stages checks the descriptor first, and one
+    that says False is not asked."""
+    assert evaluator().descriptor().provides["stage_events"] is True

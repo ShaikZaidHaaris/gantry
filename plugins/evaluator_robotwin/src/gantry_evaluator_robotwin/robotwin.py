@@ -172,6 +172,18 @@ TASKS = (
 #: RoboTwin's own control frequency.
 CONTROL_HZ = 25.0
 
+#: How close a gripper has to get to an object to count as having reached it.
+REACHED = 0.06
+#: How far an object has to move from where it started to count as disturbed.
+MOVED = 0.02
+#: How far an object has to rise to count as lifted, rather than nudged.
+LIFTED = 0.03
+#: Objects further than this from the workspace centre are scenery or parked
+#: spares, not part of the task. RoboTwin-family simulators build every object a
+#: task family might use and park the unused ones off-world; a metric that
+#: averaged over those would be measuring the parking spot.
+WORKSPACE = 2.0
+
 #: What RoboTwin falls back to when a task is missing from its step-limit file.
 #: Matched to its own fallback rather than chosen here, so a task it does not
 #: list gets the same budget under this evaluator as under its own script.
@@ -380,6 +392,11 @@ class DualArm:
         self.instruction: str | None = None
         #: Set per scene by the evaluator, from what the expert's rollout saw.
         self.planned: str | None = None
+        #: The movable objects, and where they started. Re-found every scene,
+        #: because a new arrangement is new objects.
+        self.objects: tuple[Any, ...] = ()
+        self._origin: np.ndarray | None = None
+        self._reached: set[str] = set()
 
     # -- the world ---------------------------------------------------------
 
@@ -406,20 +423,67 @@ class DualArm:
         getter = getattr(self.env, "get_instruction", None)
         spoken = getter() if callable(getter) else None
         self.instruction = str(spoken) if spoken else (self.planned or scene.instruction)
+
+        self.objects = task_objects(self.env)
+        self._origin = positions_of(self.objects).reshape(-1, 3) if self.objects else None
+        self._reached = set()
         return self._observe()
 
     def advance(self, action: np.ndarray) -> Step:
         self.env.take_action(np.asarray(action, dtype=float), action_type=self.action_type)
         solved = self._success()
+        observation = self._observe()
         return Step(
-            observation=self._observe(),
+            observation=observation,
             reward=1.0 if solved else 0.0,
             done=bool(solved),
             # Tri-state on purpose: RoboTwin answers every step, so a trial that
             # ran out of horizon has genuinely been checked and found wanting —
             # unlike a real bench, where nobody looked.
             success=bool(solved),
+            reached=self._milestones(observation, solved),
         )
+
+    def _milestones(self, observation: Mapping[str, np.ndarray], solved: bool) -> tuple[str, ...]:
+        """What has happened for the first time as of this step.
+
+        A binary outcome at 12% is almost no information per episode -- ranking
+        two datasets on it needs hundreds of trials. Whether the arms got near
+        the objects, disturbed them, and lifted them are things that happen far
+        more often than success does, and each one separates a policy that is
+        partway there from one that is nowhere.
+
+        Latched: a milestone is reported once, the first step it is true. The
+        rollout ignores repeats anyway, and reporting them would make "reached"
+        read as an event that kept happening.
+        """
+        if self._origin is None or OBJECTS not in observation:
+            return ("solved",) if solved else ()
+
+        now = np.asarray(observation[OBJECTS], dtype=float).reshape(-1, 3)
+        if now.shape != self._origin.shape:  # pragma: no cover - scene changed mid-trial
+            return ()
+        grippers = observation.get(STATE_VECTOR)
+        found: list[str] = []
+
+        for index, (start, here) in enumerate(zip(self._origin, now)):
+            if float(np.linalg.norm(here - start)) > MOVED:
+                found.append(f"object{index}.moved")
+            if float(here[2] - start[2]) > LIFTED:
+                found.append(f"object{index}.lifted")
+
+        if grippers is not None:
+            arms = np.asarray(grippers, dtype=float)
+            for side, arm in enumerate(ARMS):
+                tip = arms[side * ACTION_TYPES["ee"] : side * ACTION_TYPES["ee"] + 3]
+                if now.size and float(np.linalg.norm(now - tip, axis=1).min()) < REACHED:
+                    found.append(f"{arm}.reached")
+
+        if solved:
+            found.append("solved")
+        fresh = tuple(name for name in found if name not in self._reached)
+        self._reached.update(fresh)
+        return fresh
 
     def verdict(self, trial: Any) -> bool | None:  # pragma: no cover - per-step already answers
         return self._success()
@@ -463,8 +527,74 @@ class DualArm:
         flat = flatten(raw, keep=self.cameras)
         vector = endpose_vector(flat)
         if vector is not None:
-            flat["endpose.vector"] = vector
+            flat[STATE_VECTOR] = vector
+        if self.objects:
+            flat[OBJECTS] = positions_of(self.objects)
         return flat
+
+
+#: Where every movable object in the scene is, three numbers each.
+OBJECTS = "objects.positions"
+
+#: The channel the arms' own poses arrive under.
+STATE_VECTOR = "endpose.vector"
+
+
+def task_objects(env: Any) -> tuple[Any, ...]:
+    """The things in the scene a policy could actually move.
+
+    Found by asking the physics engine which bodies are dynamic, not by matching
+    names. Ground, wall and table carry a static rigid body; the objects a task
+    is about carry a dynamic one. That test holds for every task in the suite,
+    where a list of names would hold for one of them.
+
+    Parked spares are excluded by distance. A simulator that builds every object
+    a task family might need and moves the unused ones off-world will otherwise
+    contribute a constant ten metres to any distance averaged over objects --
+    the same trap that once made a gripper look 16 m from a can it was touching.
+    """
+    try:
+        import sapien
+    except ImportError:  # pragma: no cover - needs the simulator
+        return ()
+    scene = getattr(env, "scene", None)
+    if scene is None:
+        return ()
+    out = []
+    for actor in scene.get_all_actors():
+        body = actor.find_component_by_type(sapien.physx.PhysxRigidDynamicComponent)
+        if body is None:
+            continue
+        if float(np.linalg.norm(np.asarray(actor.get_pose().p))) > WORKSPACE:
+            continue
+        out.append(actor)
+    return tuple(out)
+
+
+def positions_of(actors: Sequence[Any]) -> np.ndarray:
+    """Every object's xyz, flattened, in the order they were found."""
+    if not actors:
+        return np.zeros(0, dtype="float32")
+    return np.concatenate(
+        [np.asarray(actor.get_pose().p, dtype="float32").reshape(3) for actor in actors]
+    )
+
+
+def objects_spec(count: int, name: str = OBJECTS) -> ChannelSpec:
+    """What :func:`positions_of` produces, described."""
+    return ChannelSpec(
+        name,
+        "vector",
+        (3 * max(count, 0),),
+        "float32",
+        frame="world",
+        rate_hz=CONTROL_HZ,
+        semantics="observation.object_positions",
+        dim_labels=tuple(
+            f"object{index}_{axis}" for index in range(count) for axis in ("x", "y", "z")
+        ),
+        metadata={"objects": count},
+    )
 
 
 def endpose_vector(flat: Mapping[str, np.ndarray]) -> np.ndarray | None:
@@ -605,8 +735,12 @@ class RoboTwinEvaluator(ClosedLoop):
         return evaluator_descriptor(
             name=self._name,
             version=VERSION,
-            # RoboTwin reports solved-or-not and nothing between.
-            stage_events=False,
+            # It reports solved-or-not, and now also what happened on the way:
+            # objects reached, disturbed and lifted. A binary at 12% is almost
+            # no information per episode -- these happen far more often than
+            # success does, and separate a policy partway there from one that is
+            # nowhere near.
+            stage_events=True,
             outcomes=True,
             seedable=True,
             closed_loop=True,
