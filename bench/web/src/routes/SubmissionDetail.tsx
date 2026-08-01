@@ -7,7 +7,35 @@ import { DataReport } from "../components/DataReport";
 import { Verdict } from "../components/Verdict";
 import { Versions } from "../components/Versions";
 import { GateTimeline } from "../components/GateTimeline";
-import { ErrorNote, Skeleton, StatusPill, ago, bytes, submissionStatus } from "../components/ui";
+import { ErrorNote, Skeleton, StatusPill, ago, bytes, readable, submissionStatus } from "../components/ui";
+
+/** What an event was, in words. The log stores `gate.finished` because that is
+ *  a stable key to branch on; a person reading their own submission's history
+ *  should see what happened, not the name of the row. */
+const HAPPENED: Record<string, string> = {
+  "submission.created": "Submission created",
+  "dataset.uploaded": "Dataset uploaded",
+  "schema.confirmed": "Channel meanings confirmed",
+  "gate.queued": "Queued",
+  "gate.started": "Started",
+  "gate.finished": "Finished",
+  "gate.retried": "Started again",
+};
+
+function happened(kind: string): string {
+  return HAPPENED[kind] ?? readable(kind);
+}
+
+const GATE_NAMES: Record<string, string> = {
+  g0: "Intake",
+  g1: "Data report",
+  g2: "Signal check",
+  g3: "Robot test",
+};
+
+function gateName(key: string): string {
+  return GATE_NAMES[key] ?? key;
+}
 
 export function SubmissionDetail() {
   const { id } = useParams();
@@ -85,7 +113,7 @@ export function SubmissionDetail() {
                 <span className="k">Instructions</span>
                 <span className="v">
                   {detected.tasks.length === 1
-                    ? `1: “${detected.tasks[0]}”`
+                    ? `1: “${readable(detected.tasks[0])}”`
                     : `${detected.tasks.length} distinct`}
                 </span>
               </>
@@ -172,10 +200,16 @@ export function SubmissionDetail() {
                   <span className="mono" style={{ color: "var(--text-3)", minWidth: 84 }}>
                     {ago(String(event.ts))}
                   </span>
-                  <span className="mono">{event.kind}</span>
-                  <span>
-                    {"summary" in event && event.summary ? String(event.summary) : ""}
-                    {"gate" in event && !("summary" in event) ? String(event.gate) : ""}
+                  {/* What happened and to which stage, and nothing else. The
+                      verdict text used to be repeated here from the stored
+                      event payload, which duplicated the timeline above and,
+                      because events are history, went on showing whatever the
+                      wording used to be. One of them was a training progress
+                      bar. A log of what happened does not need to re-state the
+                      result. */}
+                  <span>{happened(String(event.kind))}</span>
+                  <span style={{ color: "var(--text-3)" }}>
+                    {"gate" in event ? gateName(String(event.gate)) : ""}
                   </span>
                 </div>
               ))}

@@ -52,7 +52,7 @@ from gantry.contracts.feedback import (
     feedback_descriptor,
 )
 from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement, Verdict, mcnemar, proportion
+from gantry.spine import Descriptor, Measurement, Verdict, count_of, mcnemar, plural, proportion
 
 VERSION = "0.1.0.dev0"
 
@@ -114,7 +114,7 @@ def preflight(
             Verdict.no(
                 "curation.leaky",
                 f"{plan.signal!r} read {len(leaked)} of the {len(verification_seeds)} "
-                f"scene(s) it would be verified on, e.g. seed {leaked[0]}",
+                f"{plural(len(leaked), 'scene')} it would be verified on, for example seed {leaked[0]}",
                 hint="hold out scenes the signal never saw; a plan tested where it "
                 "was fitted always wins and the win means nothing",
             )
@@ -142,7 +142,7 @@ def preflight(
         checks.append(
             Verdict.note(
                 "curation.selection",
-                f"{plan.signal!r} has had {plans_already_tested} plan(s) tested "
+                f"{plan.signal!r} has had {count_of(plans_already_tested, 'plan')} tested "
                 f"already; this one must clear p < {corrected:.4f}, not {alpha}",
                 hint="reporting the best of several tries without correcting is how "
                 "a signal looks better than it is",

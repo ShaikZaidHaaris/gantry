@@ -206,7 +206,7 @@ def test_one_location_fires_whether_the_upload_is_large_or_small():
     for size in (6, 40):
         report = Capture().analyse([cohort([clean()] * size)])
         finding = next(f for f in report.findings if f.code == "capture.single_scene")
-        assert f"1 location(s) across {size} clips" in finding.summary
+        assert f"1 location across {size} clips" in finding.summary
 
 
 def test_many_locations_does_not_fire():
@@ -217,7 +217,7 @@ def test_many_locations_does_not_fire():
 def test_one_instruction_everywhere_means_the_language_carries_nothing():
     report = Capture().analyse([cohort([clean()] * 40)])
     finding = next(f for f in report.findings if f.code == "capture.one_instruction")
-    assert "1 distinct instruction(s) across 40 clips" in finding.summary
+    assert "1 distinct instruction across 40 clips" in finding.summary
 
 
 def test_several_instructions_do_not_fire_however_few_clips_there_are():
@@ -231,7 +231,7 @@ def test_stabilisation_fires_upward_rather_than_downward():
     """The only check where more is worse, so the direction is worth pinning."""
     report = Capture().analyse([cohort([clean(stabilized=1.0)] * 6)])
     finding = next(f for f in report.findings if f.code == "capture.stabilized")
-    assert "6 clip(s)" in finding.summary
+    assert "6 clips" in finding.summary
     assert "destroys the head trajectory" in finding.prescription
 
     assert "capture.stabilized" not in codes(

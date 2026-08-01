@@ -40,6 +40,9 @@ export interface Measure {
 export interface Abstention {
   module: string;
   reason: string;
+  /** The machine codes behind the sentence, kept so a lab can cite one. Shown
+   *  on hover, never in the prose. */
+  codes?: string[];
 }
 
 /** Where a running gate is up to.

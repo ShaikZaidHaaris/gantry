@@ -34,7 +34,7 @@ import numpy as np
 
 from gantry.contracts.feedback import Cohort, FeedbackModule, Finding, Report, feedback_descriptor
 from gantry.resolve import Requirement
-from gantry.spine import Descriptor, Measurement
+from gantry.spine import Descriptor, Measurement, count_of
 
 from . import metrics
 from . import statistics as st
@@ -129,7 +129,7 @@ class Screen(FeedbackModule):
             )
             measurements[f"{cohort.name}.success_rate"] = measurement
             if unlabelled:
-                notes.append(f"{cohort.name}: {unlabelled} episode(s) had no outcome label")
+                notes.append(f"{cohort.name}: {count_of(unlabelled, 'episode')} had no outcome label")
             if measurement.ci[1] < 0.95:
                 findings.append(
                     Finding(

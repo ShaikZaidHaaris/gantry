@@ -55,7 +55,7 @@ from gantry.contracts.feedback import (
     feedback_descriptor,
 )
 from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement, Verdict, proportion
+from gantry.spine import Descriptor, Measurement, Verdict, count_of, plural, proportion
 
 VERSION = "0.1.0.dev0"
 
@@ -96,7 +96,7 @@ class Block:
     def describe(self) -> str:
         """What to call this block in a sentence a contributor reads."""
         if self.label:
-            return f"the {self.width} {self.label} dimension(s)"
+            return f"the {self.width} {self.label} {plural(self.width, 'dimension')}"
         return f"dimensions {self.start}-{self.stop - 1}"
 
     def as_dict(self) -> dict[str, Any]:
@@ -261,7 +261,7 @@ class Stillness(FeedbackModule):
             read = scan["per_episode"]
             if scan["unread"]:
                 notes.append(
-                    f"{cohort.name}: {len(scan['unread'])} clip(s) had no readable control "
+                    f"{cohort.name}: {count_of(len(scan['unread']), 'clip')} had no readable control "
                     "channel and were not judged either way"
                 )
             if not read:
@@ -277,7 +277,7 @@ class Stillness(FeedbackModule):
                     Finding(
                         code="stillness.nothing_moved",
                         summary=(
-                            f"{cohort.name}: {len(dead)} of {len(read)} clip(s) have an action "
+                            f"{cohort.name}: {len(dead)} of {count_of(len(read), 'clip')} have an action "
                             "channel that never changes from its first value"
                         ),
                         severity="strong",
@@ -310,7 +310,7 @@ class Stillness(FeedbackModule):
                         code="stillness.frozen_block",
                         summary=(
                             f"{cohort.name}: {key} never change in {len(episodes)} of "
-                            f"{len(moving)} clip(s)"
+                            f"{count_of(len(moving), 'clip')}"
                         ),
                         severity="strong" if rate.value >= 0.25 else "weak",
                         measurements={"clips": rate},
@@ -336,7 +336,7 @@ class Stillness(FeedbackModule):
                         code="stillness.none",
                         summary=(
                             f"{cohort.name}: every part of the action moves in all "
-                            f"{len(read)} clip(s)"
+                            f"{count_of(len(read), 'clip')}"
                         ),
                         severity="info",
                         cohorts=(cohort.name,),

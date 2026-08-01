@@ -51,7 +51,7 @@ from gantry.contracts.feedback import (
     feedback_descriptor,
 )
 from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement, Verdict
+from gantry.spine import Descriptor, Measurement, Verdict, count_of, plural
 from gantry.spine.inference import (
     AGREEMENT_TENTATIVE,
     AGREEMENT_TRUSTED,
@@ -284,12 +284,12 @@ class Calibration(FeedbackModule):
                             code="judge.unmeasured",
                             summary=(
                                 f"{judge} and {reference} settled only {score.n} "
-                                f"judgement(s) in common; agreement needs at least "
+                                f"{plural(score.n, 'judgement')} in common. Agreement needs at least "
                                 f"{MIN_PAIRS} before the number means anything"
                             ),
                             severity="info",
                             measurements={"kappa": score},
-                            prescription=f"Score {MIN_PAIRS - score.n} more trial(s).",
+                            prescription=f"Score {count_of(MIN_PAIRS - score.n, 'more trial')}.",
                             cohorts=(judge, reference),
                         )
                     )
@@ -299,9 +299,9 @@ class Calibration(FeedbackModule):
                         code=code,
                         summary=(
                             f"{judge} against {reference}: kappa {score.value:.3f} "
-                            f"over {score.n} settled judgement(s) "
+                            f"over {count_of(score.n, 'settled judgement')} "
                             f"(raw agreement {score.detail['raw_agreement']:.0%}, "
-                            f"{score.detail['dropped_abstentions']} abstention(s) dropped)"
+                            f"{count_of(score.detail['dropped_abstentions'], 'abstention')} dropped)"
                         ),
                         severity="strong" if code == "judge.calibrated" else "weak",
                         measurements={"kappa": score},
@@ -408,7 +408,7 @@ class Calibration(FeedbackModule):
         if score.n < MIN_PAIRS:
             return Verdict.no(
                 "judge.unmeasured",
-                f"{judge!r} and {against!r} settled only {score.n} judgement(s) "
+                f"{judge!r} and {against!r} settled only {count_of(score.n, 'judgement')} "
                 f"together; {MIN_PAIRS} is the floor for the number to mean anything",
             )
         code = str(score.detail["verdict"])

@@ -58,7 +58,7 @@ from gantry.contracts.feedback import (
     feedback_descriptor,
 )
 from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement
+from gantry.spine import Descriptor, Measurement, count_of
 
 VERSION = "0.1.0.dev0"
 
@@ -253,8 +253,8 @@ class Coverage(FeedbackModule):
             )
             findings.extend(self._findings_for(cohort, said, result))
             notes.append(
-                f"{cohort.name}: {len(said)} clip(s) against "
-                f"{len(self._evaluates)} evaluated task(s)"
+                f"{cohort.name}: {count_of(len(said), 'clip')} against "
+                f"{count_of(len(self._evaluates), 'evaluated task')}"
             )
 
         return Report(
@@ -312,7 +312,7 @@ class Coverage(FeedbackModule):
                     code="coverage.mismatch",
                     summary=(
                         f"{cohort.name} touches {len(result['touched'])} of "
-                        f"{len(self._evaluates)} evaluated task(s) "
+                        f"{count_of(len(self._evaluates), 'evaluated task')} "
                         f"({fraction:.0%}); a delta measured across all of them is "
                         "mostly a statement about task match rather than about this "
                         "data"

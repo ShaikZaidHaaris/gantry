@@ -44,7 +44,7 @@ from gantry.contracts.feedback import (
 )
 from gantry.history import History
 from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement, Verdict, proportion
+from gantry.spine import Descriptor, Measurement, Verdict, count_of, proportion
 from gantry.spine.inference import trials_needed
 
 VERSION = "0.1.0.dev0"
@@ -102,7 +102,7 @@ def plan_for(
         checks.append(
             Verdict.no(
                 "power.no_effect_named",
-                f"a budget of {budget.trials} trial(s) is being planned to detect a "
+                f"a budget of {count_of(budget.trials, 'trial')} is being planned to detect a "
                 f"change of {budget.magnitude} in {budget.metric}",
                 hint="no number of trials distinguishes a thing from itself; state "
                 "the effect worth detecting",
@@ -112,7 +112,7 @@ def plan_for(
         checks.append(
             Verdict.no(
                 "power.below_floor",
-                f"{budget.trials} trial(s) is not an experiment",
+                f"{count_of(budget.trials, 'trial')} is not an experiment",
             )
         )
     if checks:
@@ -145,7 +145,7 @@ def plan_for(
         checks.append(
             Verdict.note(
                 "power.selection",
-                f"{budget.attempts} run(s) already exist on this question, so this "
+                f"{count_of(budget.attempts, 'run')} already exist on this question, so this "
                 f"one must clear p<{alpha:.4f} rather than {budget.alpha}",
                 hint="reporting the best of several tries without correcting is how "
                 "a method looks better than it is",
@@ -269,7 +269,7 @@ class PowerCheck(FeedbackModule):
                     Finding(
                         code="power.underpowered",
                         summary=(
-                            f"{cohort.name}: {len(scored)} scored trial(s) at "
+                            f"{cohort.name}: {count_of(len(scored), 'scored trial')} at "
                             f"{rate.value:.0%} could separate an effect of about "
                             f"{detectable:+.3f}; a {self._magnitude:+.3f} claim needs "
                             f"about {needed}"

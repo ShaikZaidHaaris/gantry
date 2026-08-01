@@ -102,6 +102,16 @@ export function FindingRow({ finding }: { finding: Finding }) {
   );
 }
 
+/** A machine name as a person would say it: `pick_dual_bottles` becomes
+ *  "Pick dual bottles". Display only. The identifier stays whatever it was,
+ *  because it is what a report cites and what the API returns. */
+export function readable(identifier: string): string {
+  const words = identifier.split(/[._\-\s]+/).filter(Boolean);
+  if (!words.length) return identifier;
+  const joined = words.join(" ");
+  return joined.charAt(0).toUpperCase() + joined.slice(1);
+}
+
 /** Gate summaries arrive lowercase (they read as clause fragments in logs);
  *  people read them as sentences. */
 export function sentence(text: string): string {

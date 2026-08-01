@@ -25,6 +25,7 @@ from .manifest import Manifest
 from .resolve import Registry
 from .runner import plan_manifest, run_manifest
 from .spine import PLANES
+from .spine import count_of
 
 EXIT_OK, EXIT_REFUSED, EXIT_MISUSE = 0, 1, 2
 
@@ -84,7 +85,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
         return EXIT_REFUSED
     kind = "evaluate then analyse" if manifest.evaluates else "analyse as recorded"
     print(
-        f"  would {kind}: {len(manifest.cohorts)} cohort(s), "
+        f"  would {kind}: {count_of(len(manifest.cohorts), 'cohort')}, "
         f"{len(manifest.feedback)} feedback module(s)"
     )
     return EXIT_OK

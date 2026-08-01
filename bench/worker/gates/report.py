@@ -42,12 +42,68 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+from gantry.spine import count_of, plural, readable, without_codes
+
 #: What a gate is handed to say where it is. See ``intake.Report``.
 Report = Callable[..., None]
 
 
 def _quiet(*_args, **_kwargs) -> None:
     """Default report: say nothing. A gate must run without a worker."""
+
+
+#: What each check is called on the page. Module names are package names, chosen
+#: by whoever wrote the plugin and meaningful to them; a contributor reading
+#: "extraction" has to guess. A module with no entry here keeps its own name,
+#: which is the safe default rather than a good one, and adding a line is the fix.
+LABELS = {
+    "capture": "Filming",
+    "extraction": "Hand tracking",
+    "provenance": "Licensing",
+    "coverage": "Task coverage",
+    "stillness": "Motion",
+    "screen": "Cohort screening",
+    "control": "Shuffled control",
+    "compare": "Comparison",
+    "power": "Sample size",
+    "protocol": "Protocol",
+    "calibrate": "Judge agreement",
+    "rank": "Ranking",
+    "verify": "Split checking",
+    "funnel": "Stage funnel",
+    "harden": "Robustness",
+    "attribution": "Attribution",
+}
+
+
+def label(module: str) -> str:
+    return LABELS.get(module, readable(module))
+
+
+#: What the single cohort in a data report is called. Modules prefix their
+#: sentences with the cohort name because most of them compare two or more, and
+#: a report on one upload then reads "your data: your data did X" once the page
+#: has already said whose data it is.
+COHORT = "your data"
+
+
+def plainly(text: str) -> str:
+    """One line of internal explanation, as a sentence for the page.
+
+    Modules name their own checks when they explain themselves, and a verdict
+    prefixes its code in brackets. That is right for a log and wrong here: a
+    reader who sees `capture.hands_offscreen` in the middle of a sentence learns
+    that they are reading machine output, and stops trusting the rest of the
+    page to be written for them. The codes stay in the record next to this, so
+    nothing is lost.
+    """
+    out = without_codes(text)
+    for prefix in (f"{COHORT}: ", f"{COHORT.capitalize()}: "):
+        if out.startswith(prefix):
+            out = out[len(prefix):]
+    if out[:1].islower():
+        out = out[0].upper() + out[1:]
+    return out.rstrip(". ") + "." if out and not out.endswith((".", "!", "?")) else out
 
 
 #: Modules are routed by what they declare they need, not by name. ``outcomes``
@@ -126,7 +182,7 @@ def run(
         }
 
     report("opening the clips")
-    cohort = _cohort(root.parents[1], "your data")
+    cohort = _cohort(root.parents[1], COHORT)
     findings: list[dict] = []
     measures: dict[str, dict] = {}
     abstained: list[dict] = []
@@ -142,7 +198,15 @@ def run(
             if check is not None:
                 verdict = check([cohort])
                 if not verdict.ok:
-                    abstained.append({"module": name, "reason": verdict.explain()})
+                    # The reasons themselves, not ``explain()``. That method
+                    # formats for a log: it opens with "refused" and prefixes
+                    # each code in brackets, which on a page reads as a stack
+                    # trace with a sentence in it.
+                    abstained.append({
+                        "module": label(name),
+                        "reason": " ".join(plainly(r.message) for r in verdict.reasons),
+                        "codes": [r.code for r in verdict.reasons],
+                    })
                     continue
             # ``said``, not ``report``: ``report`` is the progress callable this
             # gate was handed, and rebinding it here meant the second module in
@@ -150,7 +214,11 @@ def run(
             # word, one of them the gate contract.
             said = module.analyse([cohort])
         except Exception as error:  # noqa: BLE001 - one module, not the gate
-            abstained.append({"module": name, "reason": f"{type(error).__name__}: {error}"})
+            abstained.append({
+                "module": label(name),
+                "reason": "This check could not run on your data. That is our fault, not yours.",
+                "codes": [f"{type(error).__name__}: {error}"],
+            })
             continue
 
         for finding in said.findings:
@@ -158,7 +226,7 @@ def run(
                 {
                     "code": finding.code,
                     "severity": finding.severity,
-                    "summary": finding.summary,
+                    "summary": plainly(finding.summary),
                     "prescription": getattr(finding, "prescription", None),
                     "evidence": dict(getattr(finding, "evidence", {}) or {}),
                     "module": name,
@@ -169,7 +237,7 @@ def run(
         for key, value in said.measurements.items():
             measures[key] = {**value.as_dict(), "module": name}
         for note in getattr(said, "notes", ()) or ():
-            abstained.append({"module": name, "reason": note})
+            abstained.append({"module": label(name), "reason": plainly(note), "codes": []})
 
     installed = inventory()
     missing = [name for name in REQUIRED if name not in installed]
@@ -179,8 +247,9 @@ def run(
                 "code": "report.modules_missing",
                 "severity": "strong",
                 "summary": (
-                    f"{len(missing)} check(s) this deployment expects are not installed on the "
-                    f"machine that ran it: {', '.join(missing)}"
+                    f"{count_of(len(missing), 'check')} this deployment expects "
+                    f"{plural(len(missing), 'is', 'are')} not installed on the machine that "
+                    f"ran it: {', '.join(label(m) for m in missing)}"
                 ),
                 "prescription": (
                     "Install them and run the report again. Until then this report is shorter "
@@ -193,7 +262,11 @@ def run(
         )
         for name in missing:
             abstained.append(
-                {"module": name, "reason": "not installed on the worker that ran this report"}
+                {
+                    "module": label(name),
+                    "reason": "This check is not installed on the machine that ran the report.",
+                    "codes": [name],
+                }
             )
 
     # G1 never refuses. Its job is to describe; whether the footage is worth
@@ -201,12 +274,15 @@ def run(
     # advice rather than a door closing.
     strong = [f for f in findings if f["severity"] == "strong"]
     if strong:
-        summary = f"{len(findings)} finding(s), {len(strong)} worth fixing before you refilm"
+        summary = f"{count_of(len(findings), 'finding')}, {len(strong)} worth fixing before you refilm"
     elif findings:
-        summary = f"{len(findings)} finding(s), none blocking"
+        summary = f"{count_of(len(findings), 'finding')}, none blocking"
     else:
         summary = "nothing to flag in the footage"
-    summary += f" · {len(cohort.episodes)} clip(s) read by {len(modules)} module(s)"
+    summary += (
+        f" · {count_of(len(cohort.episodes), 'clip')} read by "
+        f"{count_of(len(modules), 'check')}"
+    )
 
     return {
         "status": "passed",

@@ -575,8 +575,19 @@ def produce(job: dict, folder: Path, report: Report) -> tuple[bool, str]:
             )
 
     if process.returncode != 0:
-        tail = (process.stdout.read() or "").strip().splitlines()[-8:]
-        return False, "the runner failed: " + (" / ".join(tail) or f"exit {process.returncode}")
+        # The last lines of a trainer's output are usually a progress bar, and
+        # pasting one into a verdict makes the page look like a terminal. The
+        # full log stays on the machine that ran it, which is where anybody
+        # debugging this would look anyway.
+        lines = [
+            line.strip()
+            for line in (process.stdout.read() or "").splitlines()
+            if line.strip() and "%|" not in line and not line.startswith(("[runner] $", "\r"))
+        ]
+        why = next((l for l in reversed(lines) if len(l) > 20 and "it/s" not in l), "")
+        return False, (
+            "the run did not finish. " + (why[:200] if why else f"It stopped with exit code {process.returncode}.")
+        )
     if not (folder / MANIFEST).exists():
         return False, "the runner finished without writing a manifest of what it produced"
     return True, ""

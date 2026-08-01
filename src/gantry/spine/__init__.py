@@ -61,6 +61,7 @@ from .provenance import (
 )
 from .run import RunRecord, RunSet, describe, runset
 from .verdict import IncompatibleError, Reason, Verdict
+from .text import count_of, plural, readable, without_codes
 
 #: Version of the spine contract itself. Plugins pin against this.
 #: 1.1 added ChannelSpec.discriminators: metadata keys a plugin declares to be
@@ -70,6 +71,10 @@ from .verdict import IncompatibleError, Reason, Verdict
 SPINE_CONTRACT = "spine@1.2"
 
 __all__ = [
+    "count_of",
+    "plural",
+    "readable",
+    "without_codes",
     "SPINE_CONTRACT",
     "CORE_PLANES",
     "MANY",

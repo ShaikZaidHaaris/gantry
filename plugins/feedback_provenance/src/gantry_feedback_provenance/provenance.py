@@ -50,7 +50,7 @@ from gantry.contracts.feedback import (
     feedback_descriptor,
 )
 from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement
+from gantry.spine import Descriptor, Measurement, count_of, plural
 
 VERSION = "0.1.0.dev0"
 
@@ -232,7 +232,7 @@ class Provenance(FeedbackModule):
                 },
             )
             notes.append(
-                f"{cohort.name}: {len(distinct)} distinct declaration(s), governing "
+                f"{cohort.name}: {count_of(len(distinct), 'distinct declaration')}, governing "
                 f"restriction {RANK[governing]!r}"
             )
             findings.extend(self._findings_for(cohort, governing, by_rank, sorted(distinct)))
@@ -267,7 +267,7 @@ class Provenance(FeedbackModule):
                     # be planned around; an unstated one cannot.
                     severity="strong",
                     summary=(
-                        f"{cohort.name}: {len(offenders)} component(s) declare a licence "
+                        f"{cohort.name}: {count_of(len(offenders), 'component')} declare a licence "
                         "this module does not recognise, or none at all"
                     ),
                     evidence={"where": offenders[:8], "text": unrecognised[:8]},
@@ -289,7 +289,7 @@ class Provenance(FeedbackModule):
                     severity="strong" if commercial else "info",
                     summary=(
                         f"{cohort.name} was produced through non-commercial "
-                        f"component(s) ({', '.join(offenders[:3])}"
+                        f"{plural(len(offenders), 'component')} ({', '.join(offenders[:3])}"
                         + (f" and {len(offenders) - 3} more" if len(offenders) > 3 else "")
                         + ")"
                         + (
@@ -323,7 +323,7 @@ class Provenance(FeedbackModule):
                     severity="weak",
                     summary=(
                         f"{cohort.name} may be used commercially with attribution to "
-                        f"{len(by_rank[ATTRIBUTION])} component(s)"
+                        f"{count_of(len(by_rank[ATTRIBUTION]), 'component')}"
                     ),
                     evidence={"attribution": sorted({c.text for c in by_rank[ATTRIBUTION]})},
                     prescription=(
@@ -341,7 +341,7 @@ class Provenance(FeedbackModule):
                     severity="info",
                     summary=(
                         f"{cohort.name} is permissively licensed throughout "
-                        f"({len(declared)} declaration(s)), so it may be used commercially"
+                        f"({count_of(len(declared), 'declaration')}), so it may be used commercially"
                     ),
                     evidence={"declared": list(declared)},
                     cohorts=(cohort.name,),

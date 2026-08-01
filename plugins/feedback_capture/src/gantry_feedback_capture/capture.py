@@ -48,7 +48,7 @@ from gantry.contracts.feedback import (
     feedback_descriptor,
 )
 from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement
+from gantry.spine import Descriptor, Measurement, count_of, plural
 
 VERSION = "0.1.0.dev0"
 
@@ -144,7 +144,7 @@ CHECKS: tuple[Check, ...] = (
         threshold=3.0,
         below=True,
         weight=2.0,
-        summary="all of it was filmed in {scenes} location(s) across {clips} clips",
+        summary="all of it was filmed in {scenes} {scene_word} across {clips} clips",
         fix="Film the same tasks somewhere else. A different room, different "
         "lighting, different objects of the same kind.",
         why="A policy trained on one room learns that room. This is usually the "
@@ -182,7 +182,7 @@ CHECKS: tuple[Check, ...] = (
         threshold=2.0,
         below=True,
         weight=1.0,
-        summary="{unique} distinct instruction(s) across {clips} clips",
+        summary="{unique} distinct {instruction_word} across {clips} clips",
         fix="Describe each clip by what was actually done in it, rather than "
         "reusing one sentence for the whole upload.",
         why="A language-conditioned policy trains on the sentence. One sentence "
@@ -194,7 +194,7 @@ CHECKS: tuple[Check, ...] = (
         threshold=0.0,
         below=False,
         weight=1.0,
-        summary="device stabilisation was detected on {affected} clip(s)",
+        summary="device stabilisation was detected on {affected} {clip_word}",
         fix="Turn stabilisation off and upload the original file, without cropping or filters.",
         why="Stabilisation invents camera motion to cancel real motion, which "
         "destroys the head trajectory the hand positions are measured against.",
@@ -386,7 +386,7 @@ class Capture(FeedbackModule):
 
             if unmeasured:
                 notes.append(
-                    f"{cohort.name}: {len(unmeasured)} check(s) had nothing to read "
+                    f"{cohort.name}: {count_of(len(unmeasured), 'check')} had nothing to read "
                     f"({', '.join(unmeasured[:4])}"
                     + (f" and {len(unmeasured) - 4} more" if len(unmeasured) > 4 else "")
                     + "). Not measured is not the same as fine"
@@ -429,6 +429,11 @@ class Capture(FeedbackModule):
         # `shortfall` keeps the distance-past-the-bar, because that is what the
         # ordering is computed from and it is genuinely a different quantity.
         context = {
+            # The templates are .format() strings, so a plural cannot be
+            # computed inside one. The word is supplied alongside the number.
+            "instruction_word": plural(int(counts.get("unique", 0)), "instruction"),
+            "scene_word": plural(int(counts.get("scenes", 0)), "location"),
+            "clip_word": plural(int(round(value * counts["clips"])), "clip"),
             "missing": max(0.0, 1.0 - value) if check.below else value,
             "shortfall": max(0.0, check.threshold - value) if check.below else value,
             "affected": int(round(value * counts["clips"])),

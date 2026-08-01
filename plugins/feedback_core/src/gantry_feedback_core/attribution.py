@@ -30,7 +30,7 @@ from typing import Sequence
 
 from gantry.contracts.feedback import Cohort, FeedbackModule, Finding, Report, feedback_descriptor
 from gantry.resolve import Requirement
-from gantry.spine import Descriptor, Measurement
+from gantry.spine import Descriptor, Measurement, count_of
 
 from . import metrics
 from . import statistics as st
@@ -74,7 +74,7 @@ class Attribution(FeedbackModule):
         episodes = [e for e in cohort.episodes if e.labels.success is not None]
         if len(episodes) != len(cohort.episodes):
             notes.append(
-                f"{cohort.name}: {len(cohort.episodes) - len(episodes)} episode(s) "
+                f"{cohort.name}: {count_of(len(cohort.episodes) - len(episodes), 'episode')} "
                 "had no outcome and were excluded"
             )
         succeeded = [e for e in episodes if e.labels.success]

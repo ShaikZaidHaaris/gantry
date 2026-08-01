@@ -20,7 +20,7 @@
 
 import { useState } from "react";
 import type { Abstention, Finding, Gate, Measure } from "../api/types";
-import { FindingRow } from "./ui";
+import { FindingRow, readable } from "./ui";
 
 /** Ranked. Findings arrive per-module, so an ordering has to be imposed here or
  *  the list reads in alphabetical module order, which is no order at all. */
@@ -88,13 +88,17 @@ function isRate(measure: Measure) {
 }
 
 /** Modules key their measurements by cohort, because most of them compare two
- *  or more. A data report has exactly one cohort, so the prefix is the same
- *  string on every row and carries nothing. Dropped for display only — the full
+ *  or more. A data report has one cohort, so the prefix is the same string on
+ *  every row and carries nothing. Dropped for display, and the rest made
+ *  readable: `frozen[dimensions 0-6]` is a lookup key, not a label. The full
  *  key stays on the row as its title, since that is what a lab quoting a number
- *  back at us would need. */
+ *  back at us would cite. */
 function shortKey(key: string): string {
   const cut = key.indexOf(".");
-  return cut < 0 ? key : key.slice(cut + 1);
+  const rest = cut < 0 ? key : key.slice(cut + 1);
+  const bracket = rest.match(/^([a-z_]+)\[(.+)\]$/);
+  if (bracket) return `${readable(bracket[1])}: ${bracket[2]}`;
+  return readable(rest);
 }
 
 export function DataReport({ gate }: { gate: Gate }) {
@@ -152,7 +156,7 @@ export function DataReport({ gate }: { gate: Gate }) {
             <div className="table-lite">
               {measures.map(([key, measure]) => (
                 <div className="mrow" key={key} title={key}>
-                  <span className="mkey mono">{shortKey(key)}</span>
+                  <span className="mkey">{shortKey(key)}</span>
                   <span className="mval mono">
                     {isRate(measure)
                       ? `${(measure.value * 100).toFixed(0)}%`
@@ -175,8 +179,8 @@ export function DataReport({ gate }: { gate: Gate }) {
           <Fold label={`${abstained.length} check${abstained.length === 1 ? "" : "s"} had nothing to go on`}>
             <div className="card pad">
               {abstained.map((a, i) => (
-                <div className="abstain" key={i}>
-                  <span className="mono mod">{a.module}</span>
+                <div className="abstain" key={i} title={(a.codes ?? []).join(", ")}>
+                  <span className="mod">{a.module}</span>
                   <span>{a.reason}</span>
                 </div>
               ))}

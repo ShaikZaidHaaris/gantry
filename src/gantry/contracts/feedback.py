@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 from ..resolve.requirement import Requirement
-from ..spine import Descriptor, EpisodeRecord, Measurement, Provenance, Verdict
+from ..spine import Descriptor, EpisodeRecord, Measurement, Provenance, Verdict, count_of, plural
 
 #: Version of this contract.
 FEEDBACK_CONTRACT = "feedback@1.0"
@@ -308,7 +308,8 @@ class FeedbackModule(ABC):
             checks.append(
                 Verdict.no(
                     "feedback.too_few_cohorts",
-                    f"{self.name} needs at least {needed} cohort(s), got {len(cohorts)}",
+                    f"{self.name} needs at least {count_of(needed, 'cohort')}, "
+                    f"got {len(cohorts)}",
                     hint="this question is not askable of fewer",
                     module=self.name,
                     needed=needed,
@@ -320,7 +321,7 @@ class FeedbackModule(ABC):
             checks.append(
                 Verdict.no(
                     "feedback.empty_cohort",
-                    f"{self.name}: cohort(s) {empty} contain no episodes",
+                    f"{self.name}: {plural(len(empty), 'cohort')} {empty} contain no episodes",
                     module=self.name,
                 )
             )

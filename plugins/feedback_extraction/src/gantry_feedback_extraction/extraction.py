@@ -51,7 +51,7 @@ from gantry.contracts.feedback import (
     feedback_descriptor,
 )
 from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement
+from gantry.spine import Descriptor, Measurement, count_of
 
 VERSION = "0.1.0.dev0"
 
@@ -252,7 +252,7 @@ class Extraction(FeedbackModule):
             findings.extend(self._assumptions(cohort, declarations))
             if unread:
                 notes.append(
-                    f"{cohort.name}: {len(unread)} stage(s) wrote no signal "
+                    f"{cohort.name}: {count_of(len(unread), 'stage')} wrote no signal "
                     f"({', '.join(unread[:3])}). Not measured is not the same as fine"
                 )
             if not scored:

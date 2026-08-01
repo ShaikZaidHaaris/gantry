@@ -51,7 +51,7 @@ from gantry.contracts.feedback import (
     feedback_descriptor,
 )
 from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement
+from gantry.spine import Descriptor, Measurement, count_of
 from gantry.spine.inference import (
     iqm,
     performance_profile,
@@ -156,7 +156,7 @@ class MatrixRanking(FeedbackModule):
         dropped = sorted({task for rates in per_task.values() for task in rates} - set(shared))
         if dropped:
             notes.append(
-                f"ranked over {len(shared)} shared task(s); {len(dropped)} attempted "
+                f"ranked over {count_of(len(shared), 'shared task')}, with {len(dropped)} attempted "
                 f"by only some cohorts were dropped ({', '.join(dropped[:4])}"
                 + (f" and {len(dropped) - 4} more" if len(dropped) > 4 else "")
                 + ")"
@@ -206,7 +206,7 @@ class MatrixRanking(FeedbackModule):
                 Finding(
                     code="rank.mostly_floor",
                     summary=(
-                        f"{len(mostly_floor)} cohort(s) sit at the floor on more than "
+                        f"{count_of(len(mostly_floor), 'cohort')} sit at the floor on more than "
                         f"half the shared tasks, so an aggregate over all of them is "
                         "determined by how many tasks were included rather than by "
                         "performance"
@@ -256,7 +256,7 @@ class MatrixRanking(FeedbackModule):
                         f"{name} {scores[name]:.3f} [{letters[name]}]"
                         for name in sorted(scores, key=lambda n: -scores[n])
                     )
-                    + f" over {len(shared)} shared task(s)"
+                    + f" over {count_of(len(shared), 'shared task')}"
                 ),
                 severity="strong" if not shares_with_best else "weak",
                 measurements={k: v for k, v in measurements.items() if k.endswith(".iqm")},
