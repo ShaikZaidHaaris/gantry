@@ -414,6 +414,84 @@ async def upload(file: UploadFile) -> JSONResponse:
 # ---------------------------------------------------------------------------
 
 
+#: The order a contributor reads them in: can it be used, was it measured well,
+#: did it help, what do I change. Severity orders within each.
+SECTIONS = [
+    ("Can this be used at all", ("provenance",)),
+    ("What the footage was like", ("capture", "extraction", "screen", "coverage")),
+    ("Did the data carry information", ("control", "compare", "rank", "attribution")),
+    ("Whether that answer can be trusted", ("power", "protocol", "funnel", "harden")),
+]
+SEVERITY = {"strong": 0, "moderate": 1, "weak": 2, "info": 3}
+
+
+@app.get("/api/diagnosis")
+def diagnosis() -> JSONResponse:
+    """Every feedback module's findings, grouped the way a contributor reads them.
+
+    Read from the report the pipeline wrote, not recomputed. The modules ran
+    against real cohorts on the box; this only groups and orders.
+    """
+    body = read_json(RESULTS / "feedback_full_pick_dual_bottles.json")
+    if not body:
+        return JSONResponse({"sections": [], "abstentions": [], "cohorts": {}})
+
+    by_module: dict[str, list] = {}
+    abstentions = []
+    for result in body.get("results", []):
+        if result.get("abstained"):
+            abstentions.append(
+                {
+                    "module": result["module"],
+                    "side": result.get("side"),
+                    "reason": result.get("reason", ""),
+                    "codes": result.get("codes", []),
+                }
+            )
+            continue
+        for finding in result.get("findings", []):
+            by_module.setdefault(result["module"], []).append(
+                {**finding, "side": result.get("side")}
+            )
+
+    placed, sections = set(), []
+    for title, members in SECTIONS:
+        findings = []
+        for module in members:
+            for f in by_module.get(module, []):
+                findings.append({**f, "module": module})
+            placed.add(module)
+        findings.sort(key=lambda f: SEVERITY.get(f.get("severity"), 9))
+        if findings:
+            sections.append({"title": title, "findings": findings})
+
+    # Anything a section did not claim still gets shown — a module whose
+    # findings were quietly dropped because nobody assigned it a heading is the
+    # same silence this whole layer exists to avoid.
+    rest = [
+        {**f, "module": m} for m, fs in by_module.items() if m not in placed for f in fs
+    ]
+    if rest:
+        rest.sort(key=lambda f: SEVERITY.get(f.get("severity"), 9))
+        sections.append({"title": "Other findings", "findings": rest})
+
+    counts: dict[str, int] = {}
+    for section in sections:
+        for f in section["findings"]:
+            counts[f.get("severity", "info")] = counts.get(f.get("severity", "info"), 0) + 1
+
+    return JSONResponse(
+        {
+            "task": body.get("task"),
+            "cohorts": body.get("cohorts", {}),
+            "sections": sections,
+            "abstentions": abstentions,
+            "counts": counts,
+            "modules_ran": len(body.get("results", [])),
+        }
+    )
+
+
 @app.get("/api/reports")
 def reports() -> JSONResponse:
     out = []

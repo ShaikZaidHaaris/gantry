@@ -242,6 +242,38 @@ def measured(cohort: Cohort, checks: Sequence[Check] = CHECKS) -> dict[str, floa
     return {key: sum(values) / len(values) for key, values in totals.items() if values}
 
 
+#: Where an instruction may be found, in the order it is trusted. A dataset that
+#: has been through LeRobot keeps its sentence in the task table rather than in
+#: an annotation, and reading only the annotation reported a corpus of ten
+#: kitchens as having none.
+INSTRUCTION_KEYS = ("instruction", "task", "tasks")
+SCENE_KEYS = ("scene", "location", "kitchen")
+
+
+def _declared(episode: Any, keys: Sequence[str]) -> set[str]:
+    """Every value this episode declares under any of ``keys``."""
+    labels = getattr(episode, "labels", None)
+    annotations = dict(getattr(labels, "annotations", {}) or {})
+    meta = getattr(episode, "meta", None)
+    annotations.update(dict(getattr(meta, "extra", {}) or {}))
+    # meta.task is where a connector puts the sentence when the format has a
+    # place for it, which LeRobot does and most others do not.
+    task = getattr(meta, "task", None)
+    if task:
+        annotations.setdefault("task", task)
+
+    found: set[str] = set()
+    for key in keys:
+        value = annotations.get(key)
+        if not value:
+            continue
+        if isinstance(value, (list, tuple, set)):
+            found.update(str(v) for v in value if v)
+        else:
+            found.add(str(value))
+    return found
+
+
 def variety(cohort: Cohort) -> dict[str, float]:
     """Scene and instruction variety, which are properties of the set not the clip.
 
@@ -249,26 +281,35 @@ def variety(cohort: Cohort) -> dict[str, float]:
     was wrong: six clips in one kitchen scored better than forty in one kitchen,
     when the problem and the advice are identical. The ratios are kept alongside
     for anything that wants them.
+
+    A count is omitted entirely when *no* episode declared the thing, rather
+    than reported as zero. :func:`measured` says two functions above that a
+    signal nobody measured is absent rather than zero, and this did the opposite:
+    a corpus filmed in ten kitchens whose scene labels were lost on the way
+    through LeRobot was told, at strong severity, to go and film somewhere else.
+    Accusing a contributor of a fault that is ours is the worst available
+    failure of this module.
     """
     scenes: set[str] = set()
     instructions: set[str] = set()
+    saw_scene = saw_instruction = False
     for episode in cohort.episodes:
-        labels = getattr(episode, "labels", None)
-        annotations = dict(getattr(labels, "annotations", {}) or {})
-        meta = getattr(episode, "meta", None)
-        annotations.update(dict(getattr(meta, "extra", {}) or {}))
-        if annotations.get("scene"):
-            scenes.add(str(annotations["scene"]))
-        if annotations.get("instruction"):
-            instructions.add(str(annotations["instruction"]))
+        found_scene = _declared(episode, SCENE_KEYS)
+        found_instruction = _declared(episode, INSTRUCTION_KEYS)
+        saw_scene = saw_scene or bool(found_scene)
+        saw_instruction = saw_instruction or bool(found_instruction)
+        scenes |= found_scene
+        instructions |= found_instruction
+
     clips = max(1, len(cohort.episodes))
-    return {
-        "scenes": float(len(scenes)),
-        "instructions": float(len(instructions)),
-        "scene_variety": len(scenes) / clips,
-        "instruction_variety": len(instructions) / clips,
-        "_clips": float(clips),
-    }
+    out: dict[str, float] = {"_clips": float(clips)}
+    if saw_scene:
+        out["scenes"] = float(len(scenes))
+        out["scene_variety"] = len(scenes) / clips
+    if saw_instruction:
+        out["instructions"] = float(len(instructions))
+        out["instruction_variety"] = len(instructions) / clips
+    return out
 
 
 class Capture(FeedbackModule):

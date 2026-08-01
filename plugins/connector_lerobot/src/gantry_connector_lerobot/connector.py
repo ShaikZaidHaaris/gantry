@@ -470,7 +470,15 @@ class LeRobotConnector(Connector):
                     StageEvent(name=str(e["name"]), step=int(e["step"]))
                     for e in kept.get("stage_events", ())
                 ),
-                annotations={"tasks": list(episode.tasks), **dict(kept.get("annotations", {}))},
+                annotations={
+                    "tasks": list(episode.tasks),
+                    # Under the name the vocabulary uses, not only the plural
+                    # list LeRobot stores. A round trip that keeps the sentence
+                    # but renames it loses it for every module that looks for
+                    # "instruction", which is all of them.
+                    **({"instruction": instruction} if instruction else {}),
+                    **dict(kept.get("annotations", {})),
+                },
             ),
         )
 

@@ -323,3 +323,79 @@ def test_several_cohorts_are_each_assessed():
     )
     assert any(finding.cohorts == ("b",) for finding in report.findings)
     assert "a.hands_visible" in report.measurements
+
+
+# -- absent is not zero, and getting this wrong accuses the contributor ---------
+#
+# measured() says two functions above variety() that a signal nobody measured is
+# absent rather than zero. variety() did the opposite: it counted len(set()) and
+# reported it as a measurement. A corpus filmed in ten kitchens whose scene
+# labels were lost on the way through LeRobot was told, at strong severity, to
+# go and film somewhere else.
+
+
+def episode_with(annotations=None, task=None, extra=None):
+    from gantry.spine import EpisodeLabels
+    from gantry.spine.episode import episode_from_labels
+
+    return episode_from_labels(
+        id="e",
+        source="s",
+        task=task,
+        labels=EpisodeLabels(success=None, annotations=annotations or {}),
+        **({"extra": extra} if extra else {}),
+    )
+
+
+def test_a_corpus_that_declares_no_scene_reports_nothing_rather_than_zero():
+    from gantry_feedback_capture.capture import variety
+
+    from gantry.contracts.feedback import Cohort
+
+    quiet = Cohort(name="q", episodes=tuple(episode_with() for _ in range(6)))
+    signals = variety(quiet)
+    assert "scenes" not in signals
+    assert "instructions" not in signals
+
+
+def test_a_corpus_that_does_declare_them_is_counted():
+    from gantry_feedback_capture.capture import variety
+
+    from gantry.contracts.feedback import Cohort
+
+    loud = Cohort(
+        name="l",
+        episodes=tuple(
+            episode_with(annotations={"scene": f"kitchen{i}", "instruction": f"do thing {i}"})
+            for i in range(4)
+        ),
+    )
+    signals = variety(loud)
+    assert signals["scenes"] == 4
+    assert signals["instructions"] == 4
+
+
+def test_the_sentence_is_found_where_lerobot_leaves_it():
+    """A round trip stores it as meta.task and as a plural 'tasks' list. Reading
+    only 'instruction' reported a corpus of ten kitchens as having none."""
+    from gantry_feedback_capture.capture import variety
+
+    from gantry.contracts.feedback import Cohort
+
+    viaTask = Cohort(name="t", episodes=(episode_with(task="open the fridge"),))
+    assert variety(viaTask)["instructions"] == 1
+
+    viaList = Cohort(name="p", episodes=(episode_with(annotations={"tasks": ["chop vegetables"]}),))
+    assert variety(viaList)["instructions"] == 1
+
+
+def test_an_undeclared_scene_does_not_fire_the_filming_advice():
+    """The whole point: no accusation without a measurement behind it."""
+    from gantry_feedback_capture import Capture
+
+    from gantry.contracts.feedback import Cohort
+
+    quiet = Cohort(name="q", episodes=tuple(episode_with(task="do the thing") for _ in range(8)))
+    report = Capture().analyse([quiet])
+    codes = {f.code for f in report.findings}
+    assert "capture.single_scene" not in codes

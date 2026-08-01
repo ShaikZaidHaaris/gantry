@@ -155,6 +155,26 @@
                    padding:6px 12px;font:12px var(--mono);cursor:pointer}
   .rep-tabs button.on{color:var(--text);border-color:var(--accent-dim)}
 
+  /* ---------- diagnosis ---------- */
+  .tally{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 26px}
+  .tally .t{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:10px 14px;min-width:96px}
+  .tally .t b{display:block;font:600 22px var(--mono);font-variant-numeric:tabular-nums}
+  .tally .t span{font:10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .tally .t.strong b{color:var(--bad)} .tally .t.moderate b{color:var(--accent)}
+  .tally .t.weak b{color:var(--abstain)} .tally .t.info b{color:var(--muted)}
+  .find{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:14px 16px;margin-bottom:10px;
+        border-left-width:3px}
+  .find.strong{border-left-color:var(--bad)} .find.moderate{border-left-color:var(--accent)}
+  .find.weak{border-left-color:var(--abstain)} .find.info{border-left-color:var(--line2)}
+  .find .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .find .code{font:11px var(--mono);color:var(--accent)}
+  .find.info .code{color:var(--muted)}
+  .find .who{font:10.5px var(--mono);color:var(--dim);letter-spacing:.08em;text-transform:uppercase}
+  .find .sum{font-size:13.5px;margin-top:6px;line-height:1.5}
+  .find .rx{margin-top:10px;padding:10px 12px;background:var(--panel2);border-radius:6px;font-size:12.5px;
+            color:var(--muted);line-height:1.55}
+  .find .rx b{color:var(--accent);font:10.5px var(--mono);letter-spacing:.1em;display:block;margin-bottom:4px;
+              text-transform:uppercase}
   .empty{color:var(--dim);font-style:italic;font-size:13px;padding:20px 0}
   .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:14px;font:11px var(--mono);color:var(--dim)}
 </style>
@@ -169,7 +189,8 @@
       <a href="#datasets">Datasets <span class="k">02</span></a>
       <a href="#runs">Runs <span class="k">03</span></a>
       <a href="#compare">Compare <span class="k">04</span></a>
-      <a href="#reports">Reports <span class="k">05</span></a>
+      <a href="#diagnosis">Diagnosis <span class="k">05</span></a>
+      <a href="#reports">Reports <span class="k">06</span></a>
     </nav>
     <div class="rules">
       <h4>House rules</h4>
@@ -247,9 +268,24 @@
       <div id="compare-out"><div class="empty">pick two runs that carry per-scene records</div></div>
     </section>
 
+    <!-- ============ DIAGNOSIS ============ -->
+    <section id="diagnosis">
+      <div class="eyebrow">05 · Diagnosis &amp; prescription</div>
+      <h1>What the run found, and what to change.</h1>
+      <p class="lede">Every installed feedback module, over both halves of the record — the footage as
+      it was ingested, and the rollouts it produced. Each module is offered only the side it
+      declares it needs. A module that refuses is shown refusing.</p>
+      <div id="diag-summary"></div>
+      <div id="diag-sections"></div>
+      <h2>Could not tell you</h2>
+      <p class="sub">Modules that declined, with the reason. Reported rather than dropped: a
+      report that silently omits what it could not judge reads as a clean bill of health.</p>
+      <div id="diag-abstentions"></div>
+    </section>
+
     <!-- ============ REPORTS ============ -->
     <section id="reports">
-      <div class="eyebrow">05 · Reports</div>
+      <div class="eyebrow">06 · Reports</div>
       <h1>The written record.</h1>
       <p class="lede">What was measured, what was refused, and what the numbers do not say —
       as committed to the repository.</p>
@@ -508,6 +544,49 @@ async function sendUpload(f) {
   drop.innerHTML = '<b>Drop a LeRobot dataset (.zip)</b> or click to choose<br><span style="font-size:12px">it is inspected with the pipeline\'s own connectors — nothing is trained or modified</span>';
 }
 
+/* ---------- diagnosis ---------- */
+async function loadDiagnosis() {
+  const d = await (await fetch("/api/diagnosis")).json();
+  const sum = $("#diag-summary"), secs = $("#diag-sections"), abs = $("#diag-abstentions");
+  sum.innerHTML = ""; secs.innerHTML = ""; abs.innerHTML = "";
+  if (!d.sections.length && !d.abstentions.length) { secs.innerHTML = '<div class="empty">no feedback report on file — run feedback_full.py</div>'; return; }
+
+  const tally = el("div", "tally");
+  for (const k of ["strong", "moderate", "weak", "info"]) {
+    if (!d.counts[k]) continue;
+    tally.append(el("div", "t " + k, `<b>${d.counts[k]}</b><span>${k}</span>`));
+  }
+  tally.append(el("div", "t", `<b>${d.abstentions.length}</b><span>abstained</span>`));
+  tally.append(el("div", "t", `<b>${d.modules_ran}</b><span>modules ran</span>`));
+  sum.append(tally);
+
+  const cohorts = (d.cohorts && d.cohorts.outcome) || [];
+  if (cohorts.length) {
+    const line = cohorts.map(c => `${esc(c.arm)} ${c.wins}/${c.scored}`).join("  ·  ");
+    sum.append(el("p", "sub", "outcome cohorts read: " + line));
+  }
+
+  for (const section of d.sections) {
+    secs.append(el("h2", "", esc(section.title)));
+    for (const f of section.findings) {
+      const card = el("div", "find " + (f.severity || "info"));
+      card.append(el("div", "top",
+        `<span class="code">${esc(f.code)}</span><span class="who">${esc(f.module)} · ${esc(f.side || "")}</span>`));
+      card.append(el("div", "sum", esc(f.summary)));
+      if (f.prescription) card.append(el("div", "rx", `<b>what to do</b>${esc(f.prescription)}`));
+      secs.append(card);
+    }
+  }
+
+  for (const a of d.abstentions) {
+    const v = el("div", "verdict");
+    v.append(el("div", "code", `${esc(a.module)} · ${(a.codes || []).map(esc).join(", ")}`));
+    v.append(el("p", "", esc(a.reason)));
+    abs.append(v);
+  }
+  if (!d.abstentions.length) abs.innerHTML = '<div class="empty">every module that was offered a side produced findings</div>';
+}
+
 /* ---------- reports ---------- */
 async function loadReports() {
   const d = await (await fetch("/api/reports")).json();
@@ -528,7 +607,7 @@ async function loadReports() {
 
 /* ---------- boot ---------- */
 route();
-loadBench(); loadRuns(); loadDatasets(); loadReports();
+loadBench(); loadRuns(); loadDatasets(); loadDiagnosis(); loadReports();
 </script>
 </body>
 </html>
