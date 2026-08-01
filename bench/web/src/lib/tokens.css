@@ -206,3 +206,69 @@ label.field .hint { color: var(--text-3); font-size: 12px; margin-top: 4px; }
         padding: 12px 16px; font-size: 13px; color: var(--text-2); }
 .note.warn { border-left-color: var(--warn); }
 .note b { color: var(--text); }
+
+/* the data report ---------------------------------------------------------- */
+/* Laid out as an argument in numbered steps. The numbers are load-bearing:
+   they encode "read this first, then that", which is the whole difference
+   between a report and a dump. */
+.report { display: grid; gap: 30px; }
+.report-step-head { display: flex; gap: 12px; align-items: baseline; margin-bottom: 12px; }
+.report-step-head h3 { font-size: 14.5px; font-weight: 620; letter-spacing: -0.15px; }
+.report-step-head p { color: var(--text-3); font-size: 12.5px; margin-top: 2px; max-width: 68ch; }
+.step-n {
+  flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--neutral-bg);
+  border: 1px solid var(--border); color: var(--text-2);
+  font: 600 11px var(--mono); display: flex; align-items: center; justify-content: center;
+}
+h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px; letter-spacing: 0; }
+
+.finding .code .by { color: var(--text-3); margin-left: 8px; opacity: 0.8; }
+
+/* tally chips in the timeline */
+.tally { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+.chip {
+  font: 550 11.5px var(--sans); padding: 2px 8px; border-radius: 4px;
+  background: var(--neutral-bg); color: var(--text-2); border: 1px solid var(--border);
+}
+.chip.strong { background: var(--danger-bg); color: var(--danger); border-color: #fecdca; }
+.chip.warn { background: var(--warn-bg); color: var(--warn); border-color: #fedf89; }
+
+/* disclosure */
+.fold-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; font: 550 12.5px var(--sans); color: var(--text-2); cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.fold-head:hover { color: var(--text); background: #fbfbfc; }
+.fold-head .chev { display: inline-block; transition: transform 0.12s ease; color: var(--text-3); }
+.fold-head .chev[data-open="true"] { transform: rotate(90deg); }
+.fold-body { margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { .fold-head .chev { transition: none } }
+
+/* measurements: value, interval, n — never a bare float */
+.table-lite .mrow {
+  display: grid; grid-template-columns: minmax(0, 1fr) 52px 132px 46px; gap: 14px;
+  align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--border);
+}
+.table-lite .mrow:last-child { border-bottom: 0; }
+/* One line, always. A key long enough to wrap takes the value and the interval
+   out of alignment with the rows above it, and a column of numbers that does
+   not line up is the one thing a table has to get right. */
+.mkey { color: var(--text-2); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap; }
+.mval { text-align: right; font-weight: 600; font-size: 12.5px; }
+.mn { color: var(--text-3); font-size: 11px; text-align: right; }
+.measure-bar .track {
+  position: relative; display: block; height: 4px; background: var(--neutral-bg);
+  border-radius: 2px;
+}
+.measure-bar .ci { position: absolute; top: 0; height: 4px; background: var(--accent-border);
+                   border-radius: 2px; }
+.measure-bar .dot { position: absolute; top: -2px; width: 8px; height: 8px; margin-left: -4px;
+                    border-radius: 50%; background: var(--accent); }
+
+.abstain { display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border);
+           font-size: 12.5px; color: var(--text-2); }
+.abstain:first-child { border-top: 0; }
+.abstain .mod { color: var(--text-3); min-width: 84px; flex: none; }

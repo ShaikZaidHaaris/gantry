@@ -135,6 +135,13 @@ class Gate(Base):
     #: Headline result, JSON: one line + the facts the row shows collapsed.
     verdict_json: Mapped[str] = mapped_column(Text, default="{}")
     findings_json: Mapped[str] = mapped_column(Text, default="[]")
+    #: Per-gate numbers the UI charts rather than lists. Kept apart from
+    #: findings because a measurement is not a complaint, and a gate that
+    #: measures a lot while flagging nothing is a good outcome, not an empty one.
+    measures_json: Mapped[str] = mapped_column(Text, default="{}")
+    #: Modules that declined, with their reason. Never dropped: a report that
+    #: silently omits what it could not judge reads as a clean bill of health.
+    abstained_json: Mapped[str] = mapped_column(Text, default="[]")
     started_at: Mapped[str] = mapped_column(String, default="")
     finished_at: Mapped[str] = mapped_column(String, default="")
     cost_cents: Mapped[int] = mapped_column(Integer, default=0)
@@ -167,8 +174,22 @@ def emit(session: Session, submission_id: str, kind: str, **payload) -> None:
     session.add(Event(submission_id=submission_id, kind=kind, payload_json=json.dumps(payload)))
 
 
+#: Columns added after the first schema shipped. Real migrations land with
+#: Postgres; until then this keeps a developer's existing demo database
+#: working instead of asking them to delete it.
+LATER = {"gates": {"measures_json": "'{}'", "abstained_json": "'[]'"}}
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        for table, columns in LATER.items():
+            have = {r[1] for r in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
+            for column, default in columns.items():
+                if column not in have:
+                    conn.exec_driver_sql(
+                        f"ALTER TABLE {table} ADD COLUMN {column} TEXT DEFAULT {default}"
+                    )
     with SessionLocal() as s:
         if not s.query(Benchmark).count():
             s.add(

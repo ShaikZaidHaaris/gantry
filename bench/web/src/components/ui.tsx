@@ -68,7 +68,12 @@ export function FindingRow({ finding }: { finding: Finding }) {
     <div className="finding">
       <span className={`sev ${finding.severity satisfies Severity}`} />
       <div style={{ flex: 1 }}>
-        <div className="code">{finding.code}</div>
+        <div className="code">
+          {finding.code}
+          {/* Which module said it. A reader who disagrees needs to know what to
+              go and read, and a code with no author behind it is unarguable. */}
+          {finding.module && <span className="by">via {finding.module}</span>}
+        </div>
         <div className="what">{finding.summary}</div>
         {finding.prescription && (
           <div className="fix">

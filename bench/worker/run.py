@@ -19,9 +19,9 @@ import urllib.error
 import urllib.request
 import json as jsonlib
 
-from gates import intake
+from gates import intake, report
 
-HANDLERS = {"g0": intake.run}
+HANDLERS = {"g0": intake.run, "g1": report.run}
 
 
 def call(api: str, path: str, payload: dict | None = None) -> dict:
@@ -53,6 +53,8 @@ def once(api: str, worker: str, gates: list[str]) -> bool:
                 "verdict": {"summary": result["summary"]},
                 "findings": result.get("findings", []),
                 "detected": result.get("detected", {}),
+                "measures": result.get("measures", {}),
+                "abstained": result.get("abstained", []),
             },
         )
         print(f"[{worker}]   -> {result['status']}: {result['summary']}", flush=True)

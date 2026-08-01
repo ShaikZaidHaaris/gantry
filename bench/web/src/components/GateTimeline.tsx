@@ -6,7 +6,7 @@
  */
 
 import type { Gate } from "../api/types";
-import { FindingRow, StatusPill, duration } from "./ui";
+import { StatusPill, duration } from "./ui";
 
 const MARK: Record<string, string> = {
   passed: "✓",
@@ -25,8 +25,13 @@ export function GateTimeline({ gates, currentGate }: { gates: Gate[]; currentGat
     <div className="card">
       {gates.map((gate, index) => {
         const future = gate.status === "queued" && (reachedIndex < 0 || index > reachedIndex);
-        const blocking = gate.findings.filter((f) => f.severity === "strong");
-        const rest = gate.findings.filter((f) => f.severity !== "strong");
+        // Counted here, read below. The timeline is for "where is this up to";
+        // eleven findings inline turn it into the wall of text the report
+        // section exists to replace.
+        const blocking = gate.findings.filter(
+          (f) => f.severity === "strong" || f.severity === "moderate",
+        ).length;
+        const noted = gate.findings.length - blocking;
         return (
           <div key={gate.key} className={`gate ${gate.status} ${future ? "future" : ""}`}>
             <div className="mark">{MARK[gate.status] ?? index + 1}</div>
@@ -48,14 +53,17 @@ export function GateTimeline({ gates, currentGate }: { gates: Gate[]; currentGat
                 </div>
               )}
 
-              {(blocking.length > 0 || rest.length > 0) && (
-                <div style={{ marginTop: 10 }}>
-                  {blocking.map((f) => (
-                    <FindingRow key={f.code} finding={f} />
-                  ))}
-                  {rest.map((f) => (
-                    <FindingRow key={f.code} finding={f} />
-                  ))}
+              {gate.findings.length > 0 && (
+                <div className="tally">
+                  {blocking > 0 && (
+                    <span className="chip strong">
+                      {blocking} to fix
+                    </span>
+                  )}
+                  {noted > 0 && <span className="chip">{noted} noted</span>}
+                  {gate.abstained?.length > 0 && (
+                    <span className="chip warn">{gate.abstained.length} not judged</span>
+                  )}
                 </div>
               )}
             </div>

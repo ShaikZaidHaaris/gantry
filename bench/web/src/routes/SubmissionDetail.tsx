@@ -2,6 +2,7 @@
 
 import { Link, useParams } from "react-router-dom";
 import { useSubmission, useSubmissionEvents } from "../api/client";
+import { DataReport } from "../components/DataReport";
 import { GateTimeline } from "../components/GateTimeline";
 import { ErrorNote, Skeleton, StatusPill, ago, bytes } from "../components/ui";
 
@@ -30,6 +31,7 @@ export function SubmissionDetail() {
 
   const detected = data.dataset?.detected;
   const running = data.status === "running";
+  const report = data.gates.find((g) => g.key === "g1");
 
   return (
     <div className="page">
@@ -87,6 +89,20 @@ export function SubmissionDetail() {
 
       <h2>Progress</h2>
       <GateTimeline gates={data.gates} currentGate={data.current_gate} />
+
+      {/* The report appears only once the gate that produces it has finished.
+          Nothing on this page pretends to have a result before it has one. */}
+      {report && report.status !== "queued" && report.status !== "running" && (
+        <>
+          <h2>
+            Data report
+            <span className="h2-sub">
+              free · what your footage is like, before anything is trained on it
+            </span>
+          </h2>
+          <DataReport gate={report} />
+        </>
+      )}
 
       {data.events && data.events.length > 0 && (
         <>

@@ -1,0 +1,198 @@
+/** The free data report — what Gate 1 found in somebody's footage.
+ *
+ *  This is the first thing a contributor gets back, and for most uploads it is
+ *  the only thing they will ever read closely. It is laid out as an argument in
+ *  four steps rather than as a dump of everything the modules returned:
+ *
+ *    1. what to fix        the deliverable, ranked, each with a fix
+ *    2. also noted         real but not urgent, folded away
+ *    3. what we measured   the numbers, each with its n
+ *    4. what we could not judge
+ *
+ *  Step 4 is not a footnote and is never dropped. A module that declined and a
+ *  module that found nothing produce the same empty list and mean opposite
+ *  things, and a report that hides the difference reads as a clean bill of
+ *  health when it is nothing of the kind.
+ *
+ *  Nothing here computes. Every number was written by a module upstream, and
+ *  the page's whole job is to order it.
+ */
+
+import { useState } from "react";
+import type { Abstention, Finding, Gate, Measure } from "../api/types";
+import { FindingRow } from "./ui";
+
+/** Ranked. Findings arrive per-module, so an ordering has to be imposed here or
+ *  the list reads in alphabetical module order, which is no order at all. */
+const RANK: Record<string, number> = { strong: 0, moderate: 1, weak: 2, info: 3 };
+
+function byRank(a: Finding, b: Finding) {
+  return (RANK[a.severity] ?? 9) - (RANK[b.severity] ?? 9);
+}
+
+function Section({
+  n,
+  title,
+  hint,
+  children,
+}: {
+  n: number;
+  title: string;
+  hint: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="report-step">
+      <div className="report-step-head">
+        <span className="step-n">{n}</span>
+        <div>
+          <h3>{title}</h3>
+          <p>{hint}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Fold({ label, children }: { label: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="fold">
+      <button type="button" className="fold-head" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span className="chev" data-open={open}>
+          ▸
+        </span>
+        {label}
+      </button>
+      {open && <div className="fold-body">{children}</div>}
+    </div>
+  );
+}
+
+/** A measured rate, drawn as its interval rather than as a number alone.
+ *  Two clips in six and two hundred in six hundred are the same 33% and not the
+ *  same evidence; the bar is the only place that difference is visible. */
+function MeasureBar({ measure }: { measure: Measure }) {
+  const pct = (x: number) => `${(Math.max(0, Math.min(1, x)) * 100).toFixed(0)}%`;
+  const [lo, hi] = measure.ci ?? [measure.value, measure.value];
+  return (
+    <div className="measure-bar" title={measure.method ?? undefined}>
+      <span className="track">
+        <span className="ci" style={{ left: pct(lo), right: `${100 - Math.min(100, hi * 100)}%` }} />
+        <span className="dot" style={{ left: pct(measure.value) }} />
+      </span>
+    </div>
+  );
+}
+
+function isRate(measure: Measure) {
+  return measure.ci !== null && measure.value >= 0 && measure.value <= 1;
+}
+
+/** Modules key their measurements by cohort, because most of them compare two
+ *  or more. A data report has exactly one cohort, so the prefix is the same
+ *  string on every row and carries nothing. Dropped for display only — the full
+ *  key stays on the row as its title, since that is what a lab quoting a number
+ *  back at us would need. */
+function shortKey(key: string): string {
+  const cut = key.indexOf(".");
+  return cut < 0 ? key : key.slice(cut + 1);
+}
+
+export function DataReport({ gate }: { gate: Gate }) {
+  const findings = [...gate.findings].sort(byRank);
+  const fix = findings.filter((f) => f.severity === "strong" || f.severity === "moderate");
+  const noted = findings.filter((f) => f.severity === "weak" || f.severity === "info");
+  const measures = Object.entries(gate.measures ?? {});
+  const abstained: Abstention[] = gate.abstained ?? [];
+
+  return (
+    <div className="report">
+      <Section
+        n={1}
+        title={fix.length ? "What to fix" : "Nothing to fix"}
+        hint={
+          fix.length
+            ? "Ranked by what it costs to ignore. Each one names the measurement behind it."
+            : "No module found anything worth changing about how this was filmed."
+        }
+      >
+        {fix.length > 0 ? (
+          <div className="card pad">
+            {fix.map((f) => (
+              <FindingRow key={f.code + f.module} finding={f} />
+            ))}
+          </div>
+        ) : (
+          <div className="note">
+            Every check that had something to read came back clean. That is not the same as the
+            data being good — see step 4 for what nothing was able to judge.
+          </div>
+        )}
+      </Section>
+
+      {noted.length > 0 && (
+        <Section
+          n={2}
+          title="Also noted"
+          hint="True and not urgent. Here so the report is complete, folded so it is readable."
+        >
+          <Fold label={`${noted.length} further observation${noted.length === 1 ? "" : "s"}`}>
+            <div className="card pad">
+              {noted.map((f) => (
+                <FindingRow key={f.code + f.module} finding={f} />
+              ))}
+            </div>
+          </Fold>
+        </Section>
+      )}
+
+      {measures.length > 0 && (
+        <Section
+          n={noted.length > 0 ? 3 : 2}
+          title="What we measured"
+          hint="Every rate carries the number of clips it was measured over, and its 95% interval."
+        >
+          <div className="card">
+            <div className="table-lite">
+              {measures.map(([key, measure]) => (
+                <div className="mrow" key={key} title={key}>
+                  <span className="mkey mono">{shortKey(key)}</span>
+                  <span className="mval mono">
+                    {isRate(measure)
+                      ? `${(measure.value * 100).toFixed(0)}%`
+                      : measure.value.toFixed(measure.value % 1 === 0 ? 0 : 3)}
+                  </span>
+                  {isRate(measure) ? <MeasureBar measure={measure} /> : <span />}
+                  <span className="mn mono">{measure.n === null ? "" : `n=${measure.n}`}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+      )}
+
+      <Section
+        n={(noted.length > 0 ? 3 : 2) + (measures.length > 0 ? 1 : 0)}
+        title="What we could not judge"
+        hint="A check that had nothing to read is not a check that passed. These are the gaps in the report above."
+      >
+        {abstained.length > 0 ? (
+          <Fold label={`${abstained.length} check${abstained.length === 1 ? "" : "s"} had nothing to go on`}>
+            <div className="card pad">
+              {abstained.map((a, i) => (
+                <div className="abstain" key={i}>
+                  <span className="mono mod">{a.module}</span>
+                  <span>{a.reason}</span>
+                </div>
+              ))}
+            </div>
+          </Fold>
+        ) : (
+          <div className="note">Every installed check found what it needed and ran.</div>
+        )}
+      </Section>
+    </div>
+  );
+}

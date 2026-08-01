@@ -84,6 +84,8 @@ def as_gate(row: Gate) -> dict:
         "status": row.status,
         "verdict": json.loads(row.verdict_json or "{}"),
         "findings": json.loads(row.findings_json or "[]"),
+        "measures": json.loads(row.measures_json or "{}"),
+        "abstained": json.loads(row.abstained_json or "[]"),
         "started_at": row.started_at,
         "finished_at": row.finished_at,
     }
@@ -344,6 +346,8 @@ def finish_job(job_id: str, body: dict, session: Session = Depends(db)):
     gate.finished_at = now()
     gate.verdict_json = json.dumps(body.get("verdict") or {})
     gate.findings_json = json.dumps(body.get("findings") or [])
+    gate.measures_json = json.dumps(body.get("measures") or {})
+    gate.abstained_json = json.dumps(body.get("abstained") or [])
     row.status = "done" if status in ("passed", "refused", "abstained") else "failed"
     row.error = body.get("error", "")
 
@@ -358,6 +362,23 @@ def finish_job(job_id: str, body: dict, session: Session = Depends(db)):
     # A refusal or our own failure ends the run; a pass parks the submission
     # until the user buys the next gate.
     sub.status = {"passed": "awaiting_user", "refused": "refused", "abstained": "abstained"}.get(status, "failed")
+
+    # A free gate runs on its own. The contributor gets a real report on their
+    # filming before being asked to decide anything or spend anything, which is
+    # the whole reason the cheap gates come first. A gate that costs money is
+    # never started without the user buying it.
+    if status == "passed":
+        order = [g["key"] for g in GATES]
+        following = order[order.index(row.gate_key) + 1 :]
+        for key in following:
+            spec = next(g for g in GATES if g["key"] == key)
+            if spec["cost_cents"] > 0:
+                break
+            session.add(Job(id=new_id("job"), submission_id=row.submission_id, gate_key=key, status="queued"))
+            emit(session, row.submission_id, "gate.queued", gate=key)
+            sub.status = "running"
+            break
+
     emit(
         session,
         row.submission_id,
