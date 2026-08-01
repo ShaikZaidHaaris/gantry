@@ -435,6 +435,53 @@ async def stream_events(sub_id: str, request: Request, after: int = 0):
 # ---------------------------------------------------------------------------
 
 
+@app.post("/api/submissions/{sub_id}/gates/{key}/start")
+def start_gate(sub_id: str, key: str, body: dict | None = None, who=Depends(viewer), session: Session = Depends(db)):
+    """Buy a gate. The only way a paid gate ever runs.
+
+    Free gates queue themselves when the one before them passes. Paid ones do
+    not, and this asymmetry is the product: a contributor is never billed for
+    work they did not ask for, and the decision is made at the gate rather than
+    guessed at upload time.
+
+    Guarded by what has already happened, not by what the caller says. Starting
+    the robot test on a submission whose data report has not run would produce a
+    real bill for a real day of GPU on footage nobody has looked at.
+    """
+    sub = session.get(Submission, sub_id)
+    if sub is None or sub.org_id != who["org_id"]:
+        raise HTTPException(404, "no such submission")
+    spec = next((g for g in GATES if g["key"] == key), None)
+    if spec is None:
+        raise HTTPException(404, "no such gate")
+
+    order = [g["key"] for g in GATES]
+    gates = {g.key: g for g in session.scalars(select(Gate).where(Gate.submission_id == sub_id)).all()}
+    gate = gates.get(key)
+    if gate is None:
+        raise HTTPException(404, "this submission has no such gate")
+    if gate.status != "queued":
+        raise HTTPException(409, f"the {spec['name'].lower()} has already run ({gate.status})")
+
+    before = order[: order.index(key)]
+    unfinished = [k for k in before if gates.get(k) and gates[k].status not in ("passed",)]
+    if unfinished:
+        names = ", ".join(next(g["name"] for g in GATES if g["key"] == k).lower() for k in unfinished)
+        raise HTTPException(409, f"the {names} has not passed yet")
+
+    if session.scalar(
+        select(Job).where(Job.submission_id == sub_id, Job.gate_key == key, Job.status.in_(("queued", "running")))
+    ):
+        raise HTTPException(409, "that gate is already queued")
+
+    gate.cost_cents = int((body or {}).get("cost_cents", spec["cost_cents"]))
+    session.add(Job(id=new_id("job"), submission_id=sub_id, gate_key=key, status="queued"))
+    sub.status = "running"
+    emit(session, sub_id, "gate.queued", gate=key, bought=True, cost_cents=gate.cost_cents)
+    session.commit()
+    return as_submission(session, sub, deep=True)
+
+
 @app.post("/api/jobs/claim")
 def claim_job(body: dict, session: Session = Depends(db)):
     """One job, claimed atomically.

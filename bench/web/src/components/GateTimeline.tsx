@@ -64,12 +64,25 @@ export function GateTimeline({
   gates,
   currentGate,
   live,
+  onStart,
+  starting,
 }: {
   gates: Gate[];
   currentGate: string;
   live?: Progress | null;
+  onStart?: (gate: string) => void;
+  starting?: boolean;
 }) {
   const reachedIndex = gates.findIndex((g) => g.key === currentGate);
+  // The one gate that may be bought right now: the first that has not run,
+  // with everything before it passed. Not "every unrun paid gate" — offering
+  // the robot test beside the signal check invites paying for a day of GPU to
+  // answer a question a minute would have.
+  const firstUnrun = gates.find((g) => g.status === "queued");
+  const ready =
+    firstUnrun && gates.every((g) => g.status === "passed" || g.status === "queued")
+      ? firstUnrun.key
+      : undefined;
   return (
     <div className="card">
       {gates.map((gate, index) => {
@@ -98,6 +111,21 @@ export function GateTimeline({
                 <div className="result">
                   Not started · {price(gate.cost_cents)} · {gate.eta}
                 </div>
+              )}
+
+              {/* Buyable only when everything before it has actually passed.
+                  The server enforces this too — a button is a convenience, not
+                  a guarantee — but offering a purchase that will be refused is
+                  its own small dishonesty. */}
+              {onStart && gate.status === "queued" && gate.cost_cents > 0 && ready === gate.key && (
+                <button
+                  className="btn primary"
+                  style={{ marginTop: 10 }}
+                  onClick={() => onStart(gate.key)}
+                  disabled={starting}
+                >
+                  {starting ? "Starting…" : `Run this — ${price(gate.cost_cents)}`}
+                </button>
               )}
 
               {gate.findings.length > 0 && (

@@ -1,7 +1,7 @@
 /** The hero screen: one submission, its gauntlet, live. */
 
 import { Link, useParams } from "react-router-dom";
-import { useSubmission, useSubmissionEvents } from "../api/client";
+import { useStartGate, useSubmission, useSubmissionEvents } from "../api/client";
 import { BudgetPanel } from "../components/BudgetPanel";
 import { DataReport } from "../components/DataReport";
 import { GateTimeline } from "../components/GateTimeline";
@@ -11,6 +11,7 @@ export function SubmissionDetail() {
   const { id } = useParams();
   const { data, isPending, error } = useSubmission(id);
   const live = useSubmissionEvents(id);
+  const start = useStartGate(id ?? "");
 
   if (isPending) {
     return (
@@ -92,7 +93,13 @@ export function SubmissionDetail() {
       ) : null}
 
       <h2>Progress</h2>
-      <GateTimeline gates={data.gates} currentGate={data.current_gate} live={live} />
+      <GateTimeline
+        gates={data.gates}
+        currentGate={data.current_gate}
+        live={live}
+        onStart={(gate) => start.mutate(gate)}
+        starting={start.isPending}
+      />
 
       {/* The report appears only once the gate that produces it has finished.
           Nothing on this page pretends to have a result before it has one. */}

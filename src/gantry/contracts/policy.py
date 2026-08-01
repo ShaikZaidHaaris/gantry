@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
 import numpy as np
 
@@ -113,6 +113,39 @@ def policy_descriptor(
         isolation=isolation,
         metadata=metadata,
     )
+
+
+@runtime_checkable
+class Learns(Protocol):
+    """A policy that can be produced by fitting episodes.
+
+    An optional protocol rather than a method on :class:`Policy`, and rather
+    than an eleventh plane. Inference and fitting are genuinely different
+    capabilities: a policy served over HTTP cannot be fitted, a checkpoint
+    loaded from disk was fitted somewhere else, and neither should have to
+    implement or refuse a ``fit``. Anything that *can* be fitted declares so by
+    having the method, and a caller asks with ``isinstance(x, Learns)``.
+
+    Why this exists at all
+    ----------------------
+    The question "does this data carry a learnable relationship between what was
+    seen and what was done" cannot be answered without fitting something to it.
+    Answering it with a specific trainer -- pi-zero, or any other -- would make
+    the pipeline's cheapest gate depend on one model, which is the opposite of
+    what every other plane here does. So the gate asks for *something* that
+    learns, and what it gets is a plugin choice: a ridge probe on a laptop, a
+    LoRA fine-tune on a GPU, whatever a deployment installs.
+
+    ``fit`` returns a new policy and does not mutate the learner, so the same
+    learner can produce the treatment arm and its shuffled control without one
+    contaminating the other. That is not a nicety: those two fits are the whole
+    comparison, and a learner that carried state between them would quietly
+    make the control look like the treatment.
+    """
+
+    def fit(self, episodes: Sequence[Any], *, seed: int | None = ...) -> "Policy":
+        """A policy fitted to these episodes. Never mutates the learner."""
+        ...
 
 
 class Policy(ABC):

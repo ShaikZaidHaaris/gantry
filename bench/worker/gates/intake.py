@@ -71,6 +71,45 @@ def unpack(archive: Path, into: Path) -> tuple[Path | None, list[dict]]:
     return info.parents[1], []
 
 
+#: Videos actually opened, spread evenly across the upload. A file that lists
+#: in the archive and will not decode is invisible to every other check here,
+#: and the next gate finds out by crashing -- which the product then reports as
+#: our failure rather than as a file the contributor can go and fix.
+#:
+#: Sampled rather than exhaustive: opening ten thousand files would make the
+#: free gate slow enough to stop being free. The count is reported so a report
+#: never implies more was checked than was.
+SAMPLE_VIDEOS = 8
+
+
+def unreadable_videos(root: Path, limit: int = SAMPLE_VIDEOS) -> tuple[list[str], int]:
+    """Videos that will not decode, and how many were opened to find out."""
+    files = sorted(root.rglob("*.mp4"))
+    if not files:
+        return [], 0
+    step = max(1, len(files) // limit)
+    chosen = files[::step][:limit]
+
+    try:
+        import av
+    except ImportError:  # pragma: no cover - decoding is optional at intake
+        return [], 0
+
+    broken = []
+    for path in chosen:
+        try:
+            with av.open(str(path)) as container:
+                stream = next((s for s in container.streams if s.type == "video"), None)
+                if stream is None:
+                    broken.append(path.name)
+                    continue
+                if not next(container.decode(stream), None):
+                    broken.append(path.name)
+        except Exception:  # noqa: BLE001 - any failure to open is a failure to read
+            broken.append(path.name)
+    return broken, len(chosen)
+
+
 def describe(root: Path) -> dict:
     """What the dataset says about itself."""
     info = json.loads((root / "meta" / "info.json").read_text())
@@ -91,6 +130,7 @@ def describe(root: Path) -> dict:
         "robot_type": info.get("robot_type"),
         "channels": channels,
         "videos": len(list(root.rglob("*.mp4"))),
+        **dict(zip(("unreadable_videos", "videos_opened"), unreadable_videos(root))),
         "has_stats": (root / "meta" / "episodes_stats.jsonl").exists(),
         "has_sidecar": (root / "meta" / "gantry.jsonl").exists(),
         "tasks": [
@@ -168,6 +208,21 @@ def check(detected: dict) -> list[dict]:
                 "Include the videos/ folder; the parquet files alone have no pixels in them.",
             )
         )
+    broken = detected.get("unreadable_videos") or []
+    if broken:
+        opened = detected.get("videos_opened", 0)
+        out.append(
+            _finding(
+                "intake.video_unreadable",
+                "strong",
+                f"{len(broken)} of the {opened} video(s) opened will not decode: "
+                + ", ".join(broken[:3])
+                + (f" and {len(broken) - 3} more" if len(broken) > 3 else ""),
+                "Re-export those clips. A file that lists in the archive but has no "
+                "decodable frames in it is worse than a missing one — everything "
+                "downstream counts it as present.",
+            )
+        )
     return out
 
 
@@ -183,6 +238,7 @@ def run(archive: Path, workdir: Path, report: Report = _quiet) -> dict:
         return {"status": "refused", "detected": {}, "findings": problems, "summary": problems[0]["summary"]}
 
     report("reading the manifest")
+    report("opening a sample of the videos")
     detected = describe(root)
     report("checking", note=f"{detected.get('episodes', 0)} episodes")
     findings = check(detected)

@@ -115,6 +115,27 @@ export function uploadDataset(
   });
 }
 
+/** Buy a gate. The only way a paid one ever runs.
+ *
+ *  Free gates queue themselves when the one before them passes; paid ones do
+ *  not. The asymmetry is the product — nobody is billed for work they did not
+ *  ask for — so this is a deliberate action with a button behind it, never
+ *  something a page does on the user's behalf while they are reading. */
+export function useStartGate(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (gate: string) =>
+      json<Submission>(`/api/submissions/${id}/gates/${gate}/start`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      }),
+    onSuccess: (fresh) => {
+      client.setQueryData(keys.submission(id), fresh);
+      client.invalidateQueries({ queryKey: keys.submissions });
+    },
+  });
+}
+
 export function useConfirmMeaning(id: string) {
   const client = useQueryClient();
   return useMutation({

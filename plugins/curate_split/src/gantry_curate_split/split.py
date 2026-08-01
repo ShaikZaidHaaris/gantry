@@ -187,6 +187,67 @@ class Split:
                     )
 
 
+def hold_out(
+    episodes: Sequence[Any], *, fraction: float = 0.2, seed: int = 0, minimum: int = 2
+) -> tuple[Part, Part]:
+    """Keep some episodes back to score on. Returns ``(train, held_out)``.
+
+    Different from :class:`Split`, which cuts a corpus on a measured property to
+    make two cohorts to compare. This cuts it into something to fit and
+    something to score on, and the only thing it cares about is that the two
+    sides share nothing.
+
+    Whole episodes, and grouped
+    ---------------------------
+    Splitting by frame would put step 400 of a clip in the training set and step
+    401 in the held-out set. They are nearly the same picture, so the score
+    would measure interpolation between neighbouring frames rather than anything
+    that generalises -- and it would look excellent. Any two episodes that share
+    a participant, a session or a scene go to the same side for the same reason
+    one step further out.
+
+    ``grouped_by`` is carried through, so a report can say whether that check
+    had anything to check. When no episode records who filmed it, every episode
+    is its own group and the check passes without looking at anything, which is
+    not the same as passing.
+    """
+    if len(episodes) < minimum * 2:
+        raise ConfigError(
+            f"{len(episodes)} episode(s) cannot be split into something to fit and "
+            f"something to score on; at least {minimum * 2} are needed"
+        )
+    key = grouped_by(episodes)
+
+    # Whole groups move together, and which group goes where is decided by a
+    # seeded shuffle of the *groups* -- not of the episodes, which would split
+    # a group across both sides whenever it had more than one clip.
+    groups: dict[str, list[Any]] = {}
+    for episode in episodes:
+        groups.setdefault(group_of(episode), []).append(episode)
+    names = sorted(groups)
+    np.random.default_rng(seed).shuffle(names)
+
+    wanted = max(minimum, int(round(len(episodes) * fraction)))
+    held: list[Any] = []
+    for name in names:
+        if len(held) >= wanted:
+            break
+        held.extend(groups[name])
+    kept = [e for e in episodes if e not in held]
+
+    if len(kept) < minimum:
+        raise ConfigError(
+            f"holding out {len(held)} of {len(episodes)} episode(s) leaves too few to "
+            f"fit on; at least {minimum} are needed"
+        )
+    parts = (
+        Part(name="fit", episodes=tuple(kept), grouped_by=key),
+        Part(name="held_out", episodes=tuple(held), grouped_by=key),
+    )
+    Split._check_leakage({p.name: p for p in parts})
+    return parts
+
+
 def match_frames(
     parts: Mapping[str, Part], *, tolerance: float = 0.05, seed: int = 0
 ) -> dict[str, Part]:

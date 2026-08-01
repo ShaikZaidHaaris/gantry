@@ -34,9 +34,9 @@ import urllib.error
 import urllib.request
 import json as jsonlib
 
-from gates import intake, report
+from gates import intake, report, signal
 
-HANDLERS = {"g0": intake.run, "g1": report.run}
+HANDLERS = {"g0": intake.run, "g1": report.run, "g2": signal.run}
 
 #: Longest silence between beats. Comfortably inside the server's staleness
 #: window. This is the *floor* on how often we speak, not the rate: a gate that
