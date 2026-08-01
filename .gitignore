@@ -9,3 +9,6 @@ webui/workspace/*
 bench/data/
 bench/web/node_modules/
 bench/web/dist/
+__pycache__/
+*.pyc
+bench/web/tsconfig.tsbuildinfo
