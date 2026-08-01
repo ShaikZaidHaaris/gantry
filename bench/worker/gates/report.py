@@ -27,7 +27,7 @@ Two rules it inherits from the pipeline and must not break:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, Mapping
 
 #: What a gate is handed to say where it is. See ``intake.Report``.
 Report = Callable[..., None]
@@ -70,7 +70,12 @@ def data_side_modules():
     return found
 
 
-def run(archive: Path, workdir: Path, report: Report = _quiet) -> dict:
+def run(
+    archive: Path,
+    workdir: Path,
+    report: Report = _quiet,
+    params: Mapping[str, Any] | None = None,
+) -> dict:
     """The gate contract. Intake already unpacked; read what it left."""
     report("finding the dataset")
     root = next((workdir / "unpacked").rglob("meta/info.json"), None)

@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from .db import (
     STORAGE,
+    WORKER_TOKEN,
     Benchmark,
     DatasetVersion,
     Event,
@@ -56,6 +57,19 @@ GATES = [
 ]
 
 
+def worker(x_worker_token: str | None = Header(default=None)) -> None:
+    """Guards every route a worker uses.
+
+    Open when no token is configured, which is right for a laptop talking to
+    its own API on loopback and wrong the moment the API is reachable from
+    another machine. Attaching a GPU box means setting ``BENCH_WORKER_TOKEN``
+    on both ends; leaving it unset there would let anything that can route to
+    the port claim jobs and download other people's datasets.
+    """
+    if WORKER_TOKEN and x_worker_token != WORKER_TOKEN:
+        raise HTTPException(401, "a worker token is required")
+
+
 def db() -> Session:
     with SessionLocal() as session:
         yield session
@@ -85,8 +99,14 @@ def as_gate(row: Gate) -> dict:
         "name": spec["name"],
         "question": spec["question"],
         "eta": spec["eta"],
-        "cost_cents": spec["cost_cents"],
+        # What it will cost, or what it did: a bought gate keeps the price it
+        # was bought at, so a later change to the cost model cannot rewrite the
+        # bill on a run that already happened.
+        "cost_cents": row.cost_cents or spec["cost_cents"],
         "sized": spec["sized"],
+        #: What was bought, once it has been. Zero until then, and zero forever
+        #: on a gate whose price is not a choice.
+        "trials": row.trials,
         "status": row.status,
         "verdict": json.loads(row.verdict_json or "{}"),
         "findings": json.loads(row.findings_json or "[]"),
@@ -475,16 +495,44 @@ def start_gate(sub_id: str, key: str, body: dict | None = None, who=Depends(view
     ):
         raise HTTPException(409, "that gate is already queued")
 
-    gate.cost_cents = int((body or {}).get("cost_cents", spec["cost_cents"]))
+    # What is being bought. For a sized gate the trial count decides what the
+    # run can conclude, so it is validated here rather than taken on trust: an
+    # experiment too small to answer its own question should not be sellable,
+    # and the price is recomputed from the count rather than accepted from the
+    # caller, who would otherwise be quoting their own bill.
+    body = body or {}
+    if spec["sized"]:
+        trials = int(body.get("trials") or 0)
+        if trials < FLOOR_TRIALS:
+            raise HTTPException(
+                400,
+                f"{trials or 'no'} scenes is below the floor of {FLOOR_TRIALS}; at that "
+                "size no effect can be separated from noise, whatever the data is like",
+            )
+        bench = session.get(Benchmark, sub.benchmark_id)
+        gate.trials = trials
+        gate.cost_cents = costing(bench, trials)["cents"] if bench else spec["cost_cents"]
+    else:
+        gate.trials = 0
+        gate.cost_cents = int(body.get("cost_cents", spec["cost_cents"]))
+
     session.add(Job(id=new_id("job"), submission_id=sub_id, gate_key=key, status="queued"))
     sub.status = "running"
-    emit(session, sub_id, "gate.queued", gate=key, bought=True, cost_cents=gate.cost_cents)
+    emit(
+        session,
+        sub_id,
+        "gate.queued",
+        gate=key,
+        bought=True,
+        cost_cents=gate.cost_cents,
+        **({"trials": gate.trials} if gate.trials else {}),
+    )
     session.commit()
     return as_submission(session, sub, deep=True)
 
 
 @app.post("/api/jobs/claim")
-def claim_job(body: dict, session: Session = Depends(db)):
+def claim_job(body: dict, session: Session = Depends(db), _=Depends(worker)):
     """One job, claimed atomically.
 
     SQLite has no SKIP LOCKED, so the claim is a guarded UPDATE and the worker
@@ -518,14 +566,52 @@ def claim_job(body: dict, session: Session = Depends(db)):
             "id": row.id,
             "submission_id": row.submission_id,
             "gate_key": row.gate_key,
+            # Both, deliberately. A worker sharing this disk opens the path and
+            # copies nothing; one on another machine fetches the URL. Same job,
+            # same code path, and the fast case stays fast.
             "archive": version.path if version else None,
+            "archive_url": f"/api/jobs/{row.id}/archive" if version else None,
+            "archive_bytes": version.bytes if version else 0,
+            # What the buyer chose. Carried to the gate so the run is the size
+            # it was sold as, and so the verdict can say which number produced
+            # it -- "no difference found" means nothing without the trial count
+            # beside it.
+            "params": {"trials": gate.trials} if gate.trials else {},
+            "version": version.version if version else 0,
             "workdir": str(STORAGE / row.submission_id / f"v{version.version}") if version else None,
         }
     }
 
 
+@app.get("/api/jobs/{job_id}/archive")
+def job_archive(job_id: str, session: Session = Depends(db), _=Depends(worker)):
+    """The dataset, for the worker that claimed this job.
+
+    The reason a worker can live somewhere else. Until this existed the job
+    handed out a filesystem path, which only worked because the API and the
+    worker shared a disk -- so the GPU box, which is the entire point of the
+    paid gates, could not run one.
+
+    Scoped to the job rather than to the submission: a worker is given exactly
+    the artefact for the work it claimed, and holds no standing access to
+    anything. In production this becomes a presigned URL to object storage and
+    the worker code does not change.
+    """
+    row = session.get(Job, job_id)
+    if row is None:
+        raise HTTPException(404, "no such job")
+    version = session.scalars(
+        select(DatasetVersion)
+        .where(DatasetVersion.submission_id == row.submission_id)
+        .order_by(DatasetVersion.version.desc())
+    ).first()
+    if version is None or not Path(version.path).exists():
+        raise HTTPException(404, "no dataset stored for that job")
+    return FileResponse(version.path, filename=Path(version.path).name)
+
+
 @app.post("/api/jobs/{job_id}/finish")
-def finish_job(job_id: str, body: dict, session: Session = Depends(db)):
+def finish_job(job_id: str, body: dict, session: Session = Depends(db), _=Depends(worker)):
     row = session.get(Job, job_id)
     if row is None:
         raise HTTPException(404, "no such job")
@@ -592,7 +678,7 @@ PROGRESS_FIELDS = ("phase", "current", "total", "note")
 
 
 @app.post("/api/jobs/{job_id}/heartbeat")
-def heartbeat(job_id: str, body: dict, session: Session = Depends(db)):
+def heartbeat(job_id: str, body: dict, session: Session = Depends(db), _=Depends(worker)):
     """Liveness, and optionally where the gate is up to.
 
     Progress overwrites in place and never appends to the event log. A

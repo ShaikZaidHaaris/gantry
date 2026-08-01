@@ -17,7 +17,7 @@
  */
 
 import { useState } from "react";
-import { usePlan } from "../api/client";
+import { usePlan, useStartGate } from "../api/client";
 import type { Plan } from "../api/types";
 import { Skeleton } from "./ui";
 
@@ -70,13 +70,18 @@ function Verdict({ plan }: { plan: Plan }) {
 export function BudgetPanel({
   benchmark,
   gateName,
+  gateKey,
+  submissionId,
 }: {
   benchmark: string | undefined;
   gateName: string;
+  gateKey: string;
+  submissionId: string;
 }) {
   const [trials, setTrials] = useState(210);
   const [magnitude, setMagnitude] = useState(0.08);
   const { data: plan, isPending } = usePlan(benchmark, trials, magnitude);
+  const start = useStartGate(submissionId);
 
   if (isPending || !plan) {
     return (
@@ -172,6 +177,28 @@ export function BudgetPanel({
               {r.hint && <div style={{ marginTop: 4 }}>{r.hint}</div>}
             </div>
           ))}
+        </div>
+      )}
+
+      <div className="budget-buy">
+        <button
+          type="button"
+          className="btn primary"
+          disabled={start.isPending || plan.detects === null}
+          onClick={() => start.mutate({ gate: gateKey, trials })}
+        >
+          {start.isPending ? "Starting…" : `Run ${trials} scenes — ${money(plan.cost.cents)}`}
+        </button>
+        <span className="budget-buy-note">
+          {plan.detects === null
+            ? "Pick a larger budget — this one cannot detect anything."
+            : `Detects ${(plan.detects * 100).toFixed(1)} points or more. Nothing runs until you press this.`}
+        </span>
+      </div>
+      {start.isError && (
+        <div className="note warn" style={{ marginBottom: 12 }}>
+          <b>That could not be started.</b>
+          <div style={{ marginTop: 4 }}>{(start.error as Error).message}</div>
         </div>
       )}
 

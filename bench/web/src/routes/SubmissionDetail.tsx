@@ -99,7 +99,7 @@ export function SubmissionDetail() {
         gates={data.gates}
         currentGate={data.current_gate}
         live={live}
-        onStart={(gate) => start.mutate(gate)}
+        onStart={(gate) => start.mutate({ gate })}
         starting={start.isPending}
       />
 
@@ -133,7 +133,12 @@ export function SubmissionDetail() {
             What to run next
             <span className="h2-sub">what a budget can conclude, before it is spent</span>
           </h2>
-          <BudgetPanel benchmark={data.benchmark?.key} gateName={sized.name} />
+          <BudgetPanel
+            benchmark={data.benchmark?.key}
+            gateName={sized.name}
+            gateKey={sized.key}
+            submissionId={data.id}
+          />
         </>
       )}
 

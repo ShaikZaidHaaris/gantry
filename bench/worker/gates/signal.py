@@ -52,7 +52,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
@@ -122,7 +122,12 @@ def _error(fitted: Any, episode: Any, names: Sequence[str], action: str = "actio
     return float(((predicted - actual) ** 2).mean())
 
 
-def run(archive: Path, workdir: Path, report: Report = _quiet) -> dict:
+def run(
+    archive: Path,
+    workdir: Path,
+    report: Report = _quiet,
+    params: Mapping[str, Any] | None = None,
+) -> dict:
     """The gate contract. Intake already unpacked; read what it left."""
     from gantry_connector_lerobot import LeRobotConnector
     from gantry_curate_control import shuffled

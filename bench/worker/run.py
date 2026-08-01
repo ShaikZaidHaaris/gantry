@@ -19,11 +19,22 @@ So the beat runs on its own thread and continues regardless of what the gate is
 doing. The gate calls ``report(...)`` whenever it moves; the thread sends
 whatever the latest position is on its own schedule. Nothing in a gate has to
 think about beat intervals, and a gate that never reports still stays alive.
+
+Where the dataset comes from
+----------------------------
+Fetched over HTTP, into this worker's own scratch. The job also names a local
+path, and that is used when the file is actually there -- a worker on the API's
+host should not copy a ten gigabyte archive to itself. But the path is an
+optimisation, not the mechanism: a worker on a GPU box has no such file and
+downloads instead, and neither case is the special one. The version that only
+handed out a path worked solely because the API and the worker happened to share
+a disk, which is not a design so much as a coincidence that had not broken yet.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import socket
 import threading
 import time
@@ -34,6 +45,7 @@ import urllib.error
 import urllib.request
 import json as jsonlib
 
+from fetch import Download, ensure_dataset
 from gates import intake, report, robot, signal
 
 HANDLERS = {
@@ -56,12 +68,52 @@ BEAT = 10.0
 GAP = 0.4
 
 
+#: Presented on every call. Set from --token or BENCH_WORKER_TOKEN, and the
+#: server only checks it when it has one configured -- so a laptop talking to
+#: its own API needs nothing, and a box reaching across a network needs both
+#: ends set.
+TOKEN = os.environ.get("BENCH_WORKER_TOKEN", "")
+
+
+def headers() -> dict[str, str]:
+    out = {"Content-Type": "application/json"}
+    if TOKEN:
+        out["X-Worker-Token"] = TOKEN
+    return out
+
+
 def call(api: str, path: str, payload: dict | None = None) -> dict:
     url = f"{api}{path}"
     data = jsonlib.dumps(payload or {}).encode()
-    request = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    request = urllib.request.Request(url, data=data, headers=headers())
     with urllib.request.urlopen(request, timeout=30) as response:
         return jsonlib.loads(response.read() or b"{}")
+
+
+def downloader(api: str) -> Download:
+    """A token-carrying fetch of one artefact to one path.
+
+    Streamed in chunks rather than read whole: a contributor's upload is
+    routinely gigabytes, and a worker that holds one in memory to write it out
+    falls over on exactly the submissions worth running.
+
+    Written to a partial file and moved into place at the end, so a worker that
+    dies mid-transfer leaves nothing the next run mistakes for a complete
+    archive -- which would fail later, elsewhere, looking like corrupt data
+    rather than an interrupted download.
+    """
+
+    def download(url: str, target: Path) -> Path:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        partial = target.with_suffix(target.suffix + ".partial")
+        request = urllib.request.Request(f"{api}{url}", headers=headers())
+        with urllib.request.urlopen(request, timeout=600) as response, partial.open("wb") as out:
+            while chunk := response.read(1 << 20):
+                out.write(chunk)
+        partial.replace(target)
+        return target
+
+    return download
 
 
 class Progress:
@@ -137,7 +189,14 @@ class Progress:
         self._thread.join(timeout=2.0)
 
 
-def once(api: str, worker: str, gates: list[str]) -> bool:
+#: Gates that need the dataset on this machine. Intake fetches it as its first
+#: act; the rest read what is already there. The robot test is on the list
+#: because a GPU worker running only that gate has never run intake and would
+#: otherwise find nothing.
+NEEDS_DATASET = ("g0", "g1", "g2", "g3")
+
+
+def once(api: str, worker: str, gates: list[str], workroot: Path | None = None) -> bool:
     got = call(api, "/api/jobs/claim", {"worker": worker, "gates": gates}).get("job")
     if not got:
         return False
@@ -148,9 +207,28 @@ def once(api: str, worker: str, gates: list[str]) -> bool:
         call(api, f"/api/jobs/{got['id']}/finish", {"status": "failed", "error": "no handler"})
         return True
 
+    # The job names a workdir on the *API's* machine. A worker sharing that
+    # disk uses it; one on a GPU box cannot, and writing there would either fail
+    # or — worse — succeed against a same-named directory that means something
+    # else entirely. So a remote worker is given its own root and keeps each
+    # job's scratch under the job id.
+    if workroot is not None:
+        workdir = workroot / got["submission_id"]
+        workdir.mkdir(parents=True, exist_ok=True)
+    else:
+        workdir = Path(got["workdir"])
+
     with Progress(api, got["id"]) as progress:
         try:
-            result = handler(Path(got["archive"]), Path(got["workdir"]), progress.report)
+            archive = (
+                ensure_dataset(got, workdir, downloader(api), progress.report)
+                if got["gate_key"] in NEEDS_DATASET
+                else Path(got.get("archive") or workdir / "dataset.zip")
+            )
+            # What the user bought, handed to the gate. A gate that ran a
+            # different number of scenes than was paid for would be charging for
+            # one experiment and running another.
+            result = handler(archive, workdir, progress.report, got.get("params") or {})
             call(
                 api,
                 f"/api/jobs/{got['id']}/finish",
@@ -189,15 +267,27 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--api", default="http://127.0.0.1:7910")
     parser.add_argument("--gates", default="g0")
+    parser.add_argument("--token", default="", help="shared secret; overrides BENCH_WORKER_TOKEN")
+    parser.add_argument("--name", default="", help="how this worker identifies itself")
+    parser.add_argument(
+        "--work",
+        default=None,
+        help="where to keep fetched datasets. Set this on a worker that does not share a "
+        "disk with the API — the job's own workdir is a path on the API's machine, and "
+        "using it here would write into a directory that does not exist.",
+    )
     parser.add_argument("--once", action="store_true")
     args = parser.parse_args()
 
-    worker = f"{socket.gethostname()}/{args.gates}"
+    global TOKEN
+    TOKEN = args.token or TOKEN
+
+    worker = args.name or f"{socket.gethostname()}/{args.gates}"
     gates = args.gates.split(",")
     print(f"[{worker}] polling {args.api} for {gates}", flush=True)
     while True:
         try:
-            busy = once(args.api, worker, gates)
+            busy = once(args.api, worker, gates, Path(args.work) if args.work else None)
         except urllib.error.URLError as error:
             print(f"[{worker}] api unreachable: {error}", flush=True)
             busy = False

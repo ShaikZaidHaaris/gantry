@@ -489,7 +489,12 @@ ROLLOUTS = "rollouts"
 MANIFEST = "arms.json"
 
 
-def run(archive: Path, workdir: Path, report: Report = _quiet) -> dict:
+def run(
+    archive: Path,
+    workdir: Path,
+    report: Report = _quiet,
+    params: Mapping[str, Any] | None = None,
+) -> dict:
     """The gate contract.
 
     Rollouts already present are read. Otherwise this gate needs a GPU worker,
@@ -501,14 +506,16 @@ def run(archive: Path, workdir: Path, report: Report = _quiet) -> dict:
         return {
             "status": "failed",
             "summary": (
-                "no rollouts were produced for this submission — the robot test needs a "
-                "GPU worker, and this one has none attached"
+                "no rollouts exist for this submission, and producing them — train the "
+                "arm, train its shuffled control, run both closed-loop — is not wired up "
+                "yet on this worker"
             ),
             "findings": [],
         }
 
     report("reading the manifest")
     named = json.loads(manifest.read_text())
+    bought = int((params or {}).get("trials") or 0)
     missing = [name for name, file in named.items() if not (folder / file).exists()]
     if missing:
         return {
@@ -516,4 +523,32 @@ def run(archive: Path, workdir: Path, report: Report = _quiet) -> dict:
             "summary": f"the manifest names arms with no rollouts on disk: {', '.join(missing)}",
             "findings": [],
         }
-    return from_records({name: folder / file for name, file in named.items()}, report)
+    out = from_records({name: folder / file for name, file in named.items()}, report)
+
+    if trials:
+        ran = max(
+            (row["arms"].get(TREATMENT, {}).get("n", 0) for row in out.get("detail", {}).get("ladder", [])),
+            default=0,
+        )
+        out.setdefault("detail", {})["trials_bought"] = trials
+        out["detail"]["trials_run"] = ran
+        if ran < trials:
+            out.setdefault("findings", []).insert(
+                0,
+                {
+                    "code": "robot.short_of_budget",
+                    "severity": "strong",
+                    "summary": (
+                        f"{trials} scenes were bought and {ran} were run, so this says less "
+                        "than it was paid to say"
+                    ),
+                    "prescription": (
+                        "Every conclusion here was sized against the number of scenes bought. "
+                        "Run the remainder, or re-read this against what "
+                        f"{ran} scenes can actually separate — which is a larger effect than "
+                        f"{trials} would have been."
+                    ),
+                    "module": "robot",
+                },
+            )
+    return out

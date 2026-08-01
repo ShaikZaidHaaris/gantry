@@ -120,14 +120,19 @@ export function uploadDataset(
  *  Free gates queue themselves when the one before them passes; paid ones do
  *  not. The asymmetry is the product — nobody is billed for work they did not
  *  ask for — so this is a deliberate action with a button behind it, never
- *  something a page does on the user's behalf while they are reading. */
+ *  something a page does on the user's behalf while they are reading.
+ *
+ *  The trial count travels with it, because the number chosen is what the run
+ *  is able to conclude — a panel that shows "detects 8 points" and then starts
+ *  a job that does not know how many scenes were picked is quoting a number
+ *  about a different experiment. */
 export function useStartGate(id: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (gate: string) =>
-      json<Submission>(`/api/submissions/${id}/gates/${gate}/start`, {
+    mutationFn: (body: { gate: string; trials?: number }) =>
+      json<Submission>(`/api/submissions/${id}/gates/${body.gate}/start`, {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify({ trials: body.trials }),
       }),
     onSuccess: (fresh) => {
       client.setQueryData(keys.submission(id), fresh);

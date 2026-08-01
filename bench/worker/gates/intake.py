@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import zipfile
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 #: What a gate is handed to say where it is: phase, and optionally how far
 #: through and a note. Typed here so a gate can be run outside a worker -- in a
@@ -226,7 +226,12 @@ def check(detected: dict) -> list[dict]:
     return out
 
 
-def run(archive: Path, workdir: Path, report: Report = _quiet) -> dict:
+def run(
+    archive: Path,
+    workdir: Path,
+    report: Report = _quiet,
+    params: Mapping[str, Any] | None = None,
+) -> dict:
     """The gate contract: a verdict, findings, and what we detected.
 
     ``report`` says where we are. Called rather than returned because the whole

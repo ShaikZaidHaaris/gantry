@@ -39,6 +39,12 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 STORAGE = DATA_DIR / "storage"
 STORAGE.mkdir(exist_ok=True)
 
+#: Shared secret a worker presents to claim jobs and fetch datasets. Unset
+#: means open, which is right for a laptop talking to its own API and wrong for
+#: anything reachable from another machine -- so the moment a GPU box is
+#: attached, this is the thing to set on both ends.
+WORKER_TOKEN = os.environ.get("BENCH_WORKER_TOKEN", "")
+
 DB_URL = os.environ.get("BENCH_DB", f"sqlite:///{DATA_DIR}/bench.db")
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False} if DB_URL.startswith("sqlite") else {})
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
@@ -166,6 +172,14 @@ class Gate(Base):
     started_at: Mapped[str] = mapped_column(String, default="")
     finished_at: Mapped[str] = mapped_column(String, default="")
     cost_cents: Mapped[int] = mapped_column(Integer, default=0)
+    #: Scenes bought, for a gate whose price is a choice. Zero on the rest.
+    #:
+    #: Kept on the gate rather than the submission because a resubmission may
+    #: legitimately buy a different number, and a verdict is meaningless without
+    #: it: "no difference found" says nothing until you know how many scenes
+    #: were run, since the trial count is what decides which differences the run
+    #: could ever have seen.
+    trials: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Job(Base):
@@ -199,7 +213,7 @@ def emit(session: Session, submission_id: str, kind: str, **payload) -> None:
 #: Postgres; until then this keeps a developer's existing demo database
 #: working instead of asking them to delete it.
 LATER = {
-    "gates": {"measures_json": "'{}'", "abstained_json": "'[]'", "progress_json": "'{}'", "detail_json": "'{}'"},
+    "gates": {"measures_json": "'{}'", "abstained_json": "'[]'", "progress_json": "'{}'", "detail_json": "'{}'", "trials": "0"},
     "benchmarks": {"cost_json": "'{}'"},
 }
 
