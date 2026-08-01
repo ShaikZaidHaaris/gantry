@@ -20,6 +20,25 @@ Three deployables in one repo, per `webui/ARCHITECTURE.md`.
 SQLite and local disk stand in for Postgres and S3. The seam is `api/app/db.py`
 plus two storage helpers; nothing else knows the difference.
 
+## Deploying it
+
+    bench/deploy/deploy.sh ubuntu@HOST /path/to/key.pem
+
+Builds the frontend, copies the API, the bundle and the worker, and installs
+both as systemd units with `Restart=always`. The API serves the built SPA
+itself, so there is one process and no proxy to misconfigure.
+
+It binds to loopback and does not open a port. Expose it with
+
+    cloudflared tunnel --url http://127.0.0.1:8090
+
+The token in `/home/ubuntu/gantry_bench/env` is generated on the host and is
+never in this repository.
+
+**There is no authentication.** `viewer()` reads an `x-demo-user` header and
+trusts it, so anyone who can reach the deployment can read every submission and
+upload their own. That function is the single seam real auth goes through.
+
 ## What is built (step 1 of 6)
 
 Submissions, upload with progress, the job queue, the event log, SSE, and
