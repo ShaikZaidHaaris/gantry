@@ -1,0 +1,14 @@
+{
+  "rt_base": {
+    "episodes": 50,
+    "frames": 6129
+  },
+  "rt_ego": {
+    "episodes": 68,
+    "frames": 11394
+  },
+  "rt_shuffled": {
+    "episodes": 68,
+    "frames": 11394
+  }
+}

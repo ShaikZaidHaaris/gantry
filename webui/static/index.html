@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gantry — the measurement bench</title>
+<style>
+  :root{
+    --bg:#101418; --panel:#161B21; --panel2:#1B222A; --line:#242C35; --line2:#2E3947;
+    --text:#EAE5D8; --muted:#93A2AE; --dim:#5C6873;
+    --accent:#E0A458; --accent-dim:#8A6A3F;
+    --ok:#6FBF8B; --bad:#D06B5B; --abstain:#8AA0BE;
+    --serif:"Iowan Old Style","Palatino Nova",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scrollbar-color:var(--line2) var(--bg)}
+  body{background:var(--bg);color:var(--text);font:15px/1.55 var(--sans);min-height:100vh}
+  a{color:var(--accent);text-decoration:none}
+  ::selection{background:var(--accent-dim);color:var(--text)}
+
+  /* ---------- frame ---------- */
+  .frame{display:grid;grid-template-columns:216px 1fr;min-height:100vh}
+  .rail{border-right:1px solid var(--line);padding:26px 20px;display:flex;flex-direction:column;gap:6px;
+        position:sticky;top:0;height:100vh;overflow-y:auto}
+  .wordmark{font:italic 700 26px/1 var(--serif);letter-spacing:.5px;margin-bottom:2px}
+  .wordmark b{color:var(--accent);font-style:normal}
+  .tagline{font:12px/1.45 var(--sans);color:var(--muted);margin-bottom:22px}
+  nav{display:flex;flex-direction:column;gap:2px}
+  nav a{display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);
+        padding:8px 10px;border-radius:6px;font-size:13.5px;border-left:2px solid transparent}
+  nav a:hover{color:var(--text);background:var(--panel)}
+  nav a.on{color:var(--text);background:var(--panel);border-left-color:var(--accent)}
+  nav a .k{font:11px var(--mono);color:var(--dim)}
+  .rules{margin-top:auto;padding-top:22px;border-top:1px solid var(--line)}
+  .rules h4{font:11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+  .rule{margin-bottom:10px}
+  .rule b{display:block;font-size:12px;font-weight:600}
+  .rule span{font-size:11.5px;color:var(--muted);line-height:1.4;display:block}
+
+  main{padding:34px 44px 90px;max-width:1180px;width:100%}
+  section{display:none}
+  section.on{display:block;animation:rise .28s ease}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){section.on{animation:none}}
+
+  .eyebrow{font:11px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+  h1{font:400 32px/1.2 var(--serif);letter-spacing:.2px;margin-bottom:6px;text-wrap:balance}
+  .lede{color:var(--muted);max-width:64ch;margin-bottom:30px}
+  h2{font:400 21px/1.3 var(--serif);margin:34px 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:14px;max-width:70ch}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+  .grid{display:grid;gap:14px}
+  .cols2{grid-template-columns:1fr 1fr}
+  .cols3{grid-template-columns:repeat(3,1fr)}
+  @media (max-width:1000px){.cols2,.cols3{grid-template-columns:1fr}}
+
+  /* ---------- the instrument readout ---------- */
+  .readout{display:flex;align-items:baseline;gap:10px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .readout .big{font-size:44px;font-weight:600;letter-spacing:-1px}
+  .readout .of{color:var(--dim);font-size:18px}
+  .readout .pct{color:var(--accent);font-size:18px;margin-left:6px}
+  .scale{position:relative;height:14px;background:var(--panel2);border:1px solid var(--line);
+         border-radius:7px;margin:14px 0 4px;overflow:visible}
+  .scale .band{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 26%,transparent);
+               border-left:1px solid var(--accent-dim);border-right:1px solid var(--accent-dim)}
+  .scale .mark{position:absolute;top:-3px;bottom:-3px;width:3px;background:var(--accent);border-radius:2px}
+  .scale .ceil{position:absolute;top:-6px;bottom:-6px;width:1px;background:var(--abstain)}
+  .scale .ceil::after{content:attr(data-l);position:absolute;top:-16px;left:-14px;font:10px var(--mono);color:var(--abstain);white-space:nowrap}
+  .scale-l{display:flex;justify-content:space-between;font:10.5px var(--mono);color:var(--dim)}
+  .n-note{font:11.5px var(--mono);color:var(--muted);margin-top:6px}
+  .n-note b{color:var(--text);font-weight:600}
+
+  /* ---------- ladder ---------- */
+  .ladder{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+  .rung{display:grid;grid-template-columns:110px 1fr 92px;gap:12px;align-items:center}
+  .rung .name{font:12px var(--mono);color:var(--muted);text-align:right}
+  .rung .bar{height:16px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;position:relative;overflow:hidden}
+  .rung .fill{position:absolute;inset:0;width:0;background:linear-gradient(90deg,var(--accent-dim),var(--accent));
+              border-radius:3px;transition:width .5s ease}
+  .rung.zero .fill{background:var(--line2)}
+  .rung .val{font:12px var(--mono);color:var(--text)}
+  .rung .val i{color:var(--dim);font-style:normal}
+
+  /* ---------- planes ---------- */
+  .plane{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:13px 15px}
+  .plane h3{font:600 13px var(--sans);display:flex;justify-content:space-between;align-items:baseline}
+  .plane h3 .k{font:11px var(--mono);color:var(--accent)}
+  .plane p{font-size:12px;color:var(--muted);margin:3px 0 8px;line-height:1.45}
+  .plane .pl{display:flex;flex-wrap:wrap;gap:4px}
+  .pill{font:10.5px var(--mono);color:var(--muted);background:var(--panel2);border:1px solid var(--line);
+        border-radius:20px;padding:2px 8px}
+
+  /* ---------- chips / verdicts ---------- */
+  .chip{display:inline-flex;align-items:center;gap:7px;border-radius:6px;padding:6px 10px;font-size:12.5px;
+        border:1px solid var(--line);background:var(--panel2);margin:3px 4px 3px 0}
+  .chip .code{font:10.5px var(--mono)}
+  .chip.ok .code{color:var(--ok)} .chip.bad .code{color:var(--bad)} .chip.abst .code{color:var(--abstain)}
+  .chip.warn .code{color:var(--accent)}
+  .verdict{border-left:3px solid var(--abstain);background:var(--panel);border-radius:0 8px 8px 0;
+           padding:14px 18px;margin:10px 0}
+  .verdict .code{font:11px var(--mono);color:var(--abstain);letter-spacing:.06em}
+  .verdict p{font-size:13.5px;margin-top:4px;color:var(--text)}
+  .verdict small{color:var(--muted);display:block;margin-top:6px;font-size:12px}
+
+  /* ---------- compare ---------- */
+  .vs-head{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;margin:16px 0}
+  .vs-head .side{text-align:center}
+  .vs-head .side b{font:600 15px var(--sans);display:block}
+  .vs-head .side span{font:11px var(--mono);color:var(--muted)}
+  .vs-head .x{font:italic 20px var(--serif);color:var(--dim)}
+  select{background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:6px;
+         padding:7px 10px;font:13px var(--sans);width:100%}
+  table.rungs{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  table.rungs th{font:10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);
+                 text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  table.rungs td{padding:9px 10px;border-bottom:1px solid var(--line);font-size:13px}
+  table.rungs td.m{font-family:var(--mono);font-size:12.5px}
+  .mini-scale{position:relative;height:8px;width:120px;background:var(--panel2);border-radius:4px;display:inline-block;vertical-align:middle}
+  .mini-scale .band{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 30%,transparent);border-radius:4px}
+  .mini-scale .mark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--accent)}
+  .mini-scale.b .band{background:color-mix(in srgb,var(--abstain) 32%,transparent)}
+  .mini-scale.b .mark{background:var(--abstain)}
+  .p-sig{color:var(--ok);font-weight:600} .p-ns{color:var(--dim)}
+  .dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+  .dot{width:11px;height:11px;border-radius:3px;background:var(--panel2);border:1px solid var(--line)}
+  .dot.both{background:var(--line2)}
+  .dot.a{background:var(--accent);border-color:var(--accent)}
+  .dot.b{background:var(--abstain);border-color:var(--abstain)}
+  .legend{display:flex;gap:16px;font:11px var(--mono);color:var(--muted);margin-top:10px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+  /* ---------- datasets ---------- */
+  .ds{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:start}
+  .ds h3{font:600 14px var(--sans)}
+  .ds .meta{font:11.5px var(--mono);color:var(--muted)}
+  .drop{border:1.5px dashed var(--line2);border-radius:10px;padding:34px;text-align:center;color:var(--muted);
+        cursor:pointer;transition:border-color .2s,background .2s}
+  .drop:hover,.drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 5%,transparent)}
+  .drop b{color:var(--text)}
+  .checks{margin-top:10px;display:grid;grid-template-columns:auto 1fr;gap:3px 16px;font:12px var(--mono)}
+  .checks .k{color:var(--muted)} .checks .v{color:var(--text)}
+  .spark{display:flex;align-items:flex-end;gap:2px;height:34px;margin-top:8px}
+  .spark i{flex:1;background:var(--accent-dim);border-radius:2px 2px 0 0;min-width:4px}
+  .spark i.hi{background:var(--accent)}
+
+  /* ---------- report ---------- */
+  .report{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:26px 30px;
+          font:13px/1.7 var(--mono);white-space:pre-wrap;overflow-x:auto;color:#CFC9BC}
+  .report .h{color:var(--text);font-weight:700}
+  .rep-tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .rep-tabs button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;
+                   padding:6px 12px;font:12px var(--mono);cursor:pointer}
+  .rep-tabs button.on{color:var(--text);border-color:var(--accent-dim)}
+
+  .empty{color:var(--dim);font-style:italic;font-size:13px;padding:20px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:14px;font:11px var(--mono);color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="frame">
+  <aside class="rail">
+    <div class="wordmark">gan<b>try</b></div>
+    <div class="tagline">the measurement bench for robot data</div>
+    <nav id="nav">
+      <a href="#bench" class="on">Bench <span class="k">01</span></a>
+      <a href="#datasets">Datasets <span class="k">02</span></a>
+      <a href="#runs">Runs <span class="k">03</span></a>
+      <a href="#compare">Compare <span class="k">04</span></a>
+      <a href="#reports">Reports <span class="k">05</span></a>
+    </nav>
+    <div class="rules">
+      <h4>House rules</h4>
+      <div id="rules"></div>
+    </div>
+  </aside>
+
+  <main>
+    <!-- ============ BENCH ============ -->
+    <section id="bench" class="on">
+      <div class="eyebrow">State of the bench</div>
+      <h1>Every number here was measured, or it isn't here.</h1>
+      <p class="lede">Gantry runs contributed data through a fixed gauntlet — read, convert, train,
+      evaluate closed-loop, compare against a shuffled control — and reports what survived.
+      Rates carry their intervals, refusals carry their codes, and “could not tell you” is an answer.</p>
+
+      <div class="grid cols2">
+        <div class="card" id="baseline-card"><div class="empty">loading…</div></div>
+        <div class="card" id="verdict-card"><div class="empty">loading…</div></div>
+      </div>
+
+      <h2>The ten planes</h2>
+      <p class="sub">Everything is a plugin against one of ten contracts. The core names no
+      implementation — a neutrality test fails the build if it ever does.</p>
+      <div class="grid cols3" id="planes"></div>
+    </section>
+
+    <!-- ============ DATASETS ============ -->
+    <section id="datasets">
+      <div class="eyebrow">02 · Datasets</div>
+      <h1>What went in, and what it declared.</h1>
+      <p class="lede">A dataset is read as it describes itself or not at all. Uploads run through the
+      same checks the pipeline uses — schema, stats, sidecar, licence, and the two-handedness
+      measure the contributor split is built on.</p>
+
+      <div class="drop" id="drop">
+        <b>Drop a LeRobot dataset (.zip)</b> or click to choose<br>
+        <span style="font-size:12px">it is inspected with the pipeline's own connectors — nothing is trained or modified</span>
+        <input type="file" id="file" accept=".zip" style="display:none">
+      </div>
+      <div id="upload-report"></div>
+
+      <h2>The contributor split</h2>
+      <p class="sub">Two cohorts cut from the same footage on one measured property — the fraction of
+      frames in which <em>both</em> hands were actually moving. An arm the tracker lost is held at its
+      last value: a frozen block, invisible to every schema check.</p>
+      <div class="grid cols2" id="split"></div>
+
+      <h2>Built on the bench</h2>
+      <div class="grid cols3" id="built"></div>
+    </section>
+
+    <!-- ============ RUNS ============ -->
+    <section id="runs">
+      <div class="eyebrow">03 · Runs</div>
+      <h1>Closed-loop, on screened scenes, with the ladder.</h1>
+      <p class="lede">Each run is a policy facing arrangements RoboTwin's own expert first proved
+      solvable. The binary outcome is kept — but the ladder underneath it is where the signal is
+      when success sits near the floor.</p>
+      <div class="grid cols2" id="run-cards"></div>
+    </section>
+
+    <!-- ============ COMPARE ============ -->
+    <section id="compare">
+      <div class="eyebrow">04 · Compare</div>
+      <h1>Only the disagreements carry information.</h1>
+      <p class="lede">Two arms on the same scenes agree about most of them — the easy ones both
+      manage, the hard ones both fail. This pairs them scene by scene and runs McNemar's exact
+      test on the scenes where they differ.</p>
+      <div class="vs-head">
+        <div class="side"><select id="sel-a"></select></div>
+        <div class="x">vs</div>
+        <div class="side"><select id="sel-b"></select></div>
+      </div>
+      <div id="compare-out"><div class="empty">pick two runs that carry per-scene records</div></div>
+    </section>
+
+    <!-- ============ REPORTS ============ -->
+    <section id="reports">
+      <div class="eyebrow">05 · Reports</div>
+      <h1>The written record.</h1>
+      <p class="lede">What was measured, what was refused, and what the numbers do not say —
+      as committed to the repository.</p>
+      <div class="rep-tabs" id="rep-tabs"></div>
+      <div class="report" id="rep-body"><div class="empty">loading…</div></div>
+    </section>
+
+    <div class="foot">gantry bench · every rate shown with n and Wilson 95% · abstentions rendered, never dropped</div>
+  </main>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const el = (t, cls, html) => { const e = document.createElement(t); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+const put = (parent, node, styles) => { if (styles) Object.assign(node.style, styles); parent.append(node); return node; };
+const pct = x => (100 * x).toFixed(x >= 0.995 || x === 0 ? 0 : 1) + "%";
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+/* ---------- router ---------- */
+function route() {
+  const h = (location.hash || "#bench").slice(1);
+  document.querySelectorAll("main section").forEach(s => s.classList.toggle("on", s.id === h));
+  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.hash === "#" + h));
+}
+addEventListener("hashchange", route);
+
+/* ---------- components ---------- */
+function scale(rate, lo, hi, ceil, ceilLabel) {
+  const w = el("div");
+  const s = el("div", "scale");
+  const band = el("div", "band"); band.style.left = pct(lo); band.style.width = (100 * (hi - lo)) + "%";
+  const mark = el("div", "mark"); mark.style.left = `calc(${pct(rate)} - 1px)`;
+  s.append(band, mark);
+  if (ceil != null) { const c = el("div", "ceil"); c.style.left = pct(ceil); c.dataset.l = ceilLabel || "expert"; s.append(c); }
+  const lab = el("div", "scale-l", "<span>0%</span><span>50%</span><span>100%</span>");
+  w.append(s, lab);
+  return w;
+}
+function miniScale(wins, n, lo, hi, alt) {
+  return `<span class="mini-scale${alt ? " b" : ""}"><span class="band" style="left:${pct(lo)};width:${(100*(hi-lo))}%"></span><span class="mark" style="left:calc(${pct(n?wins/n:0)} - 1px)"></span></span>`;
+}
+const RUNG_LABEL = { reached_any: "reached", moved_any: "disturbed", lifted_any: "lifted one", lifted_both: "lifted both", solved: "solved" };
+function ladder(l, n) {
+  const wrap = el("div", "ladder");
+  for (const [k, label] of Object.entries(RUNG_LABEL)) {
+    if (!(k in l)) continue;
+    const v = l[k];
+    const r = el("div", "rung" + (v === 0 ? " zero" : ""));
+    r.append(el("div", "name", label));
+    const bar = el("div", "bar"); const fill = el("div", "fill"); bar.append(fill); r.append(bar);
+    r.append(el("div", "val", `${Math.round(v * n)}<i>/${n}</i> ${pct(v)}`));
+    wrap.append(r);
+    requestAnimationFrame(() => requestAnimationFrame(() => fill.style.width = pct(v)));
+  }
+  return wrap;
+}
+
+/* ---------- bench ---------- */
+async function loadBench() {
+  const d = await (await fetch("/api/bench")).json();
+
+  $("#rules").innerHTML = d.principles.map(([b, s]) => `<div class="rule"><b>${b}</b><span>${s}</span></div>`).join("");
+
+  const bc = $("#baseline-card"); bc.innerHTML = "";
+  if (d.baseline) {
+    const b = d.baseline;
+    bc.append(el("div", "eyebrow", "the baseline, measured properly"));
+    bc.append(el("div", "readout", `<span class="big">${b.wins}</span><span class="of">/ ${b.n}</span><span class="pct">${pct(b.wins / b.n)}</span>`));
+    bc.append(scale(b.wins / b.n, b.lo, b.hi, b.expert, "expert " + pct(b.expert)));
+    bc.append(el("div", "n-note", `<b>${b.task}</b> · Wilson 95% [${pct(b.lo)}, ${pct(b.hi)}] · expert ceiling ${pct(b.expert)} on the same screened scenes`));
+    put(bc, el("p", "sub", "RoboTwin's own demonstrations → π₀.₅ LoRA → closed-loop. At this rate a binary outcome needs ~326 trials per arm to see 8 points — which is why the ladder exists."), {marginTop: "12px"});
+  } else bc.innerHTML = '<div class="empty">no baseline record yet</div>';
+
+  const vc = $("#verdict-card"); vc.innerHTML = "";
+  vc.append(el("div", "eyebrow", "the standing verdict"));
+  if (d.verdict && d.verdict.length) {
+    for (const f of d.verdict) {
+      const v = el("div", "verdict");
+      v.append(el("div", "code", esc(f.code)));
+      v.append(el("p", "", esc(f.summary)));
+      vc.append(v);
+    }
+    vc.append(el("p", "sub", "An abstention is the module working: reporting the larger of two zeros would be noise with a decimal point on it."));
+  } else vc.append(el("div", "empty", "no comparison verdict on file"));
+
+  const pl = $("#planes"); pl.innerHTML = "";
+  for (const p of d.planes) {
+    const c = el("div", "plane");
+    c.append(el("h3", "", `${p.plane} <span class="k">${p.plugins.length}</span>`));
+    c.append(el("p", "", p.contract));
+    const row = el("div", "pl");
+    for (const m of p.plugins) row.append(el("span", "pill", m.replace(/^(connector_|adapters_|evaluator_|feedback_|policy_|retargeter_|scorer_|curate_|semantics_|tasks_|embodiment_)/, "")));
+    c.append(row); pl.append(c);
+  }
+}
+
+/* ---------- runs ---------- */
+let RUNS = [];
+async function loadRuns() {
+  const d = await (await fetch("/api/runs")).json();
+  RUNS = d.runs;
+  const wrap = $("#run-cards"); wrap.innerHTML = "";
+  for (const r of RUNS) {
+    const c = el("div", "card");
+    c.append(el("div", "eyebrow", `${esc(r.arm)}${r.era !== "current" ? " · " + r.era : ""}`));
+    c.append(el("div", "readout", `<span class="big">${r.wins}</span><span class="of">/ ${r.n}</span><span class="pct">${pct(r.rate)}</span>`));
+    c.append(scale(r.rate, r.lo, r.hi, r.expert, "expert"));
+    c.append(el("div", "n-note", `Wilson 95% [${pct(r.lo)}, ${pct(r.hi)}] · n=<b>${r.n}</b>${r.expert ? ` · expert ${pct(r.expert)}` : ""}`));
+    if (r.ladder) { put(c, el("div", "eyebrow", "the ladder"), {marginTop: "16px"}); c.append(ladder(r.ladder, r.n)); }
+    else put(c, el("p", "sub", "recorded before stage metrics existed — binary only, honestly labelled"), {marginTop: "12px"});
+    const bits = [];
+    if (r.instruction) bits.push(`“${esc(r.instruction)}”`);
+    if (r.action_chain && r.action_chain.length) bits.push("chain: " + r.action_chain.join(" → "));
+    else if (r.action_chain) bits.push("chain: direct — already in the right space");
+    if (r.frame_shift) bits.push("frame: camera → world");
+    if (bits.length) put(c, el("p", "sub", bits.join(" · ")), {marginTop: "10px"});
+    wrap.append(c);
+  }
+  if (!RUNS.length) wrap.innerHTML = '<div class="empty">no run records found</div>';
+
+  const opts = RUNS.map(r => `<option value="${r.id}" ${r.has_pairing ? "" : "disabled"}>${r.arm}${r.has_pairing ? "" : " (no per-scene record)"}</option>`).join("");
+  $("#sel-a").innerHTML = opts; $("#sel-b").innerHTML = opts;
+  const paired = RUNS.filter(r => r.has_pairing);
+  if (paired.length >= 2) { $("#sel-a").value = paired[0].id; $("#sel-b").value = paired[1].id; runCompare(); }
+}
+
+/* ---------- compare ---------- */
+async function runCompare() {
+  const a = $("#sel-a").value, b = $("#sel-b").value;
+  const out = $("#compare-out");
+  if (!a || !b || a === b) { out.innerHTML = '<div class="empty">pick two different runs</div>'; return; }
+  const d = await (await fetch(`/api/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`)).json();
+  out.innerHTML = "";
+  if (d.abstained) {
+    const v = el("div", "verdict");
+    v.append(el("div", "code", "compare.no_pairing — abstained"));
+    v.append(el("p", "", esc(d.reason)));
+    out.append(v); return;
+  }
+  const card = el("div", "card");
+  card.append(el("div", "eyebrow", `${d.paired_scenes} scenes, attempted by both, paired`));
+  const t = el("table", "rungs");
+  t.innerHTML = `<tr><th>rung</th><th>A · ${esc(d.a.arm)}</th><th>B · ${esc(d.b.arm)}</th><th>A only</th><th>B only</th><th>p (exact)</th></tr>`;
+  for (const r of d.rungs) {
+    const tr = el("tr");
+    tr.innerHTML =
+      `<td>${RUNG_LABEL[r.rung] || r.rung}</td>` +
+      `<td class="m">${r.a.wins}/${r.a.n} ${miniScale(r.a.wins, r.a.n, r.a.lo, r.a.hi)}</td>` +
+      `<td class="m">${r.b.wins}/${r.b.n} ${miniScale(r.b.wins, r.b.n, r.b.lo, r.b.hi, true)}</td>` +
+      `<td class="m">${r.only_a}</td><td class="m">${r.only_b}</td>` +
+      `<td class="m ${r.p < 0.05 ? "p-sig" : "p-ns"}">${r.p.toFixed(3)}</td>`;
+    t.append(tr);
+  }
+  card.append(t);
+
+  put(card, el("h2", "", "Scene by scene"), {marginTop: "22px"});
+  for (const r of d.rungs) {
+    const row = el("div");
+    put(row, el("div", "eyebrow", RUNG_LABEL[r.rung] || r.rung), {marginTop: "10px"});
+    const dots = el("div", "dots");
+    for (const s of r.scenes) { const dd = el("span", "dot " + s.state); dd.title = `scene ${s.seed}: ${s.state === "a" ? "A only" : s.state === "b" ? "B only" : s.state}`; dots.append(dd); }
+    row.append(dots); card.append(row);
+  }
+  card.append(el("div", "legend",
+    `<span><i style="background:var(--accent)"></i>A only</span>
+     <span><i style="background:var(--abstain)"></i>B only</span>
+     <span><i style="background:var(--line2)"></i>both</span>
+     <span><i style="background:var(--panel2);border:1px solid var(--line)"></i>neither</span>`));
+  const cav = el("div", "verdict"); cav.style.borderLeftColor = "var(--accent-dim)";
+  cav.append(el("div", "code", "what this does not say"));
+  cav.append(el("p", "", esc(d.caveat)));
+  out.append(card, cav);
+}
+$("#sel-a").addEventListener("change", runCompare);
+$("#sel-b").addEventListener("change", runCompare);
+
+/* ---------- datasets ---------- */
+async function loadDatasets() {
+  const d = await (await fetch("/api/datasets")).json();
+  const sp = $("#split"); sp.innerHTML = "";
+  const parts = (d.split && d.split.parts) || d.split || {};
+  for (const key of Object.keys(parts)) {
+    const p = parts[key]; if (!p || typeof p !== "object" || !("episodes" in p)) continue;
+    const c = el("div", "card");
+    c.append(el("div", "eyebrow", key.replace("_", "-")));
+    c.append(el("div", "readout", `<span class="big">${p.episodes}</span><span class="of">clips</span><span class="pct">${p.frames} frames</span>`));
+    const rows = [
+      ["criterion", "both hands moving"],
+      ["measured median", p.measured_median ?? "—"],
+      ["range", p.measured_range ? p.measured_range.join(" – ") : "—"],
+      ["dropped to match", (p.dropped_to_match && p.dropped_to_match.length) ? p.dropped_to_match.join(", ") : "none"],
+      // Three states, not two: a summary that never recorded the check must
+      // not render as a passed one.
+      ["leakage", p.leakage_checkable === true ? "checked — no participant straddles the split"
+                : p.leakage_checkable === false ? "not checkable — corpus names no participants"
+                : "not recorded in this summary"],
+    ];
+    const ch = el("div", "checks");
+    for (const [k, v] of rows) { ch.append(el("span", "k", k)); ch.append(el("span", "v", esc(String(v)))); }
+    c.append(ch); sp.append(c);
+  }
+  if (!sp.children.length) sp.innerHTML = '<div class="empty">no split on file</div>';
+
+  const bu = $("#built"); bu.innerHTML = "";
+  for (const b of d.built || []) {
+    const c = el("div", "card ds");
+    c.append(el("div", "", `<h3>${esc(b.name)}</h3><div class="meta">${b.episodes} episodes · ${b.frames} frames</div>`));
+    bu.append(c);
+  }
+  if (!bu.children.length) bu.innerHTML = '<div class="empty">no built datasets recorded</div>';
+
+  for (const u of d.uploads || []) renderUpload(u, false);
+}
+
+function renderUpload(rep, fresh) {
+  const wrap = $("#upload-report");
+  const c = el("div", "card"); c.style.marginTop = "14px";
+  c.append(el("div", "eyebrow", "upload · " + esc(rep.name)));
+  if (rep.episodes != null) c.append(el("div", "readout", `<span class="big">${rep.episodes}</span><span class="of">episodes</span><span class="pct">${rep.frames} frames @ ${rep.fps} fps</span>`));
+  const ch = el("div", "checks");
+  for (const [k, v] of rep.checks || []) { ch.append(el("span", "k", esc(k))); ch.append(el("span", "v", esc(v))); }
+  if (rep.licences && rep.licences.length) { ch.append(el("span", "k", "licences")); ch.append(el("span", "v", rep.licences.map(esc).join(", "))); }
+  c.append(ch);
+  if (rep.features) {
+    const feats = Object.entries(rep.features).map(([k, v]) => `<span class="pill">${esc(k)} ${esc(String(v.shape))}</span>`).join(" ");
+    const fw = el("div", "pl", feats); fw.style.marginTop = "10px"; c.append(fw);
+  }
+  if (rep.both_hands_moving && rep.both_hands_moving.length) {
+    put(c, el("div", "eyebrow", "both hands moving, per episode"), {marginTop: "14px"});
+    const sp = el("div", "spark");
+    for (const v of rep.both_hands_moving) { const bar = el("i", v >= 0.5 ? "hi" : ""); bar.style.height = Math.max(6, v * 34) + "px"; bar.title = v; sp.append(bar); }
+    c.append(sp);
+    c.append(el("p", "sub", "bars ≥ 0.5 would land in the two-handed cohort under the standing split"));
+  }
+  for (const p of rep.problems || []) {
+    const chip = el("span", "chip warn"); chip.innerHTML = `<span class="code">${esc(p.code)}</span> ${esc(p.message)}`;
+    c.append(chip);
+  }
+  if (fresh) wrap.prepend(c); else wrap.append(c);
+}
+
+const drop = $("#drop"), file = $("#file");
+drop.addEventListener("click", () => file.click());
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) sendUpload(e.dataTransfer.files[0]); });
+file.addEventListener("change", () => { if (file.files[0]) sendUpload(file.files[0]); });
+async function sendUpload(f) {
+  drop.innerHTML = "<b>inspecting…</b> running the pipeline's own checks";
+  const fd = new FormData(); fd.append("file", f);
+  try {
+    const rep = await (await fetch("/api/upload", { method: "POST", body: fd })).json();
+    renderUpload(rep, true);
+  } catch (err) { renderUpload({ name: f.name, problems: [{ code: "upload.failed", message: String(err) }] }, true); }
+  drop.innerHTML = '<b>Drop a LeRobot dataset (.zip)</b> or click to choose<br><span style="font-size:12px">it is inspected with the pipeline\'s own connectors — nothing is trained or modified</span>';
+}
+
+/* ---------- reports ---------- */
+async function loadReports() {
+  const d = await (await fetch("/api/reports")).json();
+  const tabs = $("#rep-tabs"), body = $("#rep-body");
+  tabs.innerHTML = ""; body.innerHTML = "";
+  if (!d.reports.length) { body.innerHTML = '<div class="empty">no reports committed yet</div>'; return; }
+  const show = i => {
+    tabs.querySelectorAll("button").forEach((b, j) => b.classList.toggle("on", i === j));
+    body.innerHTML = esc(d.reports[i].body)
+      .replace(/^(#{1,3} .*)$/gm, '<span class="h">$1</span>');
+  };
+  d.reports.forEach((r, i) => {
+    const b = el("button", i === 0 ? "on" : "", esc(r.name));
+    b.addEventListener("click", () => show(i)); tabs.append(b);
+  });
+  show(0);
+}
+
+/* ---------- boot ---------- */
+route();
+loadBench(); loadRuns(); loadDatasets(); loadReports();
+</script>
+</body>
+</html>
