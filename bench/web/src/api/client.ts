@@ -158,6 +158,24 @@ export function useStartGate(id: string) {
   });
 }
 
+/** Run a gate again after our machinery broke.
+ *
+ *  Deliberately separate from `useStartGate`. Buying a gate and re-running one
+ *  that failed on our side are different acts — the first spends money on a new
+ *  experiment, the second finishes one already paid for — and a single hook
+ *  doing both would make the distinction a parameter instead of a decision. */
+export function useRetryGate(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (gate: string) =>
+      json<Submission>(`/api/submissions/${id}/gates/${gate}/retry`, { method: "POST" }),
+    onSuccess: (fresh) => {
+      client.setQueryData(keys.submission(id), fresh);
+      client.invalidateQueries({ queryKey: keys.submissions });
+    },
+  });
+}
+
 export function useConfirmMeaning(id: string) {
   const client = useQueryClient();
   return useMutation({

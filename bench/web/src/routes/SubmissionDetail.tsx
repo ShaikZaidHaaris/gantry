@@ -1,7 +1,7 @@
 /** The hero screen: one submission, its gauntlet, live. */
 
 import { Link, useParams } from "react-router-dom";
-import { useStartGate, useSubmission, useSubmissionEvents } from "../api/client";
+import { useRetryGate, useStartGate, useSubmission, useSubmissionEvents } from "../api/client";
 import { BudgetPanel } from "../components/BudgetPanel";
 import { DataReport } from "../components/DataReport";
 import { Verdict } from "../components/Verdict";
@@ -13,6 +13,7 @@ export function SubmissionDetail() {
   const { data, isPending, error } = useSubmission(id);
   const live = useSubmissionEvents(id);
   const start = useStartGate(id ?? "");
+  const retry = useRetryGate(id ?? "");
 
   if (isPending) {
     return (
@@ -101,6 +102,8 @@ export function SubmissionDetail() {
         live={live}
         onStart={(gate) => start.mutate({ gate })}
         starting={start.isPending}
+        onRetry={(gate) => retry.mutate(gate)}
+        retrying={retry.isPending}
       />
 
       {/* The report appears only once the gate that produces it has finished.

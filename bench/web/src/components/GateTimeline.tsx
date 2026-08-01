@@ -66,12 +66,16 @@ export function GateTimeline({
   live,
   onStart,
   starting,
+  onRetry,
+  retrying,
 }: {
   gates: Gate[];
   currentGate: string;
   live?: Progress | null;
   onStart?: (gate: string) => void;
   starting?: boolean;
+  onRetry?: (gate: string) => void;
+  retrying?: boolean;
 }) {
   const reachedIndex = gates.findIndex((g) => g.key === currentGate);
   // The one gate that may be bought right now: the first that has not run,
@@ -117,6 +121,21 @@ export function GateTimeline({
                   The server enforces this too — a button is a convenience, not
                   a guarantee — but offering a purchase that will be refused is
                   its own small dishonesty. */}
+              {/* Offered only when the failure was ours. A refused gate has no
+                  button here at all — not a disabled one, because a disabled
+                  control still says "this is a thing you might do". */}
+              {onRetry && gate.retryable && (
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ marginTop: 10 }}
+                  onClick={() => onRetry(gate.key)}
+                  disabled={retrying}
+                >
+                  {retrying ? "Starting…" : "Run this again"}
+                </button>
+              )}
+
               {onStart && gate.status === "queued" && gate.cost_cents > 0 && ready === gate.key && (
                 <button
                   className="btn primary"

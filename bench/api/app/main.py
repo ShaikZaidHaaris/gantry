@@ -104,6 +104,9 @@ def as_gate(row: Gate) -> dict:
         # bill on a run that already happened.
         "cost_cents": row.cost_cents or spec["cost_cents"],
         "sized": spec["sized"],
+        #: Whether the product will offer to run this again. Only ever true for
+        #: our own failures, never for a refusal.
+        "retryable": row.status == "failed",
         #: What was bought, once it has been. Zero until then, and zero forever
         #: on a gate whose price is not a choice.
         "trials": row.trials,
@@ -661,6 +664,76 @@ def start_gate(sub_id: str, key: str, body: dict | None = None, who=Depends(view
         cost_cents=gate.cost_cents,
         **({"trials": gate.trials} if gate.trials else {}),
     )
+    session.commit()
+    return as_submission(session, sub, deep=True)
+
+
+#: Times a gate may be retried before the product stops offering it. A gate
+#: that has broken three times is broken in a way another attempt will not fix,
+#: and a button that keeps being offered invites somebody to keep pressing it.
+MAX_ATTEMPTS = 3
+
+
+@app.post("/api/submissions/{sub_id}/gates/{key}/retry")
+def retry_gate(sub_id: str, key: str, who=Depends(viewer), session: Session = Depends(db)):
+    """Run a gate again after *our* machinery broke.
+
+    Only ``failed``, and that restriction is the point of the endpoint rather
+    than a detail of it.
+
+    ``failed`` means our worker died, our disk filled, our runner could not find
+    its trainer. Nothing about the contributor's data was judged, so running it
+    again is finishing work already paid for.
+
+    ``refused`` means the data was judged and did not pass. Offering a retry
+    there would be offering to re-roll until the answer is liked, which is the
+    one thing a benchmark cannot let you do — and it would be worse here than
+    in most places, because the gates that refuse are the cheap ones a person
+    could afford to spin all afternoon.
+
+    The bought size is kept. A retry is the same experiment, not a new one, and
+    a gate that quietly came back at a different trial count would make the
+    verdict describe a run nobody ordered.
+    """
+    sub = session.get(Submission, sub_id)
+    if sub is None or sub.org_id != who["org_id"]:
+        raise HTTPException(404, "no such submission")
+    gate = session.scalar(select(Gate).where(Gate.submission_id == sub_id, Gate.key == key))
+    if gate is None:
+        raise HTTPException(404, "this submission has no such gate")
+    if gate.status != "failed":
+        raise HTTPException(
+            409,
+            f"only a gate that failed on our side can be run again; this one is {gate.status!r}"
+            + (
+                " — a refusal is a judgement on the data, and re-rolling it until the answer "
+                "changes is not something a benchmark can offer"
+                if gate.status == "refused"
+                else ""
+            ),
+        )
+
+    attempts = session.scalars(
+        select(Job).where(Job.submission_id == sub_id, Job.gate_key == key)
+    ).all()
+    if len(attempts) >= MAX_ATTEMPTS:
+        raise HTTPException(
+            409,
+            f"this gate has been attempted {len(attempts)} times; something is wrong that "
+            "another run will not fix",
+        )
+
+    gate.status = "queued"
+    gate.verdict_json = "{}"
+    gate.findings_json = "[]"
+    gate.detail_json = "{}"
+    gate.progress_json = "{}"
+    gate.started_at = gate.finished_at = ""
+    # A new job rather than reviving the old one, so the failed attempt stays in
+    # the record. A run whose history is edited to look clean is not auditable.
+    session.add(Job(id=new_id("job"), submission_id=sub_id, gate_key=key, status="queued"))
+    sub.status = "running"
+    emit(session, sub_id, "gate.retried", gate=key, attempt=len(attempts) + 1)
     session.commit()
     return as_submission(session, sub, deep=True)
 

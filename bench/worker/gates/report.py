@@ -22,9 +22,22 @@ Two rules it inherits from the pipeline and must not break:
   set. A dataset has no rollouts, and a module handed demonstrations as though
   they were attempts reports nonsense with a straight face -- two *training
   sets* once came back as having "solved 100%".
+* **A module that is not installed is a gap, not a silence.** This gate reports
+  what the modules it found had to say. A worker with fewer of them installed
+  produces a shorter report on the same footage, and a shorter report reads as
+  a cleaner dataset. That happened here: a GPU worker with two feedback plugins
+  returned "1 finding, none blocking" on a dataset that produced five findings
+  on a machine with six. Nothing was wrong with the data and nothing said so.
+
+  So the inventory is recorded on every report, and where a deployment declares
+  what it expects, anything missing is named at strong severity and listed
+  among the checks that could not run. Absent is not zero, applied to the
+  checker rather than to the data.
 """
 
 from __future__ import annotations
+
+import os
 
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -41,6 +54,32 @@ def _quiet(*_args, **_kwargs) -> None:
 #: or ``stage_events`` means the module reads rollouts, which an upload has
 #: none of.
 OUTCOME_CAPS = ("outcomes", "stage_events")
+
+#: What this deployment expects to be installed, comma-separated. Unset means
+#: the inventory is still recorded but nothing is called missing -- a developer
+#: with a partial checkout should not be told their laptop is broken, and a
+#: production worker should never quietly run with half its checks.
+REQUIRED = tuple(
+    name.strip() for name in os.environ.get("BENCH_REQUIRED_MODULES", "").split(",") if name.strip()
+)
+
+
+def inventory() -> dict[str, str]:
+    """Every installed feedback module and its version, whatever side it reads.
+
+    The whole set, not just the ones this gate uses: a report that lists two
+    modules is ambiguous between "two exist" and "two applied", and the
+    difference is exactly what makes drift invisible.
+    """
+    from importlib.metadata import entry_points, version
+
+    found: dict[str, str] = {}
+    for entry in sorted(entry_points(group="gantry.feedback"), key=lambda e: e.name):
+        try:
+            found[entry.name] = version(entry.dist.name) if entry.dist else "?"
+        except Exception:  # noqa: BLE001 - a module that will not say is still present
+            found[entry.name] = "?"
+    return found
 
 
 def _cohort(root: Path, name: str):
@@ -132,6 +171,31 @@ def run(
         for note in getattr(said, "notes", ()) or ():
             abstained.append({"module": name, "reason": note})
 
+    installed = inventory()
+    missing = [name for name in REQUIRED if name not in installed]
+    if missing:
+        findings.append(
+            {
+                "code": "report.modules_missing",
+                "severity": "strong",
+                "summary": (
+                    f"{len(missing)} check(s) this deployment expects are not installed on the "
+                    f"machine that ran it: {', '.join(missing)}"
+                ),
+                "prescription": (
+                    "Install them and run the report again. Until then this report is shorter "
+                    "than it should be, and a shorter report is easy to mistake for a cleaner "
+                    "dataset — nothing here says anything about the footage those checks would "
+                    "have looked at."
+                ),
+                "module": "report",
+            }
+        )
+        for name in missing:
+            abstained.append(
+                {"module": name, "reason": "not installed on the worker that ran this report"}
+            )
+
     # G1 never refuses. Its job is to describe; whether the footage is worth
     # spending on is the next gate's question, and a strong finding here is
     # advice rather than a door closing.
@@ -150,4 +214,13 @@ def run(
         "findings": findings,
         "measures": measures,
         "abstained": abstained,
+        # Recorded on every report, configured or not. Two runs of the same
+        # dataset that disagree should be explainable from the record rather
+        # than from remembering which machine each ran on.
+        "detail": {
+            "modules_installed": installed,
+            "modules_applied": [name for name, _ in modules],
+            "modules_required": list(REQUIRED),
+            "modules_missing": missing,
+        },
     }

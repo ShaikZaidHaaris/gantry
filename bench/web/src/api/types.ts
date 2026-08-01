@@ -105,6 +105,10 @@ export interface Gate {
    *  scenes as you buy; the rest are fixed work, and a trial slider for them
    *  would be a control over nothing. */
   sized: boolean;
+  /** Whether the product will offer to run this again. True only for our own
+   *  failures — never for a refusal, which is a judgement on the data and must
+   *  not be re-rollable until the answer is liked. */
+  retryable: boolean;
   status: GateStatus;
   verdict: { summary?: string };
   findings: Finding[];
