@@ -56,6 +56,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import subprocess
+import time
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
@@ -488,6 +491,86 @@ def from_records(paths: Mapping[str, Path], report: Report = _quiet) -> dict:
 ROLLOUTS = "rollouts"
 MANIFEST = "arms.json"
 
+#: The executable that turns a dataset into rollouts, if this worker has one.
+#: Set by the deployment, not by this file.
+#:
+#: A seam rather than an import, and deliberately so. Producing rollouts means a
+#: trainer, a checkpoint format, a policy server and a simulator -- four choices
+#: this gate must not make, because the moment it imports one of them the
+#: framework has a favourite model and every claim about being model-agnostic
+#: becomes marketing. The gate says what it needs; a runner says how. The
+#: contract is a JSON job in and run records out, which is the same shape the
+#: rest of this repo's backends already use.
+RUNNER = os.environ.get("BENCH_RUNNER", "")
+
+#: How long to wait for a runner before giving up on it. A full two-arm run is
+#: hours; this is a ceiling on hanging, not a budget.
+RUNNER_TIMEOUT = float(os.environ.get("BENCH_RUNNER_TIMEOUT", 12 * 3600))
+
+
+def produce(job: dict, folder: Path, report: Report) -> tuple[bool, str]:
+    """Run the configured runner until it has written rollouts. Returns (ok, why).
+
+    Progress is read from a file the runner appends to rather than from its
+    stdout: the runner drives a trainer and a simulator that both write freely
+    to stdout, and picking progress out of that would mean parsing somebody
+    else's log format and re-parsing it whenever they changed it. A file the
+    runner owns is a contract; scraping is a guess.
+    """
+    if not RUNNER:
+        return False, (
+            "no rollouts exist for this submission, and this worker has no runner "
+            "configured to produce them — set BENCH_RUNNER to something that can train "
+            "and evaluate"
+        )
+    runner = Path(RUNNER)
+    if not runner.exists():
+        return False, f"the configured runner does not exist: {runner}"
+
+    folder.mkdir(parents=True, exist_ok=True)
+    spec = folder / "job.json"
+    ticks = folder / "progress.jsonl"
+    ticks.write_text("")
+    spec.write_text(json.dumps({**job, "out": str(folder), "progress": str(ticks)}, indent=2))
+
+    report("starting the run", note=runner.name)
+    process = subprocess.Popen(
+        [str(runner), str(spec)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    seen = 0
+    started = time.monotonic()
+    while process.poll() is None:
+        time.sleep(2.0)
+        if time.monotonic() - started > RUNNER_TIMEOUT:
+            process.kill()
+            return False, f"the run passed {RUNNER_TIMEOUT / 3600:.0f}h without finishing"
+        try:
+            lines = ticks.read_text().splitlines()
+        except OSError:
+            continue
+        for line in lines[seen:]:
+            seen += 1
+            try:
+                at = json.loads(line)
+            except ValueError:
+                continue
+            report(
+                at.get("phase", "running"),
+                current=at.get("current"),
+                total=at.get("total"),
+                note=at.get("note", ""),
+            )
+
+    if process.returncode != 0:
+        tail = (process.stdout.read() or "").strip().splitlines()[-8:]
+        return False, "the runner failed: " + (" / ".join(tail) or f"exit {process.returncode}")
+    if not (folder / MANIFEST).exists():
+        return False, "the runner finished without writing a manifest of what it produced"
+    return True, ""
+
 
 def run(
     archive: Path,
@@ -497,21 +580,37 @@ def run(
 ) -> dict:
     """The gate contract.
 
-    Rollouts already present are read. Otherwise this gate needs a GPU worker,
-    and says so rather than returning something that looks like a result.
+    Rollouts already present are read; otherwise they are produced, which is
+    what the configured runner is for. Either way the reading is the same code,
+    so a run that has already been paid for can be re-read when the reasoning
+    improves rather than re-run.
+
+    ``params["trials"]`` is how many scenes the user bought. It decides what the
+    run can conclude, so a rollout set that does not match it is reported rather
+    than quietly accepted: charging for two hundred scenes and reporting fifty
+    is the same failure as running fifty and calling it two hundred.
     """
+    trials = int((params or {}).get("trials") or 0)
     folder = workdir / ROLLOUTS
     manifest = folder / MANIFEST
     if not manifest.exists():
-        return {
-            "status": "failed",
-            "summary": (
-                "no rollouts exist for this submission, and producing them — train the "
-                "arm, train its shuffled control, run both closed-loop — is not wired up "
-                "yet on this worker"
-            ),
-            "findings": [],
-        }
+        root = next((workdir / "unpacked").rglob("meta/info.json"), None)
+        ok, why = produce(
+            {
+                "dataset": str(root.parents[1]) if root else "",
+                "trials": trials,
+                "task": str((params or {}).get("task") or ""),
+                "arms": [TREATMENT, CONTROL],
+                "baseline": BASELINE,
+            },
+            folder,
+            report,
+        )
+        if not ok:
+            # `failed`, not `refused`. Our machinery could not produce the
+            # evidence; nothing about the contributor's data was judged, and
+            # saying otherwise would bill somebody for our gap.
+            return {"status": "failed", "summary": why, "findings": []}
 
     report("reading the manifest")
     named = json.loads(manifest.read_text())
