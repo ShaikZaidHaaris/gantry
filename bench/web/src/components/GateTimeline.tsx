@@ -37,7 +37,7 @@ function Running({ gate, live }: { gate: Gate; live: Progress | null }) {
   const at = live && (!live.gate || live.gate === gate.key) ? live : stored;
 
   if (!at) {
-    return <div className="result">Working on it — this takes {gate.eta}.</div>;
+    return <div className="result">Working on it. This takes {gate.eta}.</div>;
   }
 
   const known = typeof at.current === "number" && typeof at.total === "number" && at.total > 0;
@@ -143,7 +143,7 @@ export function GateTimeline({
                   onClick={() => onStart(gate.key)}
                   disabled={starting}
                 >
-                  {starting ? "Starting…" : `Run this — ${price(gate.cost_cents)}`}
+                  {starting ? "Starting…" : `Run this (${price(gate.cost_cents)})`}
                 </button>
               )}
 

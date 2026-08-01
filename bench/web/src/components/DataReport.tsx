@@ -110,8 +110,8 @@ export function DataReport({ gate }: { gate: Gate }) {
         title={fix.length ? "What to fix" : "Nothing to fix"}
         hint={
           fix.length
-            ? "Ranked by what it costs to ignore. Each one names the measurement behind it."
-            : "No module found anything worth changing about how this was filmed."
+            ? "Ordered by how much they matter. Each one comes from a measurement you can check."
+            : "None of the checks suggest changing how you filmed this."
         }
       >
         {fix.length > 0 ? (
@@ -122,8 +122,8 @@ export function DataReport({ gate }: { gate: Gate }) {
           </div>
         ) : (
           <div className="note">
-            Every check that had something to read came back clean. That is not the same as the
-            data being good — see “What we could not judge” below for the gaps.
+            Every check that had something to read came back clean. That does not mean the
+            data is good. See what we could not judge, below.
           </div>
         )}
       </Section>
@@ -131,7 +131,7 @@ export function DataReport({ gate }: { gate: Gate }) {
       {noted.length > 0 && (
         <Section
           title="Also noted"
-          hint="True and not urgent. Here so the report is complete, folded so it is readable."
+          hint="Real, but not worth acting on yet. Folded away to keep the list short."
         >
           <Fold label={`${noted.length} further observation${noted.length === 1 ? "" : "s"}`}>
             <div className="card pad">
@@ -146,7 +146,7 @@ export function DataReport({ gate }: { gate: Gate }) {
       {measures.length > 0 && (
         <Section
           title="What we measured"
-          hint="Every rate carries the number of clips it was measured over, and its 95% interval."
+          hint="Each rate shows how many clips it came from, with a 95% interval."
         >
           <div className="card">
             <div className="table-lite">
@@ -169,7 +169,7 @@ export function DataReport({ gate }: { gate: Gate }) {
 
       <Section
         title="What we could not judge"
-        hint="A check that had nothing to read is not a check that passed. These are the gaps in the report above."
+        hint="Some checks had nothing to work with. They did not pass, they just could not run."
       >
         {abstained.length > 0 ? (
           <Fold label={`${abstained.length} check${abstained.length === 1 ? "" : "s"} had nothing to go on`}>
@@ -183,7 +183,7 @@ export function DataReport({ gate }: { gate: Gate }) {
             </div>
           </Fold>
         ) : (
-          <div className="note">Every installed check found what it needed and ran.</div>
+          <div className="note">Every check found what it needed and ran.</div>
         )}
       </Section>
     </div>

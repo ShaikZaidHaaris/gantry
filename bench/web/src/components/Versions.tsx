@@ -71,8 +71,8 @@ export function Resubmit({ id }: { id: string }) {
         {progress === null ? "Upload a new version" : `Uploading ${(progress * 100).toFixed(0)}%`}
       </button>
       <span className="resubmit-note">
-        Every check runs again on the new upload. The previous version keeps its results, so what
-        you changed can be compared against what it replaced.
+        Every check runs again on the new upload. The old version keeps its results, so you can
+        see what your changes did.
       </span>
       {progress !== null && (
         <div className="bar" style={{ marginTop: 10 }}>
@@ -143,16 +143,15 @@ function Change({ change }: { change: VersionChange }) {
             </div>
           ))}
           <p className="aside">
-            Something appearing for the first time is not necessarily a step back — a corpus that
-            fixed its largest problem will surface whatever was behind it.
+            A new finding is not always a step back. Fixing the biggest problem tends to reveal
+            whatever was sitting behind it.
           </p>
         </div>
       )}
 
       {change.fixed.length === 0 && change.new.length === 0 && (
         <div className="what">
-          Nothing changed in what the checks found. The upload is different; what it is being
-          flagged for is not.
+          The checks found the same things as last time, even though the upload changed.
         </div>
       )}
     </div>
@@ -177,7 +176,7 @@ export function Versions({ id }: { id: string }) {
       <>
         <h2>
           Versions
-          <span className="h2-sub">refilm, upload again, and see what changed</span>
+          <span className="h2-sub">Refilm, upload again, and see what changed</span>
         </h2>
         <div className="card pad">
           <Resubmit id={id} />

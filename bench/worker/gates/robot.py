@@ -271,7 +271,7 @@ def assemble(arms: Mapping[str, Sequence[Mapping[str, Any]]], report: Report = _
     if TREATMENT not in arms:
         return {
             "status": "failed",
-            "summary": f"no {TREATMENT!r} arm was recorded — there is nothing to report on",
+            "summary": f"no {TREATMENT!r} arm was recorded, so there is nothing to report on",
             "findings": [],
         }
 
@@ -344,8 +344,8 @@ def assemble(arms: Mapping[str, Sequence[Mapping[str, Any]]], report: Report = _
                 "prescription": (
                     "Run the shuffled control: the same clips, the same actions, the same "
                     "number of gradient steps, with each clip's actions belonging to a "
-                    "different clip. Fine-tuning on anything moves a model — beating the "
-                    "baseline shows the model changed, and only beating the shuffle shows "
+                    "different clip. Fine-tuning on anything moves a model, so beating the "
+                    "baseline only shows the model changed. Beating the shuffle is what shows "
                     "the change came from what your camera saw."
                 ),
                 "module": "robot",
@@ -364,7 +364,7 @@ def assemble(arms: Mapping[str, Sequence[Mapping[str, Any]]], report: Report = _
                         f"the {name!r} arm reported no {', '.join(kinds)} events"
                         for name, kinds in unreported.items()
                     )
-                    + " — those rungs are unmeasured for it, not failed"
+                    + ". Those rungs are unmeasured for it, not failed"
                 ),
                 "prescription": (
                     "Re-run that arm with the same instrumentation as the others, or compare "
@@ -383,7 +383,7 @@ def assemble(arms: Mapping[str, Sequence[Mapping[str, Any]]], report: Report = _
         if against["separated"]:
             direction = "more" if against["a_only"] > against["b_only"] else "fewer"
             summary = (
-                f"solved {yours['wins']}/{yours['n']} scenes — {direction} than the "
+                f"solved {yours['wins']}/{yours['n']} scenes, {direction} than the "
                 f"baseline's {base['wins']}/{base['n']} (p={against['p_value']})"
             )
         else:
@@ -447,7 +447,7 @@ def assemble(arms: Mapping[str, Sequence[Mapping[str, Any]]], report: Report = _
                     "severity": "strong",
                     "summary": (
                         f"{size:.0%} of scenes are lost between '{before_rung}' and "
-                        f"'{after_rung}' — that step is the bottleneck"
+                        f"'{after_rung}', which makes that step the bottleneck"
                     ),
                     "prescription": (
                         f"The policy gets to '{before_rung}' and stops. Footage that "
@@ -530,7 +530,7 @@ def produce(job: dict, folder: Path, report: Report) -> tuple[bool, str]:
     if not RUNNER:
         return False, (
             "no rollouts exist for this submission, and this worker has no runner "
-            "configured to produce them — set BENCH_RUNNER to something that can train "
+            "configured to produce them. Set BENCH_RUNNER to something that can train "
             "and evaluate"
         )
     runner = Path(RUNNER)
@@ -652,10 +652,10 @@ def run(
                         "than it was paid to say"
                     ),
                     "prescription": (
-                        "Every conclusion here was sized against the number of scenes bought. "
-                        "Run the remainder, or re-read this against what "
-                        f"{ran} scenes can actually separate — which is a larger effect than "
-                        f"{trials} would have been."
+                        "Every conclusion here was sized against the number of scenes "
+                        f"bought. Run the rest, or read this against what {ran} scenes can "
+                        f"actually separate, which is a larger difference than {trials} "
+                        "would have been."
                     ),
                     "module": "robot",
                 },

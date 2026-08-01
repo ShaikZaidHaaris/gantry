@@ -374,7 +374,7 @@ def test_a_good_upload_and_a_poor_one_get_visibly_different_reports(tmp_path):
     # this path (no workspace measured, no stabilisation flag, no outcomes), and
     # a clean bill of health is only issued when every check actually ran.
     assert [f.code for f in good_report.findings] == []
-    assert any("not measured is not the same as fine" in note for note in good_report.notes)
+    assert any("ot measured is not the same as fine" in note for note in good_report.notes)
 
     fixes = top_fixes(bad_report)
     assert len(fixes) == 3

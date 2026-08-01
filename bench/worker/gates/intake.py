@@ -219,7 +219,7 @@ def check(detected: dict) -> list[dict]:
                 + ", ".join(broken[:3])
                 + (f" and {len(broken) - 3} more" if len(broken) > 3 else ""),
                 "Re-export those clips. A file that lists in the archive but has no "
-                "decodable frames in it is worse than a missing one — everything "
+                "decodable frames in it is worse than a missing one, because everything "
                 "downstream counts it as present.",
             )
         )

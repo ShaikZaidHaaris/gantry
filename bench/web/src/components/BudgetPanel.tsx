@@ -46,9 +46,8 @@ function Verdict({ plan }: { plan: Plan }) {
       <div className="verdict short">
         <b>This budget cannot detect anything.</b>
         <span>
-          At a {(plan.baseline.rate * 100).toFixed(0)}% baseline there is no effect size{" "}
-          {plan.trials} trials can reliably separate. Whatever comes back, it will not be
-          evidence either way.
+          At a {(plan.baseline.rate * 100).toFixed(0)}% baseline, {plan.trials} scenes cannot
+          reliably pick up a difference of any size. Whatever comes back will not tell you much.
         </span>
       </div>
     );
@@ -61,7 +60,7 @@ function Verdict({ plan }: { plan: Plan }) {
       <span>
         {plan.ok
           ? `Enough to answer the ${(plan.magnitude * 100).toFixed(0)}-point question you picked.`
-          : `Not enough for the ${(plan.magnitude * 100).toFixed(0)}-point question you picked — that needs ${plan.needed} trials.`}
+          : `Not enough for the ${(plan.magnitude * 100).toFixed(0)}-point question you picked. That needs ${plan.needed} scenes.`}
       </span>
     </div>
   );
@@ -99,13 +98,13 @@ export function BudgetPanel({
           <p>
             {plan.baseline.measured ? (
               <>
-                Today's model solves {plan.baseline.wins} of {plan.baseline.n} scenes.
-                Your data is measured against that, on the same scenes.
+                Today's model solves {plan.baseline.wins} of {plan.baseline.n} scenes. Your
+                data is measured against that, on the same scenes.
               </>
             ) : (
               <>
-                Nothing has been recorded for this benchmark yet, so the sizing below assumes
-                the noisiest case rather than a measured rate.
+                No runs are recorded for this benchmark yet, so the numbers below assume the
+                hardest case rather than a measured rate.
               </>
             )}
           </p>
@@ -193,12 +192,12 @@ export function BudgetPanel({
           disabled={start.isPending}
           onClick={() => start.mutate({ gate: gateKey, trials })}
         >
-          {start.isPending ? "Starting…" : `Run ${trials} scenes — free`}
+          {start.isPending ? "Starting…" : `Run ${trials} scenes`}
         </button>
         <span className="budget-buy-note">
           {plan.detects === null
-            ? "This budget cannot detect anything — you can still run it, but whatever comes back will not be evidence either way."
-            : `Detects ${(plan.detects * 100).toFixed(1)} points or more. Nothing runs until you press this.`}
+            ? "You can still run it, but the result will not tell you much either way."
+            : `Detects a difference of ${(plan.detects * 100).toFixed(1)} points or more. Nothing runs until you press this.`}
         </span>
       </div>
       {start.isError && (
@@ -209,10 +208,10 @@ export function BudgetPanel({
       )}
 
       <p className="budget-foot">
-        Your data and its own shuffled control are both trained and both evaluated, on the
-        same scenes. The shuffle is the comparison that matters: fine-tuning on anything
-        moves a model, so beating the baseline shows only that something changed. Beating
-        the shuffle shows the change came from your footage.
+        Your data and its own shuffled control are both trained and both evaluated on the same
+        scenes. The shuffle is the comparison that matters. Fine-tuning on anything moves a
+        model, so beating the baseline only shows that something changed. Beating the shuffle
+        shows the change came from your footage.
         {plan.cost.measured_on && <> Times measured on {plan.cost.measured_on}.</>}
       </p>
     </div>

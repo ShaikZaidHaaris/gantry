@@ -121,7 +121,7 @@ def run(
     if root is None:
         return {
             "status": "failed",
-            "summary": "the unpacked dataset is missing — intake's output was not where this gate expected it",
+            "summary": "the unpacked dataset is missing. Intake did not leave it where this gate looks for it",
             "findings": [],
         }
 
@@ -184,9 +184,9 @@ def run(
                 ),
                 "prescription": (
                     "Install them and run the report again. Until then this report is shorter "
-                    "than it should be, and a shorter report is easy to mistake for a cleaner "
-                    "dataset — nothing here says anything about the footage those checks would "
-                    "have looked at."
+                    "than it should be, and a short report is easy to mistake for a clean "
+                    "one. Nothing here says anything about the footage those checks would have "
+                    "looked at."
                 ),
                 "module": "report",
             }

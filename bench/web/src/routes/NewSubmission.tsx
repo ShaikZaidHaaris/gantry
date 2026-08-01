@@ -81,7 +81,7 @@ export function NewSubmission() {
               onChange={(e) => setName(e.target.value)}
             />
             <span className="hint">
-              Use a name you can recognise later — resubmissions keep the history together.
+              Use a name you will recognise later. Resubmissions keep the history together.
             </span>
           </label>
 
@@ -129,7 +129,7 @@ export function NewSubmission() {
             }}
           >
             <b>{file ? file.name : "Drop your dataset (.zip)"}</b>
-            {file ? bytes(file.size) : "LeRobot v2 export — meta/, data/ and videos/"}
+            {file ? bytes(file.size) : "LeRobot v2 export with meta/, data/ and videos/"}
             <input
               type="file"
               accept=".zip"

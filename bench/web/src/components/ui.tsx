@@ -40,7 +40,7 @@ export function submissionStatus(sub: Submission): { status: GateStatus; label: 
   if (sub.status === "refused") return { status: "refused", label: "Refused" };
   if (sub.status === "abstained") return { status: "abstained", label: "Can't tell" };
   if (sub.status === "failed") return { status: "failed", label: "Our error" };
-  if (sub.status === "draft") return { status: "queued", label: "Draft — no data yet" };
+  if (sub.status === "draft") return { status: "queued", label: "Draft, no data yet" };
   if (sub.status === "queued") return { status: "queued", label: "Queued" };
   const done = [...sub.gates].reverse().find((g) => g.status === "passed");
   return { status: "passed", label: done ? `${done.name} passed` : "Ready" };

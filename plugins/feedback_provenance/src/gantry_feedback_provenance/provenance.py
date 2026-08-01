@@ -273,7 +273,7 @@ class Provenance(FeedbackModule):
                     evidence={"where": offenders[:8], "text": unrecognised[:8]},
                     prescription=(
                         "Find out what these permit before anything is built on them. "
-                        "An unrecognised licence is not a small risk — it is an "
+                        "An unrecognised licence is not a small risk. It is an "
                         "unbounded one, because it cannot be swapped, priced, or "
                         "disclosed until somebody reads it."
                     ),

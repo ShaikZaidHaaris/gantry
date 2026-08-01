@@ -85,7 +85,7 @@ export function SubmissionDetail() {
                 <span className="k">Instructions</span>
                 <span className="v">
                   {detected.tasks.length === 1
-                    ? `1 — “${detected.tasks[0]}”`
+                    ? `1: “${detected.tasks[0]}”`
                     : `${detected.tasks.length} distinct`}
                 </span>
               </>

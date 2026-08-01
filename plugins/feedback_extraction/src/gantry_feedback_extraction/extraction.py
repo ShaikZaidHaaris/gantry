@@ -88,7 +88,7 @@ STAGES: tuple[Stage, ...] = (
         "rtmlib is Apache-2.0 and found hands in every frame of footage where "
         "MediaPipe managed two thirds.",
         why="A frame with no detection cannot produce a pose, so this is a hard "
-        "ceiling on everything downstream — no later stage can recover a frame "
+        "ceiling on everything downstream, because no later stage can recover a frame "
         "the detector never saw.",
         floor=0.85,
     ),
@@ -101,7 +101,7 @@ STAGES: tuple[Stage, ...] = (
         "fixed pixel budget is a different standard at every distance; a budget "
         "relative to the hand's size in frame is the same standard everywhere.",
         why="Detection succeeding and pose failing means the 2D and the 3D model "
-        "disagree — usually a threshold demanding better agreement than two "
+        "disagree. Usually a threshold demanding better agreement than two "
         "independent detectors can give each other.",
         floor=0.7,
     ),
@@ -253,7 +253,7 @@ class Extraction(FeedbackModule):
             if unread:
                 notes.append(
                     f"{cohort.name}: {len(unread)} stage(s) wrote no signal "
-                    f"({', '.join(unread[:3])}) — not measured is not the same as fine"
+                    f"({', '.join(unread[:3])}). Not measured is not the same as fine"
                 )
             if not scored:
                 findings.append(
@@ -349,12 +349,12 @@ class Extraction(FeedbackModule):
                     prescription=(
                         "Non-metric positions cannot be retargeted to a real arm at all, "
                         "so those episodes are carrying no usable trajectory. A mix means "
-                        "the metric path failed on some clips rather than being off — "
+                        "the metric path failed on some clips rather than being off, "
                         "find which, and why, before treating the dataset as one thing."
                         if mixed
                         else "Non-metric positions cannot be retargeted to a real arm at "
-                        "all. Either recover scale — the hand's own measured size does it "
-                        "— or capture with a rig that reports metres."
+                        "all. Either recover scale, which the hand's own measured size does "
+                        ", or capture with a rig that reports metres."
                     ),
                     cohorts=(cohort.name,),
                 )

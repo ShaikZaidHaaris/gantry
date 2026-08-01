@@ -114,7 +114,7 @@ export function Verdict({ gate }: { gate: Gate }) {
   if (!rows.length) {
     return (
       <div className="note warn">
-        <b>{gate.verdict?.summary ?? "the robot test produced no ladder"}</b>
+        <b>{gate.verdict?.summary ?? "the robot test did not produce a ladder"}</b>
       </div>
     );
   }
@@ -133,10 +133,10 @@ export function Verdict({ gate }: { gate: Gate }) {
           <div>
             <h3>How far it got</h3>
             <p>
-              Each rung is measured on the same rollouts at no extra cost. The bar behind each
-              rate is its 95% interval, and <b>paired</b> counts only the scenes where the arms
-              disagreed — the ones where both succeeded or both failed carry no information
-              about which is better.
+              Every rung comes from the same rollouts, so none of this costs extra to measure.
+              The bar behind each rate is its 95% interval. <b>Paired</b> counts only the scenes
+              where the two arms disagreed, since a scene they both won or both lost tells you
+              nothing about which is better.
             </p>
           </div>
         </div>
@@ -148,14 +148,13 @@ export function Verdict({ gate }: { gate: Gate }) {
           <div>
             <h3>What this does not say</h3>
             <p>
-              The limits of this run, stated as plainly as the result. A number without these
-              beside it is not a finding.
+              What this run could not settle. Worth reading alongside the numbers above.
             </p>
           </div>
         </div>
         <div className="card pad">
           {limits.length === 0 && notes.length === 0 ? (
-            <div className="what">Nothing was withheld — every arm and every rung was measured.</div>
+            <div className="what">Nothing was held back. Every arm and every rung was measured.</div>
           ) : (
             [...limits, ...notes].map((f) => <FindingRow key={f.code} finding={f} />)
           )}

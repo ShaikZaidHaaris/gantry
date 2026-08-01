@@ -69,8 +69,7 @@ export function Compare() {
 
       {data.entries.length === 0 ? (
         <Empty title="Nothing to rank yet">
-          A submission appears here once its robot test has run. Until then there is no
-          measurement to place it by.
+          Submissions show up here once their robot test has run.
         </Empty>
       ) : (
         <>
@@ -128,11 +127,11 @@ export function Compare() {
 
           <h2>
             Head to head
-            <span className="h2-sub">only the scenes where they disagreed carry information</span>
+            <span className="h2-sub">only the scenes where they disagreed tell you anything</span>
           </h2>
           <div className="card pad">
             {data.pairs.length === 0 ? (
-              <div className="what">One submission — nothing to compare it against yet.</div>
+              <div className="what">Only one submission so far, so there is nothing to compare it against.</div>
             ) : (
               data.pairs.map((pair) => {
                 const left = data.entries.find((e) => e.id === pair.left);
@@ -163,8 +162,8 @@ export function Compare() {
                         <>
                           Not separated on <b>{rung}</b>. {pair.agreed} of {pair.shared_scenes}{" "}
                           scenes came out the same for both, and{" "}
-                          {pair.left_only + pair.right_only} disagreements is too few to tell these
-                          apart — which is a statement about the number of scenes, not about the
+                          {pair.left_only + pair.right_only} disagreements is too few to tell them
+                          apart. That says more about how many scenes were run than about the
                           datasets.
                         </>
                       )}
@@ -176,11 +175,11 @@ export function Compare() {
           </div>
 
           <p className="board-foot">
-            Every pair is compared on the scenes both submissions actually ran, one scene at a
-            time. Scenes where both succeeded or both failed count in the rates and are excluded
-            from the test — they carry no information about which is better, and including them
-            is what makes an unpaired comparison need several times the trials to see the same
-            difference.
+            Each pair is compared scene by scene, using only the scenes both submissions ran.
+            Scenes they both won or both lost still count in the rates, but they are left out of
+            the test, because they say nothing about which is better. Leaving them in is why
+            comparing the two rates on their own needs several times as many scenes to see the
+            same difference.
           </p>
         </>
       )}

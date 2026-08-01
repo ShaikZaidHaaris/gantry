@@ -145,7 +145,7 @@ CHECKS: tuple[Check, ...] = (
         below=True,
         weight=2.0,
         summary="all of it was filmed in {scenes} location(s) across {clips} clips",
-        fix="Film the same tasks somewhere else — a different room, different "
+        fix="Film the same tasks somewhere else. A different room, different "
         "lighting, different objects of the same kind.",
         why="A policy trained on one room learns that room. This is usually the "
         "largest single difference between the uploads that transfer and the "
@@ -206,8 +206,8 @@ CHECKS: tuple[Check, ...] = (
         below=True,
         weight=0.5,
         summary="{missing:.0%} of clips do not say whether the attempt worked",
-        fix="Mark each clip as a success or a failure. Failures are useful — "
-        "unlabelled ones are not.",
+        fix="Mark each clip as a success or a failure. Failures are useful. "
+        "Unlabelled ones are not.",
         why="A dataset that is quietly all failures trains nothing, and there is "
         "no way to tell from the footage alone.",
     ),
@@ -389,7 +389,7 @@ class Capture(FeedbackModule):
                     f"{cohort.name}: {len(unmeasured)} check(s) had nothing to read "
                     f"({', '.join(unmeasured[:4])}"
                     + (f" and {len(unmeasured) - 4} more" if len(unmeasured) > 4 else "")
-                    + ") — not measured is not the same as fine"
+                    + "). Not measured is not the same as fine"
                 )
             if not scored and not unmeasured:
                 findings.append(
@@ -478,4 +478,4 @@ def top_fixes(report: Report, limit: int = LEAD) -> list[str]:
     in order, is.
     """
     strong = [finding for finding in report.findings if finding.severity == "strong"]
-    return [f"{finding.summary} — {finding.prescription}" for finding in strong[:limit]]
+    return [f"{finding.summary}. {finding.prescription}" for finding in strong[:limit]]

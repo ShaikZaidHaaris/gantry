@@ -203,7 +203,7 @@ def test_declarations_are_collected_separately_from_rates():
 
 def test_a_stage_that_wrote_no_signal_is_noted_rather_than_assumed_fine():
     report = Extraction().analyse([cohort([{"scale": "metric"}] * 3)])
-    assert any("not measured is not the same as fine" in n for n in report.notes)
+    assert any("ot measured is not the same as fine" in n for n in report.notes)
 
 
 def test_a_new_stage_is_an_entry_rather_than_a_code_change():

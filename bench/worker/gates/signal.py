@@ -139,7 +139,7 @@ def run(
     if root is None:
         return {
             "status": "failed",
-            "summary": "the unpacked dataset is missing — intake's output was not where this gate expected it",
+            "summary": "the unpacked dataset is missing. Intake did not leave it where this gate looks for it",
             "findings": [],
         }
 
@@ -157,15 +157,15 @@ def run(
         return {
             "status": "abstained",
             "summary": (
-                f"{len(episodes)} clip(s) is too few for this check to be able to conclude "
-                "anything — this is about the size of the upload, not the footage"
+                f"{len(episodes)} clip(s) is too few for this check to conclude anything. "
+                "That is about the size of the upload, not the footage"
             ),
             "findings": [
                 {
                     "code": "signal.too_few_clips",
                     "severity": "info",
                     "summary": (
-                        f"{len(episodes)} clip(s); at least {minimum} are needed — "
+                        f"{len(episodes)} clip(s), and at least {minimum} are needed: "
                         f"{need_held} to score on and {FIT_FLOOR} to fit on"
                     ),
                     "prescription": (
@@ -214,8 +214,8 @@ def run(
         return {
             "status": "abstained",
             "summary": (
-                "these clips carry no camera every clip shares, so there is no imagery to "
-                "screen — this check is about whether the footage predicts the actions"
+                "these clips share no camera between them, so there is no imagery to check. "
+                "This gate asks whether the footage predicts the actions"
             ),
             "findings": [
                 {
@@ -224,9 +224,9 @@ def run(
                     "summary": "no image channel is present in every clip",
                     "prescription": (
                         "Upload clips that all carry the same camera. A channel only some "
-                        "clips have cannot be fitted across the set, and proprioception on "
-                        "its own predicts the next action in any dataset — it would pass "
-                        "this check without saying anything about your footage."
+                        "clips have cannot be fitted across the set. Proprioception on its "
+                        "own predicts the next action in any dataset, so it would pass this "
+                        "check without saying anything about your footage."
                     ),
                     "module": "signal",
                 }
@@ -324,11 +324,11 @@ def run(
                         "could not be told apart"
                     ),
                     "prescription": (
-                        "This is about how much footage there is, not about how it was filmed. "
-                        f"Your data won {wins} of {len(pairs)} held-out clips; at this many "
-                        "clips that is still within what chance produces. More clips of the "
-                        "same quality would settle it — the number of held-out clips grows "
-                        "with the upload."
+                        "This is about how much footage there is, not how it was filmed. "
+                        f"Your data won {wins} of {len(pairs)} held-out clips, and at this "
+                        "many clips that is still within what chance produces. More clips of "
+                        "the same quality would settle it, since the held-out set grows with "
+                        "the upload."
                     ),
                     "module": "signal",
                 }
@@ -356,11 +356,11 @@ def run(
                         "*better*, which should be impossible if the pairing is right"
                     ),
                     "prescription": (
-                        "This usually means the actions are offset from the frames they belong "
-                        "to — an export that wrote actions one frame late, or a timestamp "
-                        "column that was not used to align them. Check the alignment before "
-                        "spending anything on a robot test; nothing downstream can recover "
-                        "from it."
+                        "This usually means the actions are offset from the frames they "
+                        "belong to. An export that wrote actions one frame late, say, or a "
+                        "timestamp column that was never used to line them up. Check the "
+                        "alignment before running a robot test. Nothing downstream can "
+                        "recover from it."
                     ),
                     "module": "signal",
                 }
@@ -384,9 +384,9 @@ def run(
                 ),
                 "prescription": (
                     "There is a relationship between what the camera saw and what the hands "
-                    "did, and it survives on clips the fit never saw. That is what the robot "
-                    "test is worth buying to measure properly — this check used a deliberately "
-                    "cheap model, so it says the signal is there, not how large it is."
+                    "did, and it holds up on clips the fit never saw. The robot test is what "
+                    "measures how much it is worth. This check used a deliberately cheap model, "
+                    "so it tells you the signal is there, not how strong it is."
                 ),
                 "module": "signal",
             }

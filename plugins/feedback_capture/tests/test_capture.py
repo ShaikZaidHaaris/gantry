@@ -151,7 +151,11 @@ def test_top_fixes_is_three_sentences_for_a_gui():
     )
     fixes = top_fixes(report)
     assert len(fixes) == 3
-    assert all("—" in fix for fix in fixes)
+    # Each fix is the finding and its remedy in one line. It used to be checked
+    # by looking for an em dash between them; the copy reads better without one,
+    # so the check is that both halves are present rather than the punctuation
+    # that happened to join them.
+    assert all(". " in fix and len(fix) > 40 for fix in fixes)
     assert "out of frame" in fixes[0]
 
 
@@ -163,7 +167,7 @@ def test_a_signal_nobody_measured_is_absent_rather_than_zero():
     sentences, and it would be especially cruel to confuse them here."""
     report = Capture().analyse([cohort([{"scene": "k", "instruction": "x"}] * 4)])
     assert "capture.hands_offscreen" not in codes(report)
-    assert any("not measured is not the same as fine" in note for note in report.notes)
+    assert any("ot measured is not the same as fine" in note for note in report.notes)
 
 
 def test_a_cohort_with_nothing_wrong_says_so():
