@@ -21,6 +21,7 @@ _TMP = tempfile.mkdtemp(prefix="bench-test-")
 os.environ["BENCH_DATA"] = _TMP
 
 from app import db as dbmod  # noqa: E402
+from app import main as mainmod  # noqa: E402
 from app.main import app  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -44,8 +45,22 @@ def job(client):
                 id=dbmod.new_id("dsv"), submission_id=sub["id"], version=1, path="/none", bytes=0
             )
         )
+        # Gates belong to an upload, so the fixture makes them the way the
+        # upload route does. They used to be created when a submission was
+        # named, which meant a second upload had nowhere to put its results
+        # except on top of the first one's.
+        for spec in mainmod.GATES:
+            session.add(
+                dbmod.Gate(
+                    id=dbmod.new_id("gate"), submission_id=sub["id"], key=spec["key"],
+                    status="queued", version=1,
+                )
+            )
         session.add(
-            dbmod.Job(id=dbmod.new_id("job"), submission_id=sub["id"], gate_key="g0", status="queued")
+            dbmod.Job(
+                id=dbmod.new_id("job"), submission_id=sub["id"], gate_key="g0",
+                status="queued", version=1,
+            )
         )
         session.commit()
     claimed = client.post("/api/jobs/claim", json={"worker": "w", "gates": ["g0"]}).json()["job"]

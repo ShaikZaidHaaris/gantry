@@ -5,6 +5,7 @@ import { useRetryGate, useStartGate, useSubmission, useSubmissionEvents } from "
 import { BudgetPanel } from "../components/BudgetPanel";
 import { DataReport } from "../components/DataReport";
 import { Verdict } from "../components/Verdict";
+import { Versions } from "../components/Versions";
 import { GateTimeline } from "../components/GateTimeline";
 import { ErrorNote, Skeleton, StatusPill, ago, bytes, submissionStatus } from "../components/ui";
 
@@ -94,6 +95,8 @@ export function SubmissionDetail() {
           </div>
         </div>
       ) : null}
+
+      {id && <Versions id={id} />}
 
       <h2>Progress</h2>
       <GateTimeline

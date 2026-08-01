@@ -143,6 +143,11 @@ class Gate(Base):
     __tablename__ = "gates"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     submission_id: Mapped[str] = mapped_column(String, index=True)
+    #: Which upload this gate judged. The product loop is submit, fix, resubmit,
+    #: see the change -- and that last step is only possible if v1's results
+    #: survive v2 being run. Gates used to be per submission, so a second upload
+    #: silently overwrote the results it was supposed to be compared against.
+    version: Mapped[int] = mapped_column(Integer, default=1, index=True)
     key: Mapped[str] = mapped_column(String)  # g0 g1 g2 g3
     status: Mapped[str] = mapped_column(String, default="queued")
     #: Headline result, JSON: one line + the facts the row shows collapsed.
@@ -186,6 +191,9 @@ class Job(Base):
     __tablename__ = "jobs"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     submission_id: Mapped[str] = mapped_column(String, index=True)
+    #: The upload this job is for, so a worker finishing late cannot write its
+    #: verdict onto a newer one.
+    version: Mapped[int] = mapped_column(Integer, default=1)
     gate_key: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default="queued", index=True)
     claimed_by: Mapped[str] = mapped_column(String, default="")
@@ -213,7 +221,8 @@ def emit(session: Session, submission_id: str, kind: str, **payload) -> None:
 #: Postgres; until then this keeps a developer's existing demo database
 #: working instead of asking them to delete it.
 LATER = {
-    "gates": {"measures_json": "'{}'", "abstained_json": "'[]'", "progress_json": "'{}'", "detail_json": "'{}'", "trials": "0"},
+    "gates": {"measures_json": "'{}'", "abstained_json": "'[]'", "progress_json": "'{}'", "detail_json": "'{}'", "trials": "0", "version": "1"},
+    "jobs": {"version": "1"},
     "benchmarks": {"cost_json": "'{}'"},
 }
 
@@ -252,7 +261,11 @@ def sweep_stale(session: Session, *, after: float = STALE_AFTER) -> int:
         job.status = "failed"
         job.error = f"the worker stopped responding after {int(after)}s"
         gate = session.scalar(
-            select(Gate).where(Gate.submission_id == job.submission_id, Gate.key == job.gate_key)
+            select(Gate).where(
+                Gate.submission_id == job.submission_id,
+                Gate.key == job.gate_key,
+                Gate.version == job.version,
+            )
         )
         if gate is not None:
             gate.status = "failed"

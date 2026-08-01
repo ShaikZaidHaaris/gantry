@@ -233,3 +233,30 @@ export interface Leaderboard {
   entries: Entry[];
   pairs: Pair[];
 }
+
+export interface VersionChange {
+  from: number;
+  to: number;
+  fixed: { code: string; summary: string }[];
+  new: { code: string; summary: string }[];
+  remaining: { code: string; summary: string }[];
+  clips: (number | null)[];
+  frames: (number | null)[];
+}
+
+export interface VersionRow {
+  version: number;
+  bytes: number;
+  created_at: string;
+  detected: Detected;
+  gates: Record<string, GateStatus>;
+  findings: Finding[];
+  verdicts: Record<string, string>;
+}
+
+export interface Versions {
+  submission: string;
+  current: number;
+  versions: VersionRow[];
+  changes: VersionChange[];
+}

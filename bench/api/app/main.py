@@ -45,6 +45,12 @@ app = FastAPI(title="Gantry Bench API", version="1")
 #: The gauntlet, in order, with what each costs and how it is described to a
 #: user. Held here rather than in the UI so the API, the worker and the page
 #: cannot disagree about what the gates are.
+#: Every gate is free for now. The prices stay computed and shown -- what a run
+#: costs is a real number and hiding it would make the trial-count choice look
+#: arbitrary -- but nothing is withheld behind one. ``cost_cents`` here is the
+#: charge, and it is zero; ``costing()`` still reports what the GPU time is
+#: worth, which is what the budget panel quotes.
+#:
 #: The gauntlet. ``sized`` marks the gate whose price is a *choice*: the robot
 #: test runs as many scenes as you buy, and how many you buy decides what the
 #: run can conclude. The others are fixed work at a fixed price, and offering a
@@ -52,8 +58,8 @@ app = FastAPI(title="Gantry Bench API", version="1")
 GATES = [
     {"key": "g0", "name": "Intake", "question": "Can we read this at all?", "cost_cents": 0, "eta": "seconds", "sized": False},
     {"key": "g1", "name": "Data report", "question": "What is this footage like?", "cost_cents": 0, "eta": "about a minute", "sized": False},
-    {"key": "g2", "name": "Signal check", "question": "Is there anything learnable here?", "cost_cents": 100, "eta": "about ten minutes", "sized": False},
-    {"key": "g3", "name": "Robot test", "question": "Does the robot actually get better?", "cost_cents": 3400, "eta": "a few hours", "sized": True},
+    {"key": "g2", "name": "Signal check", "question": "Is there anything learnable here?", "cost_cents": 0, "eta": "about ten minutes", "sized": False},
+    {"key": "g3", "name": "Robot test", "question": "Does the robot actually get better?", "cost_cents": 0, "eta": "a few hours", "sized": True},
 ]
 
 
@@ -92,6 +98,24 @@ def viewer(session: Session = Depends(db), x_demo_user: str | None = Header(defa
     return {"user": user, "org_id": org_id}
 
 
+def latest_version(session: Session, sub_id: str) -> int:
+    """The upload a submission is currently about."""
+    row = session.scalars(
+        select(DatasetVersion)
+        .where(DatasetVersion.submission_id == sub_id)
+        .order_by(DatasetVersion.version.desc())
+    ).first()
+    return row.version if row else 1
+
+
+def gates_for(session: Session, sub_id: str, version: int) -> list[Gate]:
+    order = {g["key"]: i for i, g in enumerate(GATES)}
+    rows = session.scalars(
+        select(Gate).where(Gate.submission_id == sub_id, Gate.version == version)
+    ).all()
+    return sorted(rows, key=lambda g: order.get(g.key, 99))
+
+
 def as_gate(row: Gate) -> dict:
     spec = next(g for g in GATES if g["key"] == row.key)
     return {
@@ -127,14 +151,11 @@ def as_gate(row: Gate) -> dict:
 
 def as_submission(session: Session, sub: Submission, deep: bool = False) -> dict:
     bench = session.get(Benchmark, sub.benchmark_id)
-    gates = session.scalars(
-        select(Gate).where(Gate.submission_id == sub.id)
-    ).all()
-    order = {g["key"]: i for i, g in enumerate(GATES)}
-    gates = sorted(gates, key=lambda g: order.get(g.key, 99))
     version = session.scalars(
         select(DatasetVersion).where(DatasetVersion.submission_id == sub.id).order_by(DatasetVersion.version.desc())
     ).first()
+    current = version.version if version else 1
+    gates = gates_for(session, sub.id, current)
     out = {
         "id": sub.id,
         "name": sub.name,
@@ -326,6 +347,79 @@ def letters(order: list[str], indistinct: set[frozenset[str]]) -> dict[str, str]
     return out
 
 
+@app.get("/api/submissions/{sub_id}/versions")
+def versions(sub_id: str, who=Depends(viewer), session: Session = Depends(db)):
+    """Every upload of this submission, and what changed between them.
+
+    The product loop is submit, fix, resubmit, see the change, and the last step
+    is the one that makes the first three worth doing. Without it a contributor
+    who refilms has two reports and no way to tell whether refilming worked.
+
+    What this deliberately does *not* do is declare a winner. Two versions were
+    evaluated on their own runs; whether v2 is better than v1 is a comparison
+    between two experiments, and the honest home for that is the leaderboard,
+    where it is paired scene by scene. Here the job is narrower: say what moved,
+    and let the size of the move speak.
+    """
+    sub = session.get(Submission, sub_id)
+    if sub is None or sub.org_id != who["org_id"]:
+        raise HTTPException(404, "no such submission")
+
+    uploads = session.scalars(
+        select(DatasetVersion)
+        .where(DatasetVersion.submission_id == sub_id)
+        .order_by(DatasetVersion.version)
+    ).all()
+
+    out = []
+    for upload in uploads:
+        gates = gates_for(session, sub_id, upload.version)
+        findings = [
+            f
+            for gate in gates
+            for f in json.loads(gate.findings_json or "[]")
+        ]
+        out.append({
+            "version": upload.version,
+            "bytes": upload.bytes,
+            "created_at": upload.created_at,
+            "detected": json.loads(upload.detected_json or "{}"),
+            "gates": {g.key: g.status for g in gates},
+            "findings": findings,
+            "verdicts": {
+                g.key: json.loads(g.verdict_json or "{}").get("summary", "")
+                for g in gates
+                if g.status not in ("queued", "running")
+            },
+        })
+
+    changes = []
+    for older, newer in zip(out, out[1:]):
+        before = {f["code"] for f in older["findings"]}
+        after = {f["code"] for f in newer["findings"]}
+        by_code = {f["code"]: f for f in older["findings"] + newer["findings"]}
+        changes.append({
+            "from": older["version"],
+            "to": newer["version"],
+            # Fixed, appeared, still there. Named by code, because a finding's
+            # wording may improve between runs while the thing it found does not.
+            "fixed": [{"code": c, "summary": by_code[c]["summary"]} for c in sorted(before - after)],
+            "new": [{"code": c, "summary": by_code[c]["summary"]} for c in sorted(after - before)],
+            "remaining": [{"code": c, "summary": by_code[c]["summary"]} for c in sorted(before & after)],
+            "clips": [
+                (older["detected"] or {}).get("episodes"),
+                (newer["detected"] or {}).get("episodes"),
+            ],
+            "frames": [
+                (older["detected"] or {}).get("frames"),
+                (newer["detected"] or {}).get("frames"),
+            ],
+        })
+
+    return {"submission": sub_id, "current": uploads[-1].version if uploads else 0,
+            "versions": out, "changes": changes}
+
+
 @app.get("/api/compare")
 def compare(benchmark: str, rung: str = "solved", who=Depends(viewer), session: Session = Depends(db)):
     """Every finished submission on one benchmark, ranked and paired.
@@ -350,7 +444,12 @@ def compare(benchmark: str, rung: str = "solved", who=Depends(viewer), session: 
         select(Submission).where(Submission.org_id == who["org_id"], Submission.benchmark_id == bench.id)
     ).all():
         gate = session.scalar(
-            select(Gate).where(Gate.submission_id == sub.id, Gate.key == "g3", Gate.status == "passed")
+            select(Gate).where(
+                Gate.submission_id == sub.id,
+                Gate.key == "g3",
+                Gate.status == "passed",
+                Gate.version == latest_version(session, sub.id),
+            )
         )
         if gate is None:
             continue
@@ -436,7 +535,9 @@ async def create_submission(body: dict, who=Depends(viewer), session: Session = 
     )
     session.add(sub)
     for spec in GATES:
-        session.add(Gate(id=new_id("gate"), submission_id=sub.id, key=spec["key"], status="queued"))
+        # Gates are made when a dataset arrives, not when the submission is
+        # named -- they belong to an upload, and there is not one yet.
+        pass
     emit(session, sub.id, "submission.created", name=sub.name, benchmark=bench.key)
     session.commit()
     return as_submission(session, sub)
@@ -478,13 +579,20 @@ async def upload_dataset(sub_id: str, file: UploadFile, who=Depends(viewer), ses
     )
     session.add(row)
 
-    gate = session.scalar(select(Gate).where(Gate.submission_id == sub_id, Gate.key == "g0"))
-    gate.status = "queued"
+    # A new upload gets its own gates. The previous version keeps its verdicts,
+    # which is the whole point of a resubmission: "did what I changed help" is
+    # unanswerable if running v2 overwrites the v1 it would be compared against.
+    for spec in GATES:
+        session.add(
+            Gate(id=new_id("gate"), submission_id=sub_id, key=spec["key"], status="queued", version=version)
+        )
     sub.status = "queued"
     sub.current_gate = "g0"
-    session.add(Job(id=new_id("job"), submission_id=sub_id, gate_key="g0", status="queued"))
+    session.add(
+        Job(id=new_id("job"), submission_id=sub_id, gate_key="g0", status="queued", version=version)
+    )
     emit(session, sub_id, "dataset.uploaded", version=version, bytes=row.bytes)
-    emit(session, sub_id, "gate.queued", gate="g0")
+    emit(session, sub_id, "gate.queued", gate="g0", version=version)
     session.commit()
     return as_submission(session, sub, deep=True)
 
@@ -614,7 +722,8 @@ def start_gate(sub_id: str, key: str, body: dict | None = None, who=Depends(view
         raise HTTPException(404, "no such gate")
 
     order = [g["key"] for g in GATES]
-    gates = {g.key: g for g in session.scalars(select(Gate).where(Gate.submission_id == sub_id)).all()}
+    version = latest_version(session, sub_id)
+    gates = {g.key: g for g in gates_for(session, sub_id, version)}
     gate = gates.get(key)
     if gate is None:
         raise HTTPException(404, "this submission has no such gate")
@@ -698,7 +807,10 @@ def retry_gate(sub_id: str, key: str, who=Depends(viewer), session: Session = De
     sub = session.get(Submission, sub_id)
     if sub is None or sub.org_id != who["org_id"]:
         raise HTTPException(404, "no such submission")
-    gate = session.scalar(select(Gate).where(Gate.submission_id == sub_id, Gate.key == key))
+    version = latest_version(session, sub_id)
+    gate = session.scalar(
+        select(Gate).where(Gate.submission_id == sub_id, Gate.key == key, Gate.version == version)
+    )
     if gate is None:
         raise HTTPException(404, "this submission has no such gate")
     if gate.status != "failed":
@@ -731,7 +843,9 @@ def retry_gate(sub_id: str, key: str, who=Depends(viewer), session: Session = De
     gate.started_at = gate.finished_at = ""
     # A new job rather than reviving the old one, so the failed attempt stays in
     # the record. A run whose history is edited to look clean is not auditable.
-    session.add(Job(id=new_id("job"), submission_id=sub_id, gate_key=key, status="queued"))
+    session.add(
+        Job(id=new_id("job"), submission_id=sub_id, gate_key=key, status="queued", version=version)
+    )
     sub.status = "running"
     emit(session, sub_id, "gate.retried", gate=key, attempt=len(attempts) + 1)
     session.commit()
@@ -757,7 +871,11 @@ def claim_job(body: dict, session: Session = Depends(db), _=Depends(worker)):
     row.claimed_by = worker
     row.attempts += 1
     row.heartbeat_at = now()
-    gate = session.scalar(select(Gate).where(Gate.submission_id == row.submission_id, Gate.key == row.gate_key))
+    gate = session.scalar(
+        select(Gate).where(
+            Gate.submission_id == row.submission_id, Gate.key == row.gate_key, Gate.version == row.version
+        )
+    )
     gate.status = "running"
     gate.started_at = now()
     sub = session.get(Submission, row.submission_id)
@@ -823,7 +941,14 @@ def finish_job(job_id: str, body: dict, session: Session = Depends(db), _=Depend
     if row is None:
         raise HTTPException(404, "no such job")
     status = body.get("status", "failed")
-    gate = session.scalar(select(Gate).where(Gate.submission_id == row.submission_id, Gate.key == row.gate_key))
+    # By the job's version, not the submission's latest. A worker finishing a
+    # long v1 run after v2 was uploaded would otherwise write its verdict onto
+    # v2 -- a result about footage it never saw.
+    gate = session.scalar(
+        select(Gate).where(
+            Gate.submission_id == row.submission_id, Gate.key == row.gate_key, Gate.version == row.version
+        )
+    )
     gate.status = status
     gate.finished_at = now()
     gate.verdict_json = json.dumps(body.get("verdict") or {})
@@ -857,7 +982,10 @@ def finish_job(job_id: str, body: dict, session: Session = Depends(db), _=Depend
             spec = next(g for g in GATES if g["key"] == key)
             if spec["cost_cents"] > 0:
                 break
-            session.add(Job(id=new_id("job"), submission_id=row.submission_id, gate_key=key, status="queued"))
+            session.add(
+                Job(id=new_id("job"), submission_id=row.submission_id, gate_key=key,
+                    status="queued", version=row.version)
+            )
             emit(session, row.submission_id, "gate.queued", gate=key)
             sub.status = "running"
             break

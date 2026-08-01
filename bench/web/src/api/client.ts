@@ -14,7 +14,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { useState } from "react";
-import type { Benchmark, Gate, Leaderboard, Plan, Progress, Submission } from "./types";
+import type { Benchmark, Gate, Leaderboard, Plan, Progress, Submission, Versions } from "./types";
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -96,6 +96,15 @@ export function useCompare(benchmark: string, rung: string) {
         `/api/compare?benchmark=${encodeURIComponent(benchmark)}&rung=${encodeURIComponent(rung)}`,
       ),
     placeholderData: (previous) => previous,
+  });
+}
+
+/** Every upload of one submission, and what changed between them. */
+export function useVersions(id: string | undefined) {
+  return useQuery({
+    queryKey: ["versions", id] as const,
+    queryFn: () => json<Versions>(`/api/submissions/${id}/versions`),
+    enabled: Boolean(id),
   });
 }
 

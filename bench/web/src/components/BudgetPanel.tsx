@@ -150,7 +150,10 @@ export function BudgetPanel({
 
       <div className="budget-facts">
         <div>
-          <span className="k">Price</span>
+          {/* What the GPU time is worth, not what it is being charged. Shown
+              because it is what makes the trial-count choice mean something —
+              a slider with no cost behind it is a slider over nothing. */}
+          <span className="k">Compute</span>
           <span className="v big">{money(plan.cost.cents)}</span>
         </div>
         <div>
@@ -184,14 +187,17 @@ export function BudgetPanel({
         <button
           type="button"
           className="btn primary"
-          disabled={start.isPending || plan.detects === null}
+          // Never disabled on statistical grounds. A budget that cannot detect
+          // anything is a bad idea, not a forbidden one, and the panel says so
+          // in words directly beneath — a greyed-out button explains nothing.
+          disabled={start.isPending}
           onClick={() => start.mutate({ gate: gateKey, trials })}
         >
-          {start.isPending ? "Starting…" : `Run ${trials} scenes — ${money(plan.cost.cents)}`}
+          {start.isPending ? "Starting…" : `Run ${trials} scenes — free`}
         </button>
         <span className="budget-buy-note">
           {plan.detects === null
-            ? "Pick a larger budget — this one cannot detect anything."
+            ? "This budget cannot detect anything — you can still run it, but whatever comes back will not be evidence either way."
             : `Detects ${(plan.detects * 100).toFixed(1)} points or more. Nothing runs until you press this.`}
         </span>
       </div>
