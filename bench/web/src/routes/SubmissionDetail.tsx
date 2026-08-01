@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { useStartGate, useSubmission, useSubmissionEvents } from "../api/client";
 import { BudgetPanel } from "../components/BudgetPanel";
 import { DataReport } from "../components/DataReport";
+import { Verdict } from "../components/Verdict";
 import { GateTimeline } from "../components/GateTimeline";
 import { ErrorNote, Skeleton, StatusPill, ago, bytes, submissionStatus } from "../components/ui";
 
@@ -40,6 +41,7 @@ export function SubmissionDetail() {
   // pick a trial count before knowing their data is readable, and a price
   // quoted before intake is a price for work that may never happen.
   const sized = data.gates.find((g) => g.sized && g.status === "queued");
+  const robot = data.gates.find((g) => g.key === "g3");
 
   return (
     <div className="page">
@@ -112,6 +114,16 @@ export function SubmissionDetail() {
             </span>
           </h2>
           <DataReport gate={report} />
+        </>
+      )}
+
+      {robot && (robot.status === "passed" || robot.status === "abstained") && (
+        <>
+          <h2>
+            Robot test
+            <span className="h2-sub">closed-loop, on scenes the policy has never seen</span>
+          </h2>
+          <Verdict gate={robot} />
         </>
       )}
 

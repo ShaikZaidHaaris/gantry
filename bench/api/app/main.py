@@ -92,6 +92,7 @@ def as_gate(row: Gate) -> dict:
         "findings": json.loads(row.findings_json or "[]"),
         "measures": json.loads(row.measures_json or "{}"),
         "abstained": json.loads(row.abstained_json or "[]"),
+        "detail": json.loads(row.detail_json or "{}"),
         # Only while running. A finished gate's last position is noise, and
         # showing "step 2,999 of 3,000" next to a green tick reads as a run that
         # stopped one short.
@@ -536,6 +537,7 @@ def finish_job(job_id: str, body: dict, session: Session = Depends(db)):
     gate.findings_json = json.dumps(body.get("findings") or [])
     gate.measures_json = json.dumps(body.get("measures") or {})
     gate.abstained_json = json.dumps(body.get("abstained") or [])
+    gate.detail_json = json.dumps(body.get("detail") or {})
     row.status = "done" if status in ("passed", "refused", "abstained") else "failed"
     row.error = body.get("error", "")
 

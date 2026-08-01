@@ -34,9 +34,14 @@ import urllib.error
 import urllib.request
 import json as jsonlib
 
-from gates import intake, report, signal
+from gates import intake, report, robot, signal
 
-HANDLERS = {"g0": intake.run, "g1": report.run, "g2": signal.run}
+HANDLERS = {
+    "g0": intake.run,
+    "g1": report.run,
+    "g2": signal.run,
+    "g3": robot.run,
+}
 
 #: Longest silence between beats. Comfortably inside the server's staleness
 #: window. This is the *floor* on how often we speak, not the rate: a gate that
@@ -156,6 +161,11 @@ def once(api: str, worker: str, gates: list[str]) -> bool:
                     "detected": result.get("detected", {}),
                     "measures": result.get("measures", {}),
                     "abstained": result.get("abstained", []),
+                    # The gate's own working: per-scene pairs, p-values, which
+                    # arms ran. Not shown in the timeline, but it is what the
+                    # verdict page is built from and what a lab asks for when
+                    # it wants to check the arithmetic itself.
+                    "detail": result.get("detail", {}),
                 },
             )
             print(f"[{worker}]   -> {result['status']}: {result['summary']}", flush=True)

@@ -55,6 +55,46 @@ export interface Progress {
   note?: string;
 }
 
+/** One arm's rate on one rung, or a statement that it was never measured.
+ *
+ *  `measured: false` is not zero. An arm evaluated before the stage events
+ *  existed reports nothing on every rung, and rendering that as 0/100 turns an
+ *  absence of measurement into a total loss — which is exactly how a fabricated
+ *  clean sweep gets published. */
+export type Cell =
+  | { measured: true; wins: number; n: number; rate: number; ci: [number, number]; unmeasured: number }
+  | { measured: false; n: 0; unmeasured: number };
+
+export type Paired =
+  | { rung: string; measured: false; scenes: 0 }
+  | {
+      rung: string;
+      measured: true;
+      scenes: number;
+      a_only: number;
+      b_only: number;
+      agreed: number;
+      p_value: number;
+      separated: boolean;
+    };
+
+export interface LadderRow {
+  rung: string;
+  arms: Record<string, Cell>;
+  [comparison: string]: unknown;
+}
+
+export interface RobotDetail {
+  ladder?: LadderRow[];
+  order?: string[];
+  arms?: string[];
+  objects_tracked?: number;
+  has_control?: boolean;
+  has_baseline?: boolean;
+  unreported?: Record<string, string[]>;
+  alpha?: number;
+}
+
 export interface Gate {
   key: "g0" | "g1" | "g2" | "g3";
   name: string;
@@ -72,6 +112,9 @@ export interface Gate {
   abstained: Abstention[];
   /** Present only while running. A finished gate's last position is noise. */
   progress: Progress | Record<string, never>;
+  /** The gate's own working — per-scene pairs, p-values, which arms ran.
+   *  What a lab asks for when it wants to check the arithmetic itself. */
+  detail: RobotDetail & Record<string, unknown>;
   started_at: string;
   finished_at: string;
 }

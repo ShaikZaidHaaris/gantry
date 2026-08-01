@@ -149,6 +149,11 @@ class Gate(Base):
     #: Modules that declined, with their reason. Never dropped: a report that
     #: silently omits what it could not judge reads as a clean bill of health.
     abstained_json: Mapped[str] = mapped_column(Text, default="[]")
+    #: The gate's own working, for anything that wants to re-derive the verdict:
+    #: per-scene outcomes, discordant counts, p-values, which arms ran. Kept
+    #: apart from ``measures`` because a lab checking our arithmetic needs the
+    #: rows, not the summary.
+    detail_json: Mapped[str] = mapped_column(Text, default="{}")
     #: Where the running gate is up to, overwritten in place.
     #:
     #: Deliberately *not* in the event log. Progress is volatile and high rate --
@@ -194,7 +199,7 @@ def emit(session: Session, submission_id: str, kind: str, **payload) -> None:
 #: Postgres; until then this keeps a developer's existing demo database
 #: working instead of asking them to delete it.
 LATER = {
-    "gates": {"measures_json": "'{}'", "abstained_json": "'[]'", "progress_json": "'{}'"},
+    "gates": {"measures_json": "'{}'", "abstained_json": "'[]'", "progress_json": "'{}'", "detail_json": "'{}'"},
     "benchmarks": {"cost_json": "'{}'"},
 }
 
