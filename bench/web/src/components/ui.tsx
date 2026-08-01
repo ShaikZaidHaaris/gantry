@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { Finding, GateStatus, Severity, Submission } from "../api/types";
+import type { Finding, GateStatus, Submission } from "../api/types";
 
 /** One vocabulary for state, product-wide. "failed" is *our* machinery, and is
  *  worded so it never reads as a judgement on the user's data. */
@@ -84,29 +84,28 @@ export function ErrorNote({ error }: { error: unknown }) {
   );
 }
 
-/** A finding: sentence first, code second, fix in its own block. Labs get the
- *  precision; contributors get the English. */
+/** One finding: what was found, then what to do about it. Prose, not chrome.
+ *
+ *  The first version of this printed the machine code as a heading, the module
+ *  name beside it, a severity dot, and the prescription inside a tinted
+ *  "WHAT TO DO" box — a card inside a card. All of that was the system talking
+ *  about itself. The code still exists for anyone who needs to cite it (hover),
+ *  and severity is carried by the *grouping* on every screen that uses this —
+ *  "what to fix" versus "also noted" — which says more than a colored dot did.
+ */
 export function FindingRow({ finding }: { finding: Finding }) {
   return (
-    <div className="finding">
-      <span className={`sev ${finding.severity satisfies Severity}`} />
-      <div style={{ flex: 1 }}>
-        <div className="code">
-          {finding.code}
-          {/* Which module said it. A reader who disagrees needs to know what to
-              go and read, and a code with no author behind it is unarguable. */}
-          {finding.module && <span className="by">via {finding.module}</span>}
-        </div>
-        <div className="what">{finding.summary}</div>
-        {finding.prescription && (
-          <div className="fix">
-            <b>What to do</b>
-            {finding.prescription}
-          </div>
-        )}
-      </div>
+    <div className="finding" title={finding.code}>
+      <div className="what">{sentence(finding.summary)}</div>
+      {finding.prescription && <p className="fix">{finding.prescription}</p>}
     </div>
   );
+}
+
+/** Gate summaries arrive lowercase (they read as clause fragments in logs);
+ *  people read them as sentences. */
+export function sentence(text: string): string {
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
 }
 
 export function bytes(n: number): string {

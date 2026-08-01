@@ -21,7 +21,7 @@ import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { keys, uploadDataset, useVersions } from "../api/client";
 import type { VersionChange } from "../api/types";
-import { Skeleton } from "./ui";
+import { Skeleton, sentence } from "./ui";
 
 /** Upload a new version of the same dataset.
  *
@@ -116,9 +116,8 @@ function Change({ change }: { change: VersionChange }) {
             {change.fixed.length} gone
           </b>
           {change.fixed.map((f) => (
-            <div className="line" key={f.code}>
-              <span className="code">{f.code}</span>
-              {f.summary}
+            <div className="line" key={f.code} title={f.code}>
+              {sentence(f.summary)}
             </div>
           ))}
         </div>
@@ -128,9 +127,8 @@ function Change({ change }: { change: VersionChange }) {
         <div className="change-group remaining">
           <b>{change.remaining.length} still there</b>
           {change.remaining.map((f) => (
-            <div className="line" key={f.code}>
-              <span className="code">{f.code}</span>
-              {f.summary}
+            <div className="line" key={f.code} title={f.code}>
+              {sentence(f.summary)}
             </div>
           ))}
         </div>
@@ -140,9 +138,8 @@ function Change({ change }: { change: VersionChange }) {
         <div className="change-group appeared">
           <b>{change.new.length} new</b>
           {change.new.map((f) => (
-            <div className="line" key={f.code}>
-              <span className="code">{f.code}</span>
-              {f.summary}
+            <div className="line" key={f.code} title={f.code}>
+              {sentence(f.summary)}
             </div>
           ))}
           <p className="aside">

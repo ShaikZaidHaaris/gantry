@@ -31,12 +31,10 @@ function byRank(a: Finding, b: Finding) {
 }
 
 function Section({
-  n,
   title,
   hint,
   children,
 }: {
-  n: number;
   title: string;
   hint: string;
   children: React.ReactNode;
@@ -44,7 +42,6 @@ function Section({
   return (
     <section className="report-step">
       <div className="report-step-head">
-        <span className="step-n">{n}</span>
         <div>
           <h3>{title}</h3>
           <p>{hint}</p>
@@ -110,7 +107,6 @@ export function DataReport({ gate }: { gate: Gate }) {
   return (
     <div className="report">
       <Section
-        n={1}
         title={fix.length ? "What to fix" : "Nothing to fix"}
         hint={
           fix.length
@@ -127,14 +123,13 @@ export function DataReport({ gate }: { gate: Gate }) {
         ) : (
           <div className="note">
             Every check that had something to read came back clean. That is not the same as the
-            data being good — see step 4 for what nothing was able to judge.
+            data being good — see “What we could not judge” below for the gaps.
           </div>
         )}
       </Section>
 
       {noted.length > 0 && (
         <Section
-          n={2}
           title="Also noted"
           hint="True and not urgent. Here so the report is complete, folded so it is readable."
         >
@@ -150,7 +145,6 @@ export function DataReport({ gate }: { gate: Gate }) {
 
       {measures.length > 0 && (
         <Section
-          n={noted.length > 0 ? 3 : 2}
           title="What we measured"
           hint="Every rate carries the number of clips it was measured over, and its 95% interval."
         >
@@ -174,7 +168,6 @@ export function DataReport({ gate }: { gate: Gate }) {
       )}
 
       <Section
-        n={(noted.length > 0 ? 3 : 2) + (measures.length > 0 ? 1 : 0)}
         title="What we could not judge"
         hint="A check that had nothing to read is not a check that passed. These are the gaps in the report above."
       >

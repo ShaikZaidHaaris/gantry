@@ -14,6 +14,7 @@
  */
 
 import type { Cell, Gate, LadderRow, Paired } from "../api/types";
+import { FindingRow, sentence } from "./ui";
 
 const NOT_MEASURED = "not measured";
 
@@ -123,13 +124,12 @@ export function Verdict({ gate }: { gate: Gate }) {
       <section className="report-step">
         <div className="statement">
           <span className="eyebrow">Verdict</span>
-          <p>{gate.verdict?.summary}</p>
+          <p>{sentence(gate.verdict?.summary ?? "")}</p>
         </div>
       </section>
 
       <section className="report-step">
         <div className="report-step-head">
-          <span className="step-n">1</span>
           <div>
             <h3>How far it got</h3>
             <p>
@@ -145,7 +145,6 @@ export function Verdict({ gate }: { gate: Gate }) {
 
       <section className="report-step">
         <div className="report-step-head">
-          <span className="step-n">2</span>
           <div>
             <h3>What this does not say</h3>
             <p>
@@ -158,21 +157,7 @@ export function Verdict({ gate }: { gate: Gate }) {
           {limits.length === 0 && notes.length === 0 ? (
             <div className="what">Nothing was withheld — every arm and every rung was measured.</div>
           ) : (
-            [...limits, ...notes].map((f) => (
-              <div className="finding" key={f.code}>
-                <span className={`sev ${f.severity}`} />
-                <div style={{ flex: 1 }}>
-                  <div className="code">{f.code}</div>
-                  <div className="what">{f.summary}</div>
-                  {f.prescription && (
-                    <div className="fix">
-                      <b>What to do</b>
-                      {f.prescription}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))
+            [...limits, ...notes].map((f) => <FindingRow key={f.code} finding={f} />)
           )}
         </div>
       </section>

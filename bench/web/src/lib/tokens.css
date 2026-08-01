@@ -156,22 +156,17 @@ h2 { font-size: 14.5px; font-weight: 650; margin: 28px 0 10px; }
 .gate .result { margin-top: 8px; font-size: 13px; color: var(--text-2); }
 .gate .meta { text-align: right; font: 11.5px var(--mono); color: var(--text-3); white-space: nowrap; }
 
-.finding { border-top: 1px solid var(--border); padding: 11px 0; display: flex; gap: 10px; }
-.finding:first-child { border-top: 0; }
-.finding .sev { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex: none; }
-.finding .sev.strong { background: var(--danger); }
-.finding .sev.moderate { background: var(--warn); }
-.finding .sev.weak { background: #6172f3; }
-.finding .sev.info { background: var(--border-2); }
-.finding .code { font: 11px var(--mono); color: var(--text-3); }
-.finding .what { font-size: 13px; margin-top: 2px; }
-.fix {
-  margin-top: 8px; padding: 10px 12px; background: var(--accent-bg);
-  border: 1px solid var(--accent-border); border-radius: 6px; font-size: 12.5px;
-  line-height: 1.55;
-}
-.fix b { display: block; color: var(--accent); font-size: 10.5px; letter-spacing: 0.05em;
-         text-transform: uppercase; margin-bottom: 3px; }
+/* A finding is two sentences: what was found, in medium weight, and what to do,
+   in quiet prose underneath. No machine code as a heading, no severity dot, no
+   tinted callout box — grouping ("what to fix" vs "also noted") already carries
+   the urgency, and everything else was the system talking about itself. The
+   code survives as the row's hover title for anyone who needs to cite it. */
+.finding { border-top: 1px solid var(--border); padding: 14px 0; }
+.finding:first-child { border-top: 0; padding-top: 2px; }
+.finding:last-child { padding-bottom: 2px; }
+.finding .what { font-size: 13.5px; font-weight: 550; line-height: 1.5; max-width: 78ch; }
+.fix { margin-top: 5px; font-size: 12.5px; line-height: 1.6; color: var(--text-2);
+       max-width: 78ch; }
 
 /* wizard ------------------------------------------------------------------- */
 .steps { display: flex; gap: 8px; margin-bottom: 24px; }
@@ -212,17 +207,10 @@ label.field .hint { color: var(--text-3); font-size: 12px; margin-top: 4px; }
    they encode "read this first, then that", which is the whole difference
    between a report and a dump. */
 .report { display: grid; gap: 30px; }
-.report-step-head { display: flex; gap: 12px; align-items: baseline; margin-bottom: 12px; }
+.report-step-head { margin-bottom: 12px; }
 .report-step-head h3 { font-size: 14.5px; font-weight: 620; letter-spacing: -0.15px; }
 .report-step-head p { color: var(--text-3); font-size: 12.5px; margin-top: 2px; max-width: 68ch; }
-.step-n {
-  flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--neutral-bg);
-  border: 1px solid var(--border); color: var(--text-2);
-  font: 600 11px var(--mono); display: flex; align-items: center; justify-content: center;
-}
 h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px; letter-spacing: 0; }
-
-.finding .code .by { color: var(--text-3); margin-left: 8px; opacity: 0.8; }
 
 /* tally chips in the timeline */
 .tally { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
@@ -480,7 +468,6 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
   .rung-bar, .interval, .measure-bar .track { border: 1px solid #999; }
   .rung-bar .fill, .interval .point, .measure-bar .dot { background: #333 !important; }
   .rung-bar .ci, .interval .span, .measure-bar .ci { background: #ccc !important; }
-  .sev { border: 1px solid #333; }
   a { text-decoration: none; color: inherit; }
 }
 
@@ -499,9 +486,7 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
 .change-group.remaining b { color: var(--text-3) }
 .change-group.appeared b { color: var(--warn) }
 .change-group .line { font-size: 12.5px; color: var(--text-2); padding: 3px 0;
-                      display: flex; gap: 10px; align-items: baseline }
-.change-group .line .code { font: 11px var(--mono); color: var(--text-3); flex: none;
-                            min-width: 168px }
+                      max-width: 78ch }
 .change-group .aside { font-size: 11.5px; color: var(--text-3); margin-top: 6px;
                        line-height: 1.55; max-width: 72ch }
 
