@@ -389,3 +389,46 @@ h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px
 .budget-buy { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
               padding: 4px 0 14px; }
 .budget-buy-note { font-size: 12px; color: var(--text-3); max-width: 46ch }
+
+/* the leaderboard ---------------------------------------------------------- */
+.rungbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.rungbar .lab { font-weight: 600; font-size: 12.5px; color: var(--text-2); flex: none; }
+.rungbar .segmented { flex: 1; max-width: 560px; }
+
+.board { min-width: 640px; }
+.brow {
+  display: grid; grid-template-columns: 54px minmax(180px, 1fr) 64px 56px minmax(140px, 220px);
+  gap: 14px; align-items: center; padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.brow:last-child { border-bottom: 0 }
+.brow.head { font: 600 10.5px var(--sans); letter-spacing: 0.05em; text-transform: uppercase;
+             color: var(--text-3); background: #fbfbfc; }
+.brow .right { text-align: right }
+/* The letter is the most important cell on this screen, so it looks like a
+   value rather than an annotation. */
+.group { font: 650 13px var(--mono); color: var(--accent); background: var(--accent-bg);
+         border: 1px solid var(--accent-border); border-radius: 5px; text-align: center;
+         padding: 2px 0; }
+.bname { font-weight: 550; font-size: 13px; color: var(--text); }
+.bname:hover { color: var(--accent) }
+.brow .rate { font-weight: 650; font-size: 13.5px }
+.brow .dim { color: var(--text-3); font-size: 11.5px }
+.interval { position: relative; display: block; height: 6px; background: var(--neutral-bg);
+            border-radius: 3px; }
+.interval .span { position: absolute; top: 0; height: 6px; background: var(--accent-border);
+                  border-radius: 3px }
+.interval .point { position: absolute; top: -2px; width: 8px; height: 8px; margin-left: -4px;
+                   border-radius: 50%; background: var(--accent) }
+
+.headtohead { border-top: 1px solid var(--border); padding: 13px 0 }
+.headtohead:first-child { border-top: 0 }
+.headtohead .who { font-weight: 600; font-size: 13px }
+.headtohead .who .v { color: var(--text-3); font-weight: 400; margin: 0 4px }
+.headtohead .numbers { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11.5px;
+                       color: var(--text-2); margin: 5px 0 6px }
+.headtohead .numbers .dim { color: var(--text-3) }
+.headtohead .numbers .sep { color: var(--ok); font-weight: 650 }
+.headtohead .reading { font-size: 12.5px; color: var(--text-2); line-height: 1.55; max-width: 76ch }
+.board-foot { font-size: 12px; color: var(--text-3); line-height: 1.6; max-width: 78ch;
+              border-top: 1px solid var(--border); padding-top: 12px; margin-top: 18px }

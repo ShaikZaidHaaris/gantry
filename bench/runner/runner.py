@@ -79,6 +79,20 @@ def run(cmd: list[str] | str, cwd: Path | None = None, env: dict | None = None) 
     return subprocess.call(cmd, cwd=str(cwd) if cwd else None, shell=shell, env=merged)
 
 
+def stop_server() -> None:
+    """Stop any policy server, without stopping ourselves.
+
+    ``pkill -f serve_policy.py`` matches the command line of the very shell
+    running it, so it kills its own process group and takes the runner with it.
+    That is not a hypothetical -- it ended a run here after the training had
+    already succeeded, and it ended four SSH sessions earlier in this project
+    for the same reason. The bracket keeps the pattern from matching the text of
+    the command that contains it.
+    """
+    subprocess.call("pkill -f '[s]erve_policy.py' || true", shell=True)
+    time.sleep(10)
+
+
 def free_bytes(path: Path = Path("/")) -> int:
     stat = os.statvfs(path)
     return stat.f_bavail * stat.f_frsize
@@ -288,7 +302,7 @@ def train(arm: str, steps: int, progress: Path) -> Path:
 
 def serve(arm: str, checkpoint: Path, progress: Path) -> subprocess.Popen:
     emit(progress, "starting the policy server", note=arm)
-    run("pkill -f serve_policy.py; sleep 10", cwd=OPENPI)
+    stop_server()
     for _ in range(40):
         used = subprocess.run(
             ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
@@ -297,11 +311,17 @@ def serve(arm: str, checkpoint: Path, progress: Path) -> subprocess.Popen:
             break
         time.sleep(10)
     log = HOME / f"bench_serve_{arm}.log"
+    # Same environment as every other command here. This built its own Popen and
+    # so missed the PATH that `run` sets, which meant `uv` was not found, the
+    # server never came up, and the failure arrived twenty minutes later as
+    # "the policy server never came up" — a timeout standing in for a typo.
     process = subprocess.Popen(
         f"XLA_PYTHON_CLIENT_MEM_FRACTION=0.35 uv run scripts/serve_policy.py --port {PORT} "
         f"policy:checkpoint --policy.config=pi05_{arm} --policy.dir={checkpoint} "
         f"> {log} 2>&1",
-        cwd=str(OPENPI), shell=True,
+        cwd=str(OPENPI),
+        shell=True,
+        env={**os.environ, "PATH": f"{TOOLS}:{os.environ.get('PATH', '')}", "WANDB_MODE": "disabled"},
     )
     import socket
     for _ in range(120):
@@ -311,7 +331,11 @@ def serve(arm: str, checkpoint: Path, progress: Path) -> subprocess.Popen:
             return process
         except OSError:
             time.sleep(10)
-    raise RuntimeError(f"the policy server for {arm} never came up; see {log}")
+    tail = ""
+    if log.exists():
+        lines = [l for l in log.read_text().splitlines() if l.strip()]
+        tail = " / ".join(lines[-5:])
+    raise RuntimeError(f"the policy server for {arm} never came up. {tail}"[:800])
 
 
 def evaluate(arm: str, task: str, scenes: int, progress: Path) -> Path:
@@ -356,7 +380,7 @@ def main() -> int:
         try:
             record = evaluate(repo, task, scenes, progress)
         finally:
-            run("pkill -f serve_policy.py; sleep 5")
+            stop_server()
             server.poll()
         target = out / f"{repo}.json"
         shutil.copy(record, target)

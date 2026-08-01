@@ -14,7 +14,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { useState } from "react";
-import type { Benchmark, Gate, Plan, Progress, Submission } from "./types";
+import type { Benchmark, Gate, Leaderboard, Plan, Progress, Submission } from "./types";
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -79,6 +79,23 @@ export function usePlan(benchmark: string | undefined, trials: number, magnitude
     enabled: Boolean(benchmark),
     placeholderData: (previous) => previous,
     staleTime: 60 * 60 * 1000,
+  });
+}
+
+/** The leaderboard for one benchmark, on one rung.
+ *
+ *  Keyed on the rung so switching is instant once seen, and `placeholderData`
+ *  holds the previous table on screen while the next loads — a leaderboard that
+ *  blanks between rungs is unreadable while being explored, which is exactly
+ *  what the rung switch is for. */
+export function useCompare(benchmark: string, rung: string) {
+  return useQuery({
+    queryKey: ["compare", benchmark, rung] as const,
+    queryFn: () =>
+      json<Leaderboard>(
+        `/api/compare?benchmark=${encodeURIComponent(benchmark)}&rung=${encodeURIComponent(rung)}`,
+      ),
+    placeholderData: (previous) => previous,
   });
 }
 

@@ -193,3 +193,39 @@ export interface Plan {
     measured_on: string;
   };
 }
+
+/** One submission's place on a leaderboard.
+ *
+ *  `group` is the compact letter display: entries sharing a letter are not
+ *  separated by the paired test. It is the column to read — at these sample
+ *  sizes the ordering is mostly noise, and a rank without this reads as a
+ *  total ordering that the evidence does not support. */
+export interface Entry {
+  id: string;
+  name: string;
+  wins: number;
+  n: number;
+  rate: number;
+  ci: [number, number];
+  group: string;
+}
+
+export interface Pair {
+  left: string;
+  right: string;
+  shared_scenes: number;
+  left_only: number;
+  right_only: number;
+  agreed: number;
+  p_value: number;
+  separated: boolean;
+}
+
+export interface Leaderboard {
+  benchmark: { key: string; name: string; simulator: string };
+  rung: string;
+  rungs: string[];
+  baseline: { wins: number; n: number } | null;
+  entries: Entry[];
+  pairs: Pair[];
+}

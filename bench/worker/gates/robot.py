@@ -468,6 +468,16 @@ def assemble(arms: Mapping[str, Sequence[Mapping[str, Any]]], report: Report = _
             "order": order,
             "arms": list(arms),
             "objects_tracked": objects,
+            # Per scene, per rung, for the treatment arm. Kept because ranking
+            # two submissions against each other is a *paired* comparison on the
+            # scenes they both ran, and aggregates cannot be re-paired: two
+            # arms at 8% might agree on every scene or disagree on sixteen, and
+            # only the second is evidence. Stored once here rather than
+            # recomputed from run records the leaderboard would have to reopen.
+            "reached": {
+                scene: {rung: value for rung, value in rungs.items()}
+                for scene, rungs in reached.get(TREATMENT, {}).items()
+            },
             "unreported": unreported,
             "has_control": CONTROL in reached,
             "has_baseline": BASELINE in reached,

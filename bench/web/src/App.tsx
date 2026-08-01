@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from "react-router-dom";
 import { useMe } from "./api/client";
 import { NewSubmission } from "./routes/NewSubmission";
 import { SubmissionDetail } from "./routes/SubmissionDetail";
+import { Compare } from "./routes/Compare";
 import { Submissions } from "./routes/Submissions";
 
 export default function App() {
@@ -17,6 +18,9 @@ export default function App() {
             <NavLink to="/" end className={({ isActive }) => (isActive ? "on" : "")}>
               Submissions
             </NavLink>
+            <NavLink to="/compare" className={({ isActive }) => (isActive ? "on" : "")}>
+              Leaderboard
+            </NavLink>
           </nav>
           <div className="topbar-right">{me.data ? me.data.org.name : ""}</div>
         </div>
@@ -25,6 +29,7 @@ export default function App() {
         <Route path="/" element={<Submissions />} />
         <Route path="/submissions/new" element={<NewSubmission />} />
         <Route path="/submissions/:id" element={<SubmissionDetail />} />
+        <Route path="/compare" element={<Compare />} />
       </Routes>
     </div>
   );

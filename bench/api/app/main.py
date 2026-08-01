@@ -275,6 +275,140 @@ def plan(key: str, trials: int = 50, magnitude: float = 0.08, session: Session =
     }
 
 
+def _wilson(wins: int, n: int, z: float = 1.96) -> list[float]:
+    if n <= 0:
+        return [0.0, 1.0]
+    p = wins / n
+    d = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / d
+    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / d
+    return [round(max(0.0, centre - half), 4), round(min(1.0, centre + half), 4)]
+
+
+def _sign_test(left: int, right: int) -> float:
+    """The same exact test the gates use, on the same kind of pairs."""
+    from math import comb
+
+    n = left + right
+    if n == 0:
+        return 1.0
+    top = max(left, right)
+    return min(1.0, 2 * sum(comb(n, i) for i in range(top, n + 1)) / (2**n))
+
+
+def letters(order: list[str], indistinct: set[frozenset[str]]) -> dict[str, str]:
+    """Compact letter display: two entries share a letter when nothing separates them.
+
+    The point of a leaderboard is not the order — at these sample sizes the
+    order is mostly noise — it is which gaps are real. A ranked table without
+    this reads as a total ordering and invites "we came third", when third and
+    second may be the same result twice. Sharing a letter is the table saying so
+    without a paragraph.
+
+    Greedy, which is the standard construction: walk the ranking, and put each
+    entry in the first group whose members it is indistinguishable from all of.
+    """
+    groups: list[list[str]] = []
+    for name in order:
+        for group in groups:
+            if all(frozenset((name, other)) in indistinct for other in group):
+                group.append(name)
+                break
+        else:
+            groups.append([name])
+    out: dict[str, str] = {}
+    for index, group in enumerate(groups):
+        for name in group:
+            out[name] = out.get(name, "") + chr(ord("a") + index)
+    return out
+
+
+@app.get("/api/compare")
+def compare(benchmark: str, rung: str = "solved", who=Depends(viewer), session: Session = Depends(db)):
+    """Every finished submission on one benchmark, ranked and paired.
+
+    Paired, which is the whole difference between this and a spreadsheet. Two
+    submissions at 8% might have agreed on every scene or disagreed on sixteen,
+    and only the second is evidence about which is better. So every pair is
+    compared on the scenes they *both* ran, and scenes where they agreed are
+    excluded from the test while still counting in the rates.
+
+    A submission that ran different scenes contributes only its overlap, and the
+    overlap is reported. Comparing across disjoint scene sets would be
+    comparing two different experiments and calling it a ranking.
+    """
+    bench = session.scalar(select(Benchmark).where(Benchmark.key == benchmark))
+    if bench is None:
+        raise HTTPException(404, "no such benchmark")
+
+    rows = []
+    available: list[str] = []
+    for sub in session.scalars(
+        select(Submission).where(Submission.org_id == who["org_id"], Submission.benchmark_id == bench.id)
+    ).all():
+        gate = session.scalar(
+            select(Gate).where(Gate.submission_id == sub.id, Gate.key == "g3", Gate.status == "passed")
+        )
+        if gate is None:
+            continue
+        detail = json.loads(gate.detail_json or "{}")
+        reached = detail.get("reached") or {}
+        # Every rung this submission measured, in the order its own ladder had
+        # them — which is the order they are climbed, not alphabetical.
+        for name in detail.get("order") or []:
+            if name not in available:
+                available.append(name)
+        scored = {scene: v.get(rung) for scene, v in reached.items() if v.get(rung) is not None}
+        if not scored:
+            continue
+        wins = sum(1 for v in scored.values() if v)
+        rows.append({
+            "id": sub.id,
+            "name": sub.name,
+            "wins": wins,
+            "n": len(scored),
+            "rate": round(wins / len(scored), 4),
+            "ci": _wilson(wins, len(scored)),
+            "scenes": scored,
+        })
+
+    rows.sort(key=lambda r: (-r["rate"], r["name"]))
+    pairs = []
+    indistinct: set[frozenset[str]] = set()
+    for i, left in enumerate(rows):
+        for right in rows[i + 1 :]:
+            shared = sorted(set(left["scenes"]) & set(right["scenes"]))
+            l_only = sum(1 for s in shared if left["scenes"][s] and not right["scenes"][s])
+            r_only = sum(1 for s in shared if right["scenes"][s] and not left["scenes"][s])
+            p = _sign_test(l_only, r_only)
+            separated = bool(shared) and p <= 0.05
+            if not separated:
+                indistinct.add(frozenset((left["id"], right["id"])))
+            pairs.append({
+                "left": left["id"], "right": right["id"],
+                "shared_scenes": len(shared), "left_only": l_only, "right_only": r_only,
+                "agreed": len(shared) - l_only - r_only,
+                "p_value": round(p, 4), "separated": separated,
+            })
+
+    group = letters([r["id"] for r in rows], indistinct)
+    reference = json.loads(bench.reference_json or "{}")
+    return {
+        "benchmark": {"key": bench.key, "name": bench.name, "simulator": bench.simulator},
+        "rung": rung,
+        # Offered rather than assumed. A rung one submission measured and
+        # another did not is still worth ranking on; the entries that could not
+        # answer simply do not appear, which is visible.
+        "rungs": available or [rung],
+        "baseline": reference.get("baseline"),
+        "entries": [
+            {**{k: v for k, v in r.items() if k != "scenes"}, "group": group.get(r["id"], "")}
+            for r in rows
+        ],
+        "pairs": pairs,
+    }
+
+
 @app.get("/api/submissions")
 def list_submissions(who=Depends(viewer), session: Session = Depends(db)):
     sweep_stale(session)
