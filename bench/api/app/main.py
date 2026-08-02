@@ -713,8 +713,18 @@ SAMPLES = Path(__file__).resolve().parents[3] / "samples"
 #: a directory, which is the shape of every path-traversal bug ever written; an
 #: allow-list means the parameter cannot address anything that is not on it.
 SAMPLE_FILES = {
-    "two_handed": ("two_handed_58clips.zip", "Both arms working together"),
-    "one_handed": ("one_handed_58clips.zip", "One arm doing the work"),
+    "baseline": (
+        "baseline.zip",
+        "RoboTwin's own 50 demonstrations, on their own",
+    ),
+    "two_handed": (
+        "baseline_plus_ego_two_handed.zip",
+        "The same 50, plus ego clips where both hands were tracked",
+    ),
+    "one_handed": (
+        "baseline_plus_ego_one_handed.zip",
+        "The same 50, plus ego clips where one hand was mostly absent",
+    ),
 }
 
 

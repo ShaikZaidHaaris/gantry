@@ -133,29 +133,34 @@ export function HowItWorks({ defaultOpen = false }: { defaultOpen?: boolean }) {
 
             <div className="sample">
               <div>
-                <b>Two real datasets to try — either one on its own is enough</b>
+                <b>Three real datasets to try — any one on its own is enough</b>
                 <p>
-                  58 clips each of RoboTwin <code>pick_dual_bottles</code> on an
-                  aloha-agilex, in the layout above. One is both arms working together,
-                  the other is one arm doing the work. <b>Take whichever you like.</b> A
-                  single upload runs the whole flow; you do not need the pair to try this.
+                  The training sets from an experiment that actually ran:{" "}
+                  <code>pick_dual_bottles</code> on an aloha-agilex, in the layout above.
+                  All three share the same 50 RoboTwin demonstrations; what differs is
+                  which egocentric human footage was added on top, and in the baseline's
+                  case that none was. <b>Take whichever you like</b> — a single upload
+                  runs the whole flow.
                 </p>
                 <div className="sample-links">
-                  <a className="btn primary" href="/api/samples/two_handed">
-                    Two-handed · 9.4 MB
+                  <a className="btn primary" href="/api/samples/baseline">
+                    Baseline · 50 clips · 4 MB
+                  </a>
+                  <a className="btn" href="/api/samples/two_handed">
+                    + ego, both hands · 58 · 9.4 MB
                   </a>
                   <a className="btn" href="/api/samples/one_handed">
-                    One-handed · 9.6 MB
+                    + ego, one hand · 58 · 9.6 MB
                   </a>
                 </div>
                 <p className="sample-note">
-                  <b>So why two?</b> They are the same task done well and done poorly — and
-                  every check up to and including the signal check <b>cannot tell them
-                  apart</b>. That is the finding, not a fault. They separate only at the
-                  robot test, on the rungs that need both hands at once, and even there a
-                  plain success rate never separates them. So download both only once you
-                  can run that last check; before then the two will give you results that
-                  look identical, because they are.
+                  <b>What they showed.</b> Neither ego addition beat the baseline — the
+                  two-handed one is indistinguishable from it, the one-handed one is
+                  measurably worse. That is the honest headline and not the flattering
+                  one. The finding is in the comparison <i>between the two additions</i>,
+                  and only at the top of the ladder: the checks up to and including the
+                  signal check cannot tell them apart, and plain success rate never
+                  separates them at all.
                 </p>
               </div>
             </div>
