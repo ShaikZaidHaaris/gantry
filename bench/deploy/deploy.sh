@@ -196,7 +196,12 @@ set -e
 sudo cp /home/ubuntu/gantry_bench/deploy/gantry-api.service /etc/systemd/system/
 sudo cp /home/ubuntu/gantry_bench/deploy/gantry-worker.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now gantry-api gantry-worker
+# `enable --now` starts a stopped unit and does nothing at all to a running
+# one. On every deploy after the first that means the new code sits on disk
+# while the old code keeps serving from memory: the script reports success,
+# the health checks pass, and nothing you changed is live. Restart, always.
+sudo systemctl enable gantry-api gantry-worker
+sudo systemctl restart gantry-api gantry-worker
 sleep 6
 systemctl is-active gantry-api gantry-worker
 curl -s -o /dev/null -m 5 -w "  api: %{http_code}\n" http://127.0.0.1:8090/api/me

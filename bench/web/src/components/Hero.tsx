@@ -5,17 +5,22 @@
  *  actually happens on hardware. A page about real-robot measurement that
  *  showed only diagrams would be arguing against itself.
  *
- *  Sized to sit above the working table rather than replace it. A full-viewport
- *  hero is right for a project page somebody visits once; this screen is opened
- *  every day by people who came to read a result, and burying the list under a
- *  screenful of image would cost them a scroll every time.
+ *  Sized to sit above the working table rather than replace it: a full-viewport
+ *  hero is right for a project page somebody visits once, and this screen is
+ *  opened repeatedly by people who came to read a result.
+ *
+ *  It used to hide the photograph entirely once you had a submission, on the
+ *  theory that a returning visitor did not need it. That was wrong twice over.
+ *  It made the picture vanish the moment anybody used the product, which reads
+ *  as a broken image rather than a considered choice, and it meant the page a
+ *  person shows somebody else is the one without the photograph on it.
  */
 
 import { Link } from "react-router-dom";
 
-export function Hero({ compact = false }: { compact?: boolean }) {
+export function Hero() {
   return (
-    <section className={`hero ${compact ? "compact" : ""}`}>
+    <section className="hero">
       <div className="hero-copy">
         <p>
           Upload a robot dataset. Four checks read it, in order, and stop at the
@@ -33,17 +38,15 @@ export function Hero({ compact = false }: { compact?: boolean }) {
         </div>
       </div>
 
-      {!compact && (
-        <figure className="hero-shot">
-          <img
-            src="/hero-rig.jpg"
-            alt="A dual-arm robot at a work table in a lab"
-            width={900}
-            height={506}
-            loading="eager"
-          />
-        </figure>
-      )}
+      <figure className="hero-shot">
+        <img
+          src="/hero-rig.jpg"
+          alt="A dual-arm robot at a work table in a lab"
+          width={900}
+          height={506}
+          loading="eager"
+        />
+      </figure>
     </section>
   );
 }

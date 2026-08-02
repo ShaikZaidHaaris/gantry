@@ -13,15 +13,12 @@ export function Submissions() {
 
   return (
     <div className="page">
-      {/* Full on a first visit, compact once there is work to read: the
-          picture is the front door, and a front door does not need to be as
-          wide on the hundredth entry as on the first. */}
-      <Hero compact={(data?.submissions.length ?? 0) > 0} />
+      <Hero />
 
-      {/* Shown to somebody who has not submitted anything yet, alongside the
-          full hero. Once there is a list to read, the argument has been made
-          and the space belongs to their own results. */}
-      {(data?.submissions.length ?? 0) === 0 && <TaskStrip />}
+      {/* Always, not only on an empty account. These are the measured scenes
+          the checks are built to read, and they make the same argument to a
+          returning visitor as to a new one. */}
+      <TaskStrip />
 
       <div className="page-head">
         <div>

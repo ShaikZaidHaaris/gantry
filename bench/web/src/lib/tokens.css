@@ -668,7 +668,6 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
   gap: 34px; align-items: center; margin: 8px 0 30px;
 }
-.hero.compact { grid-template-columns: 1fr; gap: 0; margin-bottom: 22px; }
 .hero-copy p { color: var(--text-2); max-width: 54ch; font-size: 16px; line-height: 1.55; }
 .hero-cta { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
 

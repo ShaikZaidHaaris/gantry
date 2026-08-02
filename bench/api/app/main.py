@@ -1265,4 +1265,30 @@ if WEB_DIST.exists():  # pragma: no cover - only in a built deployment
 
     @app.get("/{full_path:path}")
     def spa(full_path: str):
+        """The SPA, or a real file sitting beside it at the root of the bundle.
+
+        Mounting ``/assets`` alone is not enough, and the way it fails is
+        peculiarly hard to see. Vite emits hashed bundles into ``dist/assets``
+        but copies everything in ``public/`` to the *root* of ``dist`` -- so
+        ``/hero-rig.jpg`` matched nothing, fell through to this handler, and was
+        answered with ``index.html`` carrying HTTP 200 and ``text/html``. The
+        browser asked for an image, received a web page, and drew nothing. No
+        404 anywhere, no console error worth noticing, and it works perfectly in
+        development because there Vite serves ``public/`` itself.
+
+        So: if the path names a file that actually exists inside the bundle,
+        return that file; otherwise fall back to the app, which is what makes
+        client-side routes like /submissions/abc work on a hard reload.
+        """
+        if full_path:
+            candidate = (WEB_DIST / full_path).resolve()
+            # Confined to the bundle. `resolve()` collapses any `..` before the
+            # check, so a crafted path cannot climb out of it and read the
+            # database or the env file next door.
+            try:
+                inside = candidate.is_relative_to(WEB_DIST.resolve())
+            except AttributeError:  # pragma: no cover - Python < 3.9
+                inside = str(candidate).startswith(str(WEB_DIST.resolve()))
+            if inside and candidate.is_file():
+                return FileResponse(candidate)
         return FileResponse(WEB_DIST / "index.html")
