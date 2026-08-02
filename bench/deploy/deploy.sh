@@ -33,25 +33,72 @@ RSYNC_E="ssh -i $KEY -o StrictHostKeyChecking=no"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 REMOTE=/home/ubuntu/gantry_bench
 
+# rsync is not on a stock Windows box, and Git Bash does not ship it. Rather
+# than require it, fall back to tar over the ssh connection we already have.
+# The difference that matters is --delete: rsync removes files the source no
+# longer has, and tar does not, so the fallback clears the destination itself
+# where the caller asked for it.
+HAVE_RSYNC=1; command -v rsync >/dev/null 2>&1 || HAVE_RSYNC=0
+[ "$HAVE_RSYNC" = 1 ] || echo "  note: rsync not found, copying with tar over ssh"
+
+#: send <local-dir> <remote-dir> [--delete] [exclude...]
+send() {
+  local src="$1" dst="$2"; shift 2
+  local wipe=0; [ "${1:-}" = "--delete" ] && { wipe=1; shift; }
+  local ex=() tarex=()
+  for e in "$@"; do ex+=(--exclude "$e"); tarex+=(--exclude="$e"); done
+  if [ "$HAVE_RSYNC" = 1 ]; then
+    local flags=(-az -e "$RSYNC_E" "${ex[@]}")
+    [ "$wipe" = 1 ] && flags+=(--delete)
+    rsync "${flags[@]}" "$src/" "$HOST:$dst/"
+  else
+    [ "$wipe" = 1 ] && "${SSH[@]}" "rm -rf '$dst'"
+    tar -czf - -C "$src" "${tarex[@]}" . | "${SSH[@]}" "mkdir -p '$dst' && tar -xzf - -C '$dst'"
+  fi
+}
+
+# A running Vite dev server holds node_modules/@esbuild/*/esbuild.exe open, and
+# `npm ci` starts by deleting node_modules. On Windows that unlink fails with
+# EPERM, npm aborts partway, and what it leaves behind is a tree with the dev
+# dependencies removed -- so the very next line dies with "tsc is not
+# recognized". The deploy stops after one line of output and the diagnosis is
+# nowhere near the symptom. Check first and say so.
+if [ -d "$ROOT/bench/web/node_modules" ]; then
+  for lock in "$ROOT"/bench/web/node_modules/@esbuild/*/esbuild*; do
+    [ -e "$lock" ] || continue
+    if command -v powershell.exe >/dev/null 2>&1 &&
+       powershell.exe -NoProfile -Command "exit ((Get-Process -Name esbuild,node -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)" 2>/dev/null; then
+      :
+    else
+      echo "  a dev server appears to be running; it will lock esbuild and corrupt node_modules." >&2
+      echo "  stop it first:  bench/.demo/run-local.sh stop   (and close any 'npm run dev')" >&2
+      exit 1
+    fi
+    break
+  done
+fi
+
 echo "==> building the frontend"
 (cd "$ROOT/bench/web" && npm ci --silent && npm run build)
 
 echo "==> copying"
 # The pipeline first: the gates import gantry and its feedback plugins, so the
 # worker cannot run without them.
-rsync -az --delete -e "$RSYNC_E" --exclude '__pycache__' --exclude '*.egg-info' \
-  "$ROOT/src/" "$HOST:/home/ubuntu/gantry/src/"
-rsync -az --delete -e "$RSYNC_E" --exclude '__pycache__' --exclude '*.egg-info' \
-  --exclude '.venv' "$ROOT/plugins/" "$HOST:/home/ubuntu/gantry/plugins/"
-rsync -az -e "$RSYNC_E" "$ROOT/pyproject.toml" "$HOST:/home/ubuntu/gantry/pyproject.toml"
+send "$ROOT/src"     /home/ubuntu/gantry/src     --delete '__pycache__' '*.egg-info'
+send "$ROOT/plugins" /home/ubuntu/gantry/plugins --delete '__pycache__' '*.egg-info' '.venv'
+if [ "$HAVE_RSYNC" = 1 ]; then
+  rsync -az -e "$RSYNC_E" "$ROOT/pyproject.toml" "$HOST:/home/ubuntu/gantry/pyproject.toml"
+else
+  "${SSH[@]}" "cat > /home/ubuntu/gantry/pyproject.toml" < "$ROOT/pyproject.toml"
+fi
+# The samples, so a host can hand out something to upload. Skipped when
+# absent rather than failing: a checkout without them is still deployable.
+if [ -d "$ROOT/samples" ]; then send "$ROOT/samples" /home/ubuntu/gantry/samples; fi
 "${SSH[@]}" "mkdir -p $REMOTE/api $REMOTE/web/dist $REMOTE/worker $REMOTE/data /home/ubuntu/bench_work"
-rsync -az --delete -e "$RSYNC_E" --exclude '__pycache__' --exclude data \
-  "$ROOT/bench/api/"    "$HOST:$REMOTE/api/"
-rsync -az --delete -e "$RSYNC_E" \
-  "$ROOT/bench/web/dist/" "$HOST:$REMOTE/web/dist/"
-rsync -az --delete -e "$RSYNC_E" --exclude '__pycache__' \
-  "$ROOT/bench/worker/" "$HOST:$REMOTE/worker/"
-rsync -az -e "$RSYNC_E" "$ROOT/bench/deploy/" "$HOST:$REMOTE/deploy/"
+send "$ROOT/bench/api" "$REMOTE/api" --delete '__pycache__' 'data'
+send "$ROOT/bench/web/dist" "$REMOTE/web/dist" --delete
+send "$ROOT/bench/worker" "$REMOTE/worker" --delete '__pycache__'
+send "$ROOT/bench/deploy" "$REMOTE/deploy"
 
 echo "==> virtualenv"
 "${SSH[@]}" bash -s <<'REMOTE_VENV'
@@ -120,7 +167,26 @@ print(','.join(sorted(e.name for e in entry_points(group='gantry.feedback'))))")
   chmod 600 "$ENV"
   echo "  wrote a fresh $ENV"
 else
-  echo "  keeping the existing $ENV"
+  # Keep every value already there, and add only keys that are missing.
+  #
+  # This branch used to do nothing at all, and "nothing" is wrong in a specific
+  # and silent way: a host deployed before a required key existed never gets it,
+  # so whatever that key controls is off with no sign on any screen. That is
+  # exactly what happened with identity. The box ran without BENCH_TRUST_TUNNEL,
+  # fell back to trusting no forwarding header, and put every visitor in one org
+  # able to read each other's uploads, while the deploy reported success.
+  #
+  # Only ever appends. A value an operator set by hand is theirs, and a deploy
+  # script that overwrites secrets is one that rotates them on a day nobody
+  # meant to.
+  add_missing() {
+    grep -q "^$1=" "$ENV" || { echo "$1=$2" >> "$ENV"; echo "    added $1"; }
+  }
+  echo "  keeping the existing $ENV, adding anything missing:"
+  add_missing BENCH_DATA /home/ubuntu/gantry_bench/data
+  add_missing BENCH_IP_SALT "$(python3 -c 'import secrets;print(secrets.token_hex(16))')"
+  add_missing BENCH_TRUST_TUNNEL 1
+  grep -q "^BENCH_WORKER_TOKEN=" "$ENV" || echo "    WARNING: no BENCH_WORKER_TOKEN, the job queue is open"
 fi
 REMOTE_ENV
 
@@ -152,10 +218,17 @@ cat <<'NOTE'
 
 ==> before anyone outside your team gets the link:
 
-  There is no authentication. `viewer()` in the API reads an `x-demo-user`
-  header and trusts it, so anybody who can reach this can see every submission
-  and upload their own. That seam is the one place real auth goes; nothing else
-  needs to change.
+  Every visiting address gets its own org, so two visitors cannot see each
+  other's submissions. Confirm which mode this host is in:
+
+      curl -s http://127.0.0.1:8090/api/me | python3 -m json.tool
+
+  Want "mode": "tunnel" behind cloudflared, or "edge" behind a named tunnel
+  with a shared secret. "direct" means forwarding headers are being ignored and
+  every visitor is sharing one org right now. See deploy/IDENTITY.md.
+
+  This partitions visitors; it does not authenticate them. Anyone behind the
+  same NAT is one visitor, and a changed address is a new one.
 
 ==> training
 
