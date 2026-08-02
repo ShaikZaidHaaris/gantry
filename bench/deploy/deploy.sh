@@ -5,11 +5,17 @@
 #
 # What this does, and what it deliberately does not
 # -------------------------------------------------
-# Builds the frontend, copies the API, the built bundle and the worker to the
-# host, and installs both as systemd units. It does *not* open a port: the API
-# binds to loopback and something else is responsible for exposing it (see
-# "Reaching it" below). A deploy script that punches a hole in a firewall is a
-# deploy script that does it on a day nobody was watching.
+# Builds the frontend, copies the pipeline, the API, the built bundle and the
+# worker to the host, makes the virtualenv they run in, and installs both as
+# systemd units. It does *not* open a port: the API binds to loopback and
+# something else is responsible for exposing it (see "Reaching it" below). A
+# deploy script that punches a hole in a firewall is a deploy script that does it
+# on a day nobody was watching.
+#
+# The pipeline is copied, not assumed. An earlier version of this script only
+# sent bench/ and left the units pointing at a virtualenv it never created, which
+# worked on the one host that already had a checkout and would have failed on
+# every other. What is deployed has to be what is in the repository.
 #
 # Why systemd and not nohup
 # -------------------------
@@ -31,6 +37,13 @@ echo "==> building the frontend"
 (cd "$ROOT/bench/web" && npm ci --silent && npm run build)
 
 echo "==> copying"
+# The pipeline first: the gates import gantry and its feedback plugins, so the
+# worker cannot run without them.
+rsync -az --delete -e "$RSYNC_E" --exclude '__pycache__' --exclude '*.egg-info' \
+  "$ROOT/src/" "$HOST:/home/ubuntu/gantry/src/"
+rsync -az --delete -e "$RSYNC_E" --exclude '__pycache__' --exclude '*.egg-info' \
+  --exclude '.venv' "$ROOT/plugins/" "$HOST:/home/ubuntu/gantry/plugins/"
+rsync -az -e "$RSYNC_E" "$ROOT/pyproject.toml" "$HOST:/home/ubuntu/gantry/pyproject.toml"
 "${SSH[@]}" "mkdir -p $REMOTE/api $REMOTE/web/dist $REMOTE/worker $REMOTE/data /home/ubuntu/bench_work"
 rsync -az --delete -e "$RSYNC_E" --exclude '__pycache__' --exclude data \
   "$ROOT/bench/api/"    "$HOST:$REMOTE/api/"
@@ -39,6 +52,28 @@ rsync -az --delete -e "$RSYNC_E" \
 rsync -az --delete -e "$RSYNC_E" --exclude '__pycache__' \
   "$ROOT/bench/worker/" "$HOST:$REMOTE/worker/"
 rsync -az -e "$RSYNC_E" "$ROOT/bench/deploy/" "$HOST:$REMOTE/deploy/"
+
+echo "==> virtualenv"
+"${SSH[@]}" bash -s <<'REMOTE_VENV'
+set -e
+cd /home/ubuntu/gantry
+if [ ! -x .venv/bin/python ]; then
+  python3 -m venv .venv
+  echo "  made a fresh .venv"
+fi
+.venv/bin/pip install -q --upgrade pip
+.venv/bin/pip install -q -e .
+# Every feedback plugin, because a worker with fewer installed returns a shorter
+# report on the same footage and a short report reads as a clean one.
+for p in plugins/*/; do
+  [ -f "$p/pyproject.toml" ] && .venv/bin/pip install -q -e "$p" || true
+done
+.venv/bin/pip install -q fastapi "uvicorn[standard]" sqlalchemy python-multipart
+.venv/bin/python -c "
+from importlib.metadata import entry_points
+names = sorted(e.name for e in entry_points(group='gantry.feedback'))
+print(f'  {len(names)} feedback checks installed')"
+REMOTE_VENV
 
 echo "==> environment"
 # Generated on the host and never in the repo. The worker token is the only
