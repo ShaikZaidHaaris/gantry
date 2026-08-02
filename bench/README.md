@@ -1,8 +1,8 @@
-# Gantry Bench — the product
+# Gantry Bench, the product
 
 Three deployables in one repo, per `webui/ARCHITECTURE.md`.
 
-    bench/api      FastAPI + SQLAlchemy — state, uploads, jobs, SSE
+    bench/api      FastAPI + SQLAlchemy: state, uploads, jobs, SSE
     bench/worker   claims jobs, runs gates, reports verdicts
     bench/web      React + TypeScript + TanStack Query
 
@@ -19,6 +19,17 @@ Three deployables in one repo, per `webui/ARCHITECTURE.md`.
 
 SQLite and local disk stand in for Postgres and S3. The seam is `api/app/db.py`
 plus two storage helpers; nothing else knows the difference.
+
+## Something to upload
+
+`bench/data/` is gitignored, so a fresh clone starts with an empty bench. Two
+real datasets are committed at the repository root for this:
+
+    samples/two_handed_58clips.zip
+    samples/one_handed_58clips.zip
+
+Upload both. Separately they show the pipeline runs; together they show the
+thing the product exists to detect. See `samples/README.md`.
 
 ## Deploying it
 
@@ -39,11 +50,21 @@ never in this repository.
 trusts it, so anyone who can reach the deployment can read every submission and
 upload their own. That function is the single seam real auth goes through.
 
-## What is built (step 1 of 6)
+## What is built
 
-Submissions, upload with progress, the job queue, the event log, SSE, and
-**Gate 0 · Intake** — the free readability check. A user can submit a dataset
-and see their own numbers, or a refusal that names what to fix.
+All four gates, and the screens over them.
 
-Next: Gate 1 (the free data report), then the live timeline over SSE, then the
-paid gates.
+    Gate 0 · Intake         can this be read at all. Seconds, free, CPU
+    Gate 1 · Data report    what is in it, from every installed check. A minute, free, CPU
+    Gate 2 · Signal check   does a probe learn anything from it. Minutes, GPU
+    Gate 3 · Robot test     does a policy trained on it do better. Hours, GPU and simulator
+
+Around them: submissions and versions, upload with progress, the job queue, the
+event log, live gate progress over SSE that survives a reload, the budget panel
+that says what a trial count can and cannot detect, retry that distinguishes our
+failure from a judgement on the data, the resubmit loop, the leaderboard with a
+compact letter display and a pair chooser, and export.
+
+What is not built is in `HANDOFF.md` section 9. The largest gap: no submission
+has yet produced its own shuffled control end to end through the product, so
+every live verdict is a ranking rather than an attribution.

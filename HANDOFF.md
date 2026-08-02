@@ -526,6 +526,9 @@ cd bench/api && BENCH_DATA=../data uvicorn app.main:app --port 7920
 cd bench/worker && python run.py --api http://127.0.0.1:7920 --gates g0,g1,g2
 cd bench/web && BENCH_API=http://127.0.0.1:7920 npm run dev
 
+# something to upload into it: samples/two_handed_58clips.zip and
+# samples/one_handed_58clips.zip. Upload both, see samples/README.md for why.
+
 # deploy
 bench/deploy/deploy.sh ubuntu@HOST /path/to/key.pem
 cloudflared tunnel --url http://127.0.0.1:8090   # on the host
@@ -539,7 +542,8 @@ Environment: `BENCH_DATA`, `BENCH_WORKER_TOKEN`, `BENCH_REQUIRED_MODULES`,
 ## 12. Where to look first
 
 - The argument for the product: section 7 above, and
-  `experiments/robotwin_ego/RESULTS.md`.
+  `experiments/robotwin_ego/RESULTS.md`. To see it rather than read it, upload
+  both files in `samples/` and compare them on the leaderboard.
 - The rules: `src/gantry/contracts/feedback.py` docstring.
 - The money gate: `bench/worker/gates/signal.py` docstring.
 - What the product refuses to claim: `bench/worker/gates/robot.py` docstring.
