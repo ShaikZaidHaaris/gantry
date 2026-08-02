@@ -27,6 +27,7 @@ Invariants
 
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
@@ -83,7 +84,14 @@ class EmbodimentDescriptor:
                     f"{self.ref} declares no action channels, so nothing can command it",
                 )
             )
-        if self.control_hz is not None and self.control_hz <= 0:
+        # `None` is the declared "not stated" value, so the only thing left to
+        # check is whether a stated rate is a rate. `<= 0` catches zero and
+        # negative and misses NaN and infinity, neither of which is a frequency:
+        # a NaN rate makes two byte-identical channels refuse to bind (nan != nan
+        # reads as a rate mismatch) while an infinite one names no period at all.
+        if self.control_hz is not None and (
+            not math.isfinite(self.control_hz) or self.control_hz <= 0
+        ):
             checks.append(
                 Verdict.no(
                     "embodiment.control_hz",

@@ -25,6 +25,7 @@ Invariants
 
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
@@ -179,6 +180,14 @@ def feedback_descriptor(
     isolation: str = "in-process",
     **metadata: Any,
 ) -> Descriptor:
+    # The sibling factories validate the count they publish and this one did
+    # not, which is the whole asymmetry: `min_cohorts` is the declaration that
+    # decides whether a question is askable of the cohorts on hand, and it was
+    # the only published count nobody checked. A non-finite value reaches
+    # `int()` in `min_cohorts()` and in the conformance kit and raises there,
+    # naming neither the module nor the parameter that was wrong.
+    if not math.isfinite(min_cohorts) or min_cohorts < 1:
+        raise ValueError(f"min_cohorts must be at least 1, got {min_cohorts}")
     return Descriptor(
         plane="feedback",
         name=name,
