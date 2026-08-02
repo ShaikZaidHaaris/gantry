@@ -39,7 +39,7 @@ function Cellbox({ cell }: { cell: Cell }) {
   if (!cell.measured) {
     return (
       <span className="rung-num none" title="this arm reported no events for this rung">
-        —
+        -
       </span>
     );
   }

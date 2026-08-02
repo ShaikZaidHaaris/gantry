@@ -99,7 +99,7 @@ export function Compare() {
             </Link>
           }
         >
-          A dataset appears here once it has been through the robot test — the
+          A dataset appears here once it has been through the robot test, the
           last check, where a policy is actually trained on your data and run on
           the robot. The three checks before it tell you whether that is worth
           doing, and none of them need one.

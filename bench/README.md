@@ -27,7 +27,7 @@ Two things that will otherwise cost an afternoon:
 **Use a venv holding *this* checkout's packages.** A sibling clone has its own
 editable installs, and a worker started on the system interpreter picks those up
 instead, then dies on an import this branch added. The traceback never reaches
-the UI — it shows as a gate that "failed" with no stated cause, which reads as a
+the UI. It shows as a gate that "failed" with no stated cause, which reads as a
 problem with the uploaded data.
 
 **Do not run two workers on one queue.** Both poll, both claim, and the loser
@@ -36,7 +36,7 @@ before starting for exactly this reason.
 
 `run-local.sh` also runs only `g0,g1,g2` on purpose. Every gate is priced at
 zero and `finish_job` stops auto-advancing only when `cost_cents > 0`, so a
-passing signal check would otherwise enqueue the robot test with no human step —
+passing signal check would otherwise enqueue the robot test with no human step,
 a multi-hour training run on any host where `BENCH_RUNNER` is set.
 
 SQLite and local disk stand in for Postgres and S3. The seam is `api/app/db.py`
@@ -77,16 +77,16 @@ leaderboard only when its owner publishes it.
 
 **Read `deploy/IDENTITY.md` before putting this on the internet.** Behind
 Cloudflare the client's real address arrives in a *header*, and a header is
-something the client writes — so an origin that believes `CF-Connecting-IP`
+something the client writes, so an origin that believes `CF-Connecting-IP`
 unconditionally lets anyone who can reach it directly claim any address and read
 that address's uploads. Identity here *is* the access control.
 
 A forwarding header is therefore trusted only when the request carries a shared
 secret the edge attaches. With none configured, forwarding headers are ignored
-and every visitor collapses into one org — loud, harmless, and reported by
+and every visitor collapses into one org: loud, harmless, and reported by
 `/api/me`. The opposite failure is silent. Check which you are in:
 
-    curl -s https://your-host/api/me | jq .identity     # "mode": "edge" | "direct"
+    curl -s https://your-host/api/me | jq .identity     # "edge" | "tunnel" | "direct"
 
 Addresses are salted-hashed at rest and never displayed; the UI says
 "Visitor 4c85".
@@ -101,7 +101,7 @@ signed cookie fixes both and slots into the same seam: `viewer()` in
 
 Off by default. `POST /api/submissions/{id}/listed` toggles both ways, refuses
 without a finished robot test, and 404s on somebody else's submission. You can
-always see your own unlisted entry on the board — deciding whether to publish
+always see your own unlisted entry on the board, because deciding whether to publish
 requires seeing where it stands.
 
 ## What is built
@@ -116,12 +116,12 @@ All four gates, and the screens over them.
 Only gate 0 can refuse outright. Gate 1 describes and never passes or fails your
 data; gate 2 is the one that can say no, by fitting a probe on your clips and
 again on a copy with the actions attached to the wrong episodes, then comparing
-both on footage neither has seen. It needs at least 10 episodes —
+both on footage neither has seen. It needs at least 10 episodes,
 `smallest_conclusive() + FIT_FLOOR`, derived from the test rather than picked.
 
 Verdicts come from a fixed vocabulary, and the distinctions are load-bearing:
 
-    Passed        the check ran and produced its result — not always "good"
+    Passed        the check ran and produced its result, not always "good"
     Refused       we read your data and something in it is wrong
     Can't tell    it ran and could not conclude. NOT a no
     Our error     our machinery broke; your data was never judged
@@ -141,7 +141,7 @@ every live verdict is a ranking rather than an attribution.
 
 ## Tests
 
-    (cd bench/api    && python -m pytest tests/ -q)     # 32
+    (cd bench/api    && python -m pytest tests/ -q)     # 35
     (cd bench/worker && python -m pytest tests/ -q)     #  6
     (cd bench/web    && npm run build)                  # tsc -b, strict
 
@@ -149,11 +149,11 @@ Two suites earn their place by covering configurations the others structurally
 could not:
 
 - **`api/tests/test_claim.py`** claims jobs from *threads*. Sequential requests
-  never race — the first commits `running` and the second's SELECT no longer
-  matches — which is why an unguarded claim passed every test written before it.
+  never race: the first commits `running` and the second's SELECT no longer
+  matches, which is why an unguarded claim passed every test written before it.
 - **`api/tests/test_migration.py`** builds the *old* schema by hand and migrates
   it. Every other test starts from an empty directory, where `create_all` builds
-  the tables from the models and the migration path never runs — the one
+  the tables from the models and the migration path never runs, the one
   configuration no deployment is ever in. It hid a bug that published every
   submission to the shared leaderboard.
 

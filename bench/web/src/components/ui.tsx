@@ -171,7 +171,7 @@ export function bytes(n: number): string {
 }
 
 export function ago(iso: string): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const seconds = (Date.now() - new Date(iso).getTime()) / 1000;
   if (seconds < 60) return "just now";
   if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;

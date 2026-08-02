@@ -80,12 +80,12 @@ export function Submissions() {
               to={`/submissions/${sub.id}`}
             >
               <span style={{ fontWeight: 550 }}>{sub.name}</span>
-              <span style={{ color: "var(--text-2)" }}>{sub.benchmark?.name ?? "—"}</span>
+              <span style={{ color: "var(--text-2)" }}>{sub.benchmark?.name ?? "-"}</span>
               <span>
                 <StatusPill status={pill.status} label={pill.label} />
               </span>
               <span className="mono">
-                {detected?.episodes ? `${detected.episodes} eps · ${detected.frames} fr` : "—"}
+                {detected?.episodes ? `${detected.episodes} eps · ${detected.frames} fr` : "-"}
               </span>
               <span className="mono" style={{ color: "var(--text-3)" }}>
                 {ago(sub.created_at)}

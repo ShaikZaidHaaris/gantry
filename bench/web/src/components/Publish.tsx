@@ -38,7 +38,7 @@ export function Publish({ submission }: { submission: Submission }) {
           {on ? (
             <>
               Anyone comparing this benchmark can see this result and the name you
-              gave it. Nothing else about you is shown — not your address, and no
+              gave it. Nothing else about you is shown: not your address, and no
               identifier derived from it.
             </>
           ) : (

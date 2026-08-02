@@ -184,7 +184,7 @@ h2 { font-size: 17px; font-weight: 700; margin: 30px 0 11px; letter-spacing: -0.
 
 /* A finding is two sentences: what was found, in medium weight, and what to do,
    in quiet prose underneath. No machine code as a heading, no severity dot, no
-   tinted callout box — grouping ("what to fix" vs "also noted") already carries
+   tinted callout box. Grouping ("what to fix" vs "also noted") already carries
    the urgency, and everything else was the system talking about itself. The
    code survives as the row's hover title for anyone who needs to cite it. */
 .finding { border-top: 1px solid var(--border); padding: 14px 0; }
@@ -266,7 +266,7 @@ h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px
 .fold-body { margin-top: 8px; }
 @media (prefers-reduced-motion: reduce) { .fold-head .chev { transition: none } }
 
-/* measurements: value, interval, n — never a bare float */
+/* measurements: value, interval, n, never a bare float */
 .table-lite .mrow {
   display: grid; grid-template-columns: minmax(0, 1fr) 52px 132px 46px; gap: 14px;
   align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--border);
@@ -307,7 +307,7 @@ h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px
 .running .count { color: var(--text-3); font-size: 11.5px; flex: none; }
 
 /* An indeterminate bar says "working, and we do not know how long". Distinct
-   from a bar sitting at 0%, which says "nothing has happened" — and inventing
+   from a bar sitting at 0%, which says "nothing has happened", and inventing
    a denominator so the bar could move would be a lie the user cannot check. */
 .bar.indeterminate { position: relative; }
 .bar.indeterminate > i {
@@ -320,7 +320,7 @@ h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px
 
 /* the budget panel --------------------------------------------------------- */
 /* The headline is what the run can conclude. The price is underneath it, in
-   the same weight as the duration — because the number that decides whether
+   the same weight as the duration, because the number that decides whether
    this experiment is worth doing is the first one, not the second. */
 .budget-head h3 { font-size: 14.5px; font-weight: 620; letter-spacing: -0.15px; }
 .budget-head p { color: var(--text-2); font-size: 12.5px; margin-top: 3px; max-width: 64ch; }
@@ -371,7 +371,7 @@ h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px
                text-wrap: balance; }
 
 /* Wide content scrolls inside its own box. The page body must never scroll
-   sideways — a table that pushes the whole document off-screen is unusable in
+   sideways. A table that pushes the whole document off-screen is unusable in
    a narrow pane, which is where a lab lead reads it. */
 .scroll-x { overflow-x: auto; }
 .ladder { padding: 4px 0; min-width: 560px; }
@@ -405,7 +405,7 @@ h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px
 
 /* buying a gate ------------------------------------------------------------ */
 /* The one irreversible control in the product, so it says what it will do and
-   what it costs on the button itself — never just "Run". */
+   what it costs on the button itself, never just "Run". */
 .budget-buy { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
               padding: 4px 0 14px; }
 .budget-buy-note { font-size: 12px; color: var(--text-3); max-width: 46ch }
@@ -472,7 +472,7 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
 
 /* print -------------------------------------------------------------------- */
 /* The browser is the renderer. A server-side PDF would be a second layout that
-   drifts from this one — and what drifts out is whatever was added last, which
+   drifts from this one, and what drifts out is whatever was added last, which
    is usually a caveat. */
 @media print {
   @page { margin: 16mm 14mm; }
@@ -513,7 +513,7 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
 .change-group { padding: 8px 0 }
 .change-group b { display: block; font-size: 11px; text-transform: uppercase;
                   letter-spacing: 0.06em; margin-bottom: 6px }
-/* Gone is the headline — it is the thing the contributor actually did. */
+/* Gone is the headline; it is the thing the contributor actually did. */
 .change-group.fixed b { color: var(--ok) }
 .change-group.remaining b { color: var(--text-3) }
 .change-group.appeared b { color: var(--warn) }

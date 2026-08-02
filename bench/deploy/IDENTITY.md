@@ -20,8 +20,8 @@ TCP peer is a Cloudflare machine; the real address arrives in a header,
 A header is a thing the client writes.
 
 So an origin that trusts `CF-Connecting-IP` unconditionally lets anybody who can
-reach it **directly** — bypassing Cloudflare, which on AWS is usually possible
-whatever your DNS says — set that header to any value and read that visitor's
+reach it **directly**, bypassing Cloudflare, which on AWS is usually possible
+whatever your DNS says, set that header to any value and read that visitor's
 submissions. Identity here *is* the access control, so believing a forged header
 is a full authorization bypass, not a cosmetic bug.
 
@@ -54,13 +54,13 @@ Three, and the right one depends on how the origin is reachable.
 
 **A quick tunnel cannot use the secret**, because a secret is attached by a
 Transform Rule and a Transform Rule needs a zone, which a quick tunnel has none
-of. That is why tunnel mode exists — without it, the whole `trycloudflare.com`
+of. That is why tunnel mode exists. Without it, the whole `trycloudflare.com`
 deployment silently runs with every visitor sharing one org.
 
 Tunnel mode rests on a weaker argument than the secret: a fact about the host
-rather than a value only your edge knows. It is checked as far as it can be —
+rather than a value only your edge knows. It is checked as far as it can be:
 a request arriving from anything but a loopback peer is not trusted even with
-the flag set — but the flag itself is your assertion that the API binds to
+the flag set. But the flag itself is your assertion that the API binds to
 loopback. **Turn it off if you ever bind to `0.0.0.0`.**
 
     BENCH_TRUST_TUNNEL=1
@@ -86,8 +86,8 @@ openssl rand -hex 32   # BENCH_TRUST_SECRET
 openssl rand -hex 16   # BENCH_IP_SALT
 ```
 
-`BENCH_IP_SALT` matters more than it looks. Addresses are hashed before storage —
-the database never holds an IP — and an unsalted SHA-256 of a 32-bit value is a
+`BENCH_IP_SALT` matters more than it looks. Addresses are hashed before storage,
+the database never holds an IP, and an unsalted SHA-256 of a 32-bit value is a
 rainbow table, not a hash. **If it is unset, one is generated per process**,
 which means every visitor becomes a new org on restart and loses their
 submissions. Set it, and keep it: changing it later orphans every existing org.
@@ -155,7 +155,7 @@ them worth deciding about rather than discovering:
   on it sees the same list. If your users are colleagues on one network, this
   model does not separate them.
 - **A changed address is a new visitor.** A reconnected router, a laptop moving
-  from wifi to tethering, or IPv6 privacy extensions rotating — all arrive as
+  from wifi to tethering, or IPv6 privacy extensions rotating, all arrive as
   somebody new, and cannot reach what they uploaded an hour earlier. Nothing is
   deleted; it is simply no longer theirs.
 - **Nobody is authenticated.** There are no accounts and no passwords. Two people

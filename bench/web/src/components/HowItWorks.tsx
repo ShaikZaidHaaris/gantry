@@ -41,7 +41,7 @@ const CHECKS: Check[] = [
     name: "Data report",
     asks: "What is this footage like?",
     does:
-      "Describes the recording — how the arms move, how long episodes run, how much " +
+      "Describes the recording: how the arms move, how long episodes run, how much " +
       "the footage varies. It never passes or fails your data; it produces a report " +
       "and tells you which of its checks had nothing to work with.",
     takes: "about a minute",
@@ -77,7 +77,7 @@ const ANSWERS: { word: string; tone: string; means: string }[] = [
     means:
       "The check ran and produced its result. For intake that means readable; for " +
       "the signal check it means your footage predicts the movements. It does not " +
-      "always mean 'good' — read what the check itself says.",
+      "always mean 'good'. Read what the check itself says.",
   },
   {
     word: "Refused",
@@ -92,7 +92,7 @@ const ANSWERS: { word: string; tone: string; means: string }[] = [
     means:
       "The check ran and could not reach an answer either way. This is not a no. " +
       "Usually it means there was not enough data to separate your result from " +
-      "chance — the check says whether more would help.",
+      "chance. The check says whether more would help.",
   },
   {
     word: "Our error",
@@ -111,13 +111,13 @@ export function HowItWorks({ defaultOpen = false }: { defaultOpen?: boolean }) {
           <section>
             <h3>What you upload</h3>
             <p>
-              <b>Annotated video</b> — not video on its own. Every frame of footage has to
+              <b>Annotated video</b>, not video on its own. Every frame of footage has to
               carry the numbers that go with it: the command that was issued at that frame,
               and where the arms actually were. Video with no annotations cannot be checked
               here and cannot be trained on, because there is nothing for a policy to copy.
             </p>
             <p>
-              In practice that means a <b>.zip of a LeRobot v2 recording</b> — the layout{" "}
+              In practice that means a <b>.zip of a LeRobot v2 recording</b>, the layout{" "}
               <code>lerobot</code> writes: a <code>meta/</code> folder with{" "}
               <code>info.json</code> and <code>episodes.jsonl</code>, one parquet file per
               episode holding the per-frame numbers, and your camera streams as{" "}
@@ -127,30 +127,27 @@ export function HowItWorks({ defaultOpen = false }: { defaultOpen?: boolean }) {
               The two annotation channels are required by name: <code>action</code> for the
               command issued at each frame, and <code>observation.state</code> for where the
               arms were. At least one camera has to be present, and the same camera has to
-              be in every episode — a stream only some episodes carry cannot be checked
+              be in every episode, because a stream only some episodes carry cannot be checked
               across the set.
             </p>
 
             <div className="sample">
               <div>
-                <b>Three real datasets to try — any one on its own is enough</b>
+                <b>Two real datasets to try. Either one on its own is enough</b>
                 <p>
-                  The training sets from an experiment that actually ran:{" "}
-                  <code>pick_dual_bottles</code> on an aloha-agilex, in the layout above.
-                  All three share the same 50 RoboTwin demonstrations; what differs is
-                  which egocentric human footage was added on top, and in the baseline's
-                  case that none was. <b>Take whichever you like</b> — a single upload
-                  runs the whole flow.
+                  Training sets from an experiment that actually ran:{" "}
+                  <code>pick_dual_bottles</code> on an aloha-agilex, 58 clips each, in
+                  the layout above. Both share the same 50 RoboTwin demonstrations; what
+                  differs is the egocentric human footage added on top, in one case where
+                  both hands were tracked and in the other where one was mostly absent.{" "}
+                  <b>Take whichever you like.</b> A single upload runs the whole flow.
                 </p>
                 <div className="sample-links">
-                  <a className="btn primary" href="/api/samples/baseline">
-                    Baseline · 50 clips · 4 MB
-                  </a>
-                  <a className="btn" href="/api/samples/two_handed">
-                    + ego, both hands · 58 · 9.4 MB
+                  <a className="btn primary" href="/api/samples/two_handed">
+                    Both hands · 58 clips · 9.4 MB
                   </a>
                   <a className="btn" href="/api/samples/one_handed">
-                    + ego, one hand · 58 · 9.6 MB
+                    One hand · 58 clips · 9.6 MB
                   </a>
                 </div>
               </div>
@@ -206,7 +203,7 @@ export function HowItWorks({ defaultOpen = false }: { defaultOpen?: boolean }) {
             <p>
               Fix it and upload again from the same submission. Each upload is a new
               version, every check runs again on it, and the old version keeps its
-              results — so you can see what your change actually did rather than
+              results, so you can see what your change actually did rather than
               remembering what the numbers used to be.
             </p>
           </section>

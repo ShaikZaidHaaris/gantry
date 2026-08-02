@@ -62,7 +62,7 @@ function answerFor(sub: Submission): Answer {
       headline: "Something broke on our side",
       detail:
         "This is a fault in our machinery, not a judgement on your data. Nothing " +
-        "here says your dataset is wrong — we simply did not get an answer.",
+        "here says your dataset is wrong; we simply did not get an answer.",
       next: "Run the check again. If it breaks a second time, the fault is ours to fix.",
     };
   }
@@ -91,7 +91,7 @@ function answerFor(sub: Submission): Answer {
       detail:
         unsure?.verdict?.summary ??
         "The check ran, but the result was not clear enough to call. That is not " +
-          "a verdict against your data — it means this much data could not settle it.",
+          "a verdict against your data. It means this much data could not settle it.",
       // The gate's own prescription, never a guess. Only some abstentions are
       // cured by more episodes: the signal check also abstains when the clips
       // share no camera, and telling that user to film more of the same is
@@ -126,9 +126,9 @@ function answerFor(sub: Submission): Answer {
         ? "All four checks have run, and nothing is blocking your data"
         : `${passed.length} of ${gates.length} checks done, nothing blocking so far`,
     detail: noted
-      ? `${noted} thing${noted === 1 ? "" : "s"} worth reading about below — none of them stop you.`
+      ? `${noted} thing${noted === 1 ? "" : "s"} worth reading about below, none of them stop you.`
       : "Nothing has come back needing a fix.",
-    next: nextUp ? `Next: ${nextUp.name} — ${nextUp.question.toLowerCase()}` : undefined,
+    next: nextUp ? `Next: ${nextUp.name}, ${nextUp.question.toLowerCase()}` : undefined,
   };
 }
 

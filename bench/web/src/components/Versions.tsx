@@ -105,8 +105,8 @@ function Change({ change }: { change: VersionChange }) {
           v{change.from} <span className="arrow">→</span> v{change.to}
         </span>
         <span className="dim mono">
-          {change.clips[1] ?? "—"} clips{clips && ` (${clips})`} ·{" "}
-          {change.frames[1] ?? "—"} frames{frames && ` (${frames})`}
+          {change.clips[1] ?? "-"} clips{clips && ` (${clips})`} ·{" "}
+          {change.frames[1] ?? "-"} frames{frames && ` (${frames})`}
         </span>
       </div>
 

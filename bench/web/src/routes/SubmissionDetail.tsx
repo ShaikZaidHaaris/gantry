@@ -167,7 +167,7 @@ export function SubmissionDetail() {
           (grep '"status":' in robot.py), so the `abstained` arm this used to
           carry was unreachable. A failed run has no ladder to draw, and the
           timeline already says it broke on our side and should not be charged
-          for — inventing a verdict section for it would show an empty table
+          for. Inventing a verdict section for it would show an empty table
           where a result belongs. */}
       {robot && robot.status === "passed" && (
         <>

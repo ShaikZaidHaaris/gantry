@@ -70,7 +70,7 @@ const OUTCOMES: Record<string, Partial<Record<GateStatus, Outcome>>> = {
       headline: "Your footage predicts the robot's movements",
       detail:
         "There is a real relationship between what the camera saw and what the " +
-        "arms did — which is the thing a policy learns.",
+        "arms did, which is the thing a policy learns.",
     },
     refused: {
       headline: "Your footage and your actions don't line up",
@@ -81,7 +81,7 @@ const OUTCOMES: Record<string, Partial<Record<GateStatus, Outcome>>> = {
     abstained: {
       headline: "We couldn't tell whether the footage predicts the movements",
       detail:
-        "Not a verdict against your data — there simply were not enough episodes " +
+        "Not a verdict against your data. There simply were not enough episodes " +
         "to separate it from a scrambled copy of itself.",
     },
   },
@@ -90,7 +90,7 @@ const OUTCOMES: Record<string, Partial<Record<GateStatus, Outcome>>> = {
       headline: "The robot test ran",
       detail:
         "It reports how far the robot got at each stage, against a control. Read " +
-        "it with the limits listed underneath — some of them decide what this " +
+        "it with the limits listed underneath, because some of them decide what this " +
         "result may be called.",
     },
     failed: {

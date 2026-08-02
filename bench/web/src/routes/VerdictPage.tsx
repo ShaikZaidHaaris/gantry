@@ -100,14 +100,14 @@ export function VerdictPage() {
           </span>
           <span>
             <b>Dataset</b> v{data.dataset?.version} ·{" "}
-            {data.dataset ? bytes(data.dataset.bytes) : "—"} ·{" "}
-            {data.dataset?.detected?.episodes ?? "—"} clips
+            {data.dataset ? bytes(data.dataset.bytes) : "-"} ·{" "}
+            {data.dataset?.detected?.episodes ?? "-"} clips
           </span>
           <span>
             <b>Scenes</b> {scenes} per arm
           </span>
           <span>
-            <b>Arms</b> {arms.join(", ") || "—"}
+            <b>Arms</b> {arms.join(", ") || "-"}
           </span>
           <span>
             <b>Run</b> {when(gate.finished_at)}

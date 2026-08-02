@@ -6,7 +6,7 @@
  *  indicator above them was more chrome than either step had content.
  *
  *  Worse, pressing Continue created a real submission server-side. Anybody who
- *  stopped there — which is most people who open a form to see what it wants —
+ *  stopped there, which is most people who open a form to see what it wants,
  *  left an empty record behind with no dataset attached and no way to tell it
  *  apart from an upload that failed. Nothing is created now until there is a
  *  file to attach, and the create and the upload happen back to back from one
@@ -18,7 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { useBenchmarks, useCreateSubmission, uploadDataset } from "../api/client";
 import { ErrorNote, bytes } from "../components/ui";
 
-/** The one benchmark. Fixed while there is only one — a select with a single
+/** The one benchmark. Fixed while there is only one, because a select with a single
  *  option is a decision the product does not have. The value still travels
  *  with the submission; nobody is asked to pick it. */
 const BENCHMARK = "pick_dual_bottles";
@@ -87,7 +87,7 @@ export function NewSubmission() {
         {/* Optional, and it says so, because a required field here would be an
             account by another name. But the reason to fill it in is specific
             rather than "stay in touch": the robot test runs for hours with
-            nobody watching, and identity on this site is your IP address — so a
+            nobody watching, and identity on this site is your IP address, so a
             changed network is otherwise a submission you cannot get back to. */}
         <label className="field">
           <span className="lab">
@@ -103,7 +103,7 @@ export function NewSubmission() {
           <span className="hint">
             Only so we can reach you if a check breaks on our side, hours in, with
             nobody watching. It is also the way back to this submission if your network
-            changes — you are identified here by address, and a new one looks like a
+            changes. You are identified here by address, and a new one looks like a
             new person.
           </span>
         </label>
