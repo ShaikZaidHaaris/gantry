@@ -91,10 +91,26 @@ export function SubmissionDetail() {
           </p>
         </div>
         <div className="spacer" />
+        {/* A sample is not one of yours, so "All submissions" would be a lie
+            about where you came from and where this sits. */}
         <Link className="btn" to="/">
-          All submissions
+          {data.demo ? "Back to the start" : "All submissions"}
         </Link>
       </div>
+
+      {/* Said once, at the top, before any of the numbers. Somebody who arrived
+          here from the front page needs to know these are not their results
+          before they read a verdict, not after. */}
+      {data.demo && (
+        <div className="demo-note">
+          <b>A worked example.</b>
+          <span>
+            This is a finished run from the experiment this benchmark was built against,
+            kept here so you can see what comes out before uploading anything. It belongs
+            to nobody and cannot be changed. Your own uploads are private to you.
+          </span>
+        </div>
+      )}
 
       {/* The answer first. Everything below it is the reasoning behind the
           answer or reference material about the upload, and both were being
@@ -106,9 +122,9 @@ export function SubmissionDetail() {
         gates={data.gates}
         currentGate={data.current_gate}
         live={live}
-        onStart={(gate) => start.mutate({ gate })}
+        onStart={data.demo ? undefined : (gate) => start.mutate({ gate })}
         starting={start.isPending}
-        onRetry={(gate) => retry.mutate(gate)}
+        onRetry={data.demo ? undefined : (gate) => retry.mutate(gate)}
         retrying={retry.isPending}
       />
 
@@ -174,16 +190,16 @@ export function SubmissionDetail() {
           <h2>
             Robot test
             <span className="h2-sub">closed-loop, on scenes the policy has never seen</span>
-            <Link className="h2-link" to={`/submissions/${data.id}/verdict`}>
+            <Link className="h2-link" to={`${data.demo ? "/samples" : "/submissions"}/${data.id}/verdict`}>
               Open as a document →
             </Link>
           </h2>
           <Verdict gate={robot} />
-          <Publish submission={data} />
+          {!data.demo && <Publish submission={data} />}
         </>
       )}
 
-      {sized && report?.status === "passed" && (
+      {!data.demo && sized && report?.status === "passed" && (
         <>
           <h2>
             What to run next
@@ -201,7 +217,7 @@ export function SubmissionDetail() {
       {/* Below the result, not above it. Re-uploading is something you do
           *because* of an answer, so the control for it follows the answer
           rather than sitting between the reader and it. */}
-      {id && <Versions id={id} />}
+      {id && !data.demo && <Versions id={id} />}
 
       {data.events && data.events.length > 0 && (
         <>

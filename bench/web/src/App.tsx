@@ -32,6 +32,11 @@ export default function App() {
         <Route path="/submissions/:id" element={<SubmissionDetail />} />
         <Route path="/compare" element={<Compare />} />
         <Route path="/submissions/:id/verdict" element={<VerdictPage />} />
+        {/* Worked examples live on their own path. They render through the same
+            screen as a real result, deliberately, but a sample is not one of
+            your submissions and its address should not claim otherwise. */}
+        <Route path="/samples/:id" element={<SubmissionDetail />} />
+        <Route path="/samples/:id/verdict" element={<VerdictPage />} />
       </Routes>
     </div>
   );

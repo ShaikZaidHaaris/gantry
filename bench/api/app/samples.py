@@ -1,0 +1,183 @@
+"""Worked examples: finished results anybody can read, that belong to nobody.
+
+Why this exists
+---------------
+Submissions are scoped to the visitor who uploaded them, and that scoping is
+deliberate: two people who have never met should not read each other's
+datasets. The cost is that a first-time visitor can see nothing. They arrive at
+a page describing four checks and a verdict, with no way to look at one without
+first uploading a dataset, which is exactly the commitment the verdict is meant
+to help them decide about.
+
+So two results from a run that actually happened are seeded on startup. They are
+not somebody's work and are never counted as such: excluded from every visitor's
+list, excluded from the leaderboard, and refused by every route that writes.
+What they are is the product's own screen, over real numbers.
+
+Where the numbers come from
+---------------------------
+``sample_results.json``, exported from the deployment that ran them, gates and
+findings and activity log intact. Nothing here is authored: a sample whose
+verdict was written by hand would be a mock of the one thing this product sells,
+and the first person to check it against `experiments/robotwin_ego/` would find
+that out.
+
+The export is sanitised of the host it ran on. One event had a failed attempt's
+raw trainer output pasted into its summary, filesystem paths and all, which is
+both a leak and the thing `robot.py`'s ``produce()`` explicitly refuses to do;
+its summary now says what happened without the terminal dump. The failure itself
+is kept, because it happened.
+
+Seeding is idempotent and content-addressed by id. A sample already present is
+replaced rather than duplicated, so correcting the fixture and restarting is
+enough to correct what is served.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
+
+from .db import Benchmark, DatasetVersion, Event, Gate, Submission, new_id
+
+#: Owner of every sample. Not a real org row, and no visitor can ever be given
+#: it: :func:`identity.org_key` derives an org from a hashed address, and this
+#: is not of that shape. So "is it mine" comparisons against a visitor's org are
+#: false for samples without needing a special case.
+SAMPLE_ORG = "org_sample"
+
+FIXTURE = Path(__file__).with_name("sample_results.json")
+
+
+def _load() -> list[dict]:
+    if not FIXTURE.exists():
+        return []
+    try:
+        return json.loads(FIXTURE.read_text()).get("samples", [])
+    except (OSError, ValueError):
+        # A malformed fixture must not take the API down with it. Samples are a
+        # convenience; submissions are the product.
+        return []
+
+
+def seed(session: Session) -> int:
+    """Put the worked examples in the database. Returns how many were written."""
+    samples = _load()
+    if not samples:
+        return 0
+
+    written = 0
+    for spec in samples:
+        bench = session.scalar(select(Benchmark).where(Benchmark.key == spec["benchmark_key"]))
+        if bench is None:
+            # Benchmarks are seeded elsewhere and first. A sample for one that
+            # does not exist is skipped rather than invented.
+            continue
+
+        sid = spec["id"]
+        # Replace rather than merge. The fixture is the truth and a half-updated
+        # sample is worse than a stale one.
+        session.execute(delete(Gate).where(Gate.submission_id == sid))
+        session.execute(delete(Event).where(Event.submission_id == sid))
+        session.execute(delete(DatasetVersion).where(DatasetVersion.submission_id == sid))
+        existing = session.get(Submission, sid)
+        if existing is not None:
+            session.delete(existing)
+            session.flush()
+
+        session.add(
+            Submission(
+                id=sid,
+                org_id=SAMPLE_ORG,
+                name=spec["name"],
+                benchmark_id=bench.id,
+                status=spec["status"],
+                current_gate=spec["current_gate"],
+                created_by=SAMPLE_ORG,
+                email="",
+                listed=False,
+                demo=True,
+                created_at=spec["created_at"],
+            )
+        )
+
+        d = spec["dataset"]
+        session.add(
+            DatasetVersion(
+                id=new_id("dsv"),
+                submission_id=sid,
+                version=d["version"],
+                # No path. A sample is never served through the dataset route,
+                # and the archive it was built from is in samples/ where anyone
+                # can fetch it by name.
+                path="",
+                bytes=d["bytes"],
+                detected_json=d["detected_json"],
+                meaning_json=d["meaning_json"],
+                created_at=d["created_at"],
+            )
+        )
+
+        for g in spec["gates"]:
+            session.add(
+                Gate(
+                    id=new_id("gate"),
+                    submission_id=sid,
+                    version=g.get("version", 1),
+                    key=g["key"],
+                    status=g["status"],
+                    verdict_json=g.get("verdict_json") or "{}",
+                    findings_json=g.get("findings_json") or "[]",
+                    measures_json=g.get("measures_json") or "{}",
+                    abstained_json=g.get("abstained_json") or "[]",
+                    detail_json=g.get("detail_json") or "{}",
+                    progress_json=g.get("progress_json") or "{}",
+                    started_at=g.get("started_at"),
+                    finished_at=g.get("finished_at"),
+                    cost_cents=g.get("cost_cents", 0),
+                    trials=g.get("trials", 0),
+                )
+            )
+
+        for e in spec["events"]:
+            # No id. `Event.id` is an autoincrementing integer, and the SSE
+            # stream resumes from `Last-Event-ID` by comparing against it, so
+            # the ids have to be the database's own ascending integers rather
+            # than anything carried over from the machine this was exported
+            # from.
+            session.add(
+                Event(
+                    submission_id=sid,
+                    ts=e["ts"],
+                    kind=e["kind"],
+                    payload_json=e.get("payload_json") or "{}",
+                )
+            )
+        _SEEDED[spec["key"]] = sid
+        written += 1
+
+    session.commit()
+    return written
+
+
+#: What :func:`seed` actually wrote, this process. Key to submission id.
+#:
+#: Recorded here rather than looked up per request so the listing route stays a
+#: function of the filesystem and can be called directly, which is how
+#: tests/test_samples.py exercises it. Asking the database on every request also
+#: answered a question nobody had: whether the row still exists, rather than
+#: whether we put it there.
+_SEEDED: dict[str, str] = {}
+
+
+def ids() -> dict[str, str]:
+    """Sample key to submission id, for the screens that link to them.
+
+    Empty until seeding has run and only ever holds what it wrote, so a
+    deployment whose fixture failed to load offers the download alone instead of
+    a link to a page that is not there.
+    """
+    return dict(_SEEDED)

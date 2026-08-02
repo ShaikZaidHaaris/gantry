@@ -23,6 +23,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .identity import client_ip, describe, label, org_key
+from .samples import ids as sample_ids
+from .samples import seed as seed_samples
 
 from .db import (
     STORAGE,
@@ -214,10 +216,16 @@ def as_submission(session: Session, sub: Submission, deep: bool = False) -> dict
         #: submission that predates the flag, which is the safe direction: a
         #: result never becomes public because a column was added.
         "listed": bool(sub.listed),
-        #: Only ever returned to the org that owns the submission -- every route
-        #: reaching this function checks that first -- and never included in a
-        #: leaderboard row, which is read across visitors.
-        "email": sub.email or "",
+        #: A seeded example is readable by everyone, so it is the one row
+        #: reaching this function that its reader does not own. Blanked here
+        #: rather than trusted to be empty in the fixture, because the fixture
+        #: is data and this is the invariant.
+        "demo": bool(sub.demo),
+        #: Only ever returned to the org that owns the submission: every route
+        #: reaching this function checks that or `demo` first, and `demo` rows
+        #: are blanked directly above. Never in a leaderboard row, which is read
+        #: across visitors.
+        "email": "" if sub.demo else (sub.email or ""),
         "created_at": sub.created_at,
         "benchmark": {"key": bench.key, "name": bench.name, "simulator": bench.simulator} if bench else None,
         "gates": [as_gate(g) for g in gates],
@@ -244,6 +252,17 @@ def as_submission(session: Session, sub: Submission, deep: bool = False) -> dict
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
+    # After the benchmarks exist, since a sample points at one. Failure here is
+    # logged and swallowed: worked examples are a convenience, and an API that
+    # will not start because a demo fixture is malformed has traded the product
+    # for the brochure.
+    try:
+        with SessionLocal() as session:
+            written = seed_samples(session)
+        if written:
+            print(f"seeded {written} worked example(s)")
+    except Exception as exc:  # noqa: BLE001
+        print(f"could not seed worked examples: {exc}")
 
 
 @app.get("/api/me")
@@ -430,7 +449,7 @@ def versions(sub_id: str, who=Depends(viewer), session: Session = Depends(db)):
     and let the size of the move speak.
     """
     sub = session.get(Submission, sub_id)
-    if sub is None or sub.org_id != who["org_id"]:
+    if not readable(sub, who):
         raise HTTPException(404, "no such submission")
 
     uploads = session.scalars(
@@ -515,6 +534,10 @@ def compare(benchmark: str, rung: str = "solved", who=Depends(viewer), session: 
     for sub in session.scalars(
         select(Submission).where(
             Submission.benchmark_id == bench.id,
+            # A seeded example is not a competitor. Ranking it would put a
+            # result nobody submitted above results people did, and the compact
+            # letter display would then be grouping it with them.
+            Submission.demo.is_(False),
             or_(Submission.org_id == who["org_id"], Submission.listed.is_(True)),
         )
     ).all():
@@ -599,8 +622,13 @@ def compare(benchmark: str, rung: str = "solved", who=Depends(viewer), session: 
 @app.get("/api/submissions")
 def list_submissions(who=Depends(viewer), session: Session = Depends(db)):
     sweep_stale(session)
+    # Samples are excluded here, not filtered in the UI. This list is "your
+    # work", and a seeded example sitting in it would be counted, sorted and
+    # compared alongside things the visitor actually uploaded.
     rows = session.scalars(
-        select(Submission).where(Submission.org_id == who["org_id"]).order_by(Submission.created_at.desc())
+        select(Submission)
+        .where(Submission.org_id == who["org_id"], Submission.demo.is_(False))
+        .order_by(Submission.created_at.desc())
     ).all()
     return {"submissions": [as_submission(session, s) for s in rows]}
 
@@ -629,11 +657,22 @@ async def create_submission(body: dict, who=Depends(viewer), session: Session = 
     return as_submission(session, sub)
 
 
+def readable(sub: Submission | None, who) -> bool:
+    """Whether this visitor may *read* this submission.
+
+    Yours, or a seeded example. Nothing else, and reading is as far as it goes:
+    every route that writes keeps comparing orgs directly, and a sample's org is
+    one no visitor is ever given, so those refuse without needing to know
+    samples exist.
+    """
+    return sub is not None and (sub.org_id == who["org_id"] or bool(sub.demo))
+
+
 @app.get("/api/submissions/{sub_id}")
 def get_submission(sub_id: str, who=Depends(viewer), session: Session = Depends(db)):
     sweep_stale(session)
     sub = session.get(Submission, sub_id)
-    if sub is None or sub.org_id != who["org_id"]:
+    if not readable(sub, who):
         raise HTTPException(404, "no such submission")
     return as_submission(session, sub, deep=True)
 
@@ -755,7 +794,14 @@ SAMPLE_FILES = {
 
 @app.get("/api/samples")
 def samples():
-    """What can be downloaded, and what each one is for."""
+    """What can be downloaded, what each one is for, and its finished result.
+
+    ``result`` is the id of the seeded worked example for that dataset, or null
+    where none was seeded. It is returned rather than hardcoded in the frontend
+    so a deployment without the fixture degrades to offering the download alone,
+    instead of linking to a page that 404s.
+    """
+    seeded = sample_ids()
     out = []
     for key, (filename, what) in SAMPLE_FILES.items():
         path = SAMPLES / filename
@@ -765,6 +811,7 @@ def samples():
             "what": what,
             "bytes": path.stat().st_size if path.exists() else 0,
             "available": path.exists(),
+            "result": seeded.get(key),
         })
     return {"samples": out}
 
@@ -873,7 +920,7 @@ async def stream_events(
     # shape the rest of the API uses: a 403 would confirm the id exists, which
     # is itself worth knowing to somebody guessing.
     owned = session.get(Submission, sub_id)
-    if owned is None or owned.org_id != who["org_id"]:
+    if not readable(owned, who):
         raise HTTPException(404, "no such submission")
 
     async def gen():

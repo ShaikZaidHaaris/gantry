@@ -14,7 +14,88 @@
  *  is worse than none, because it is believed.
  */
 
+import { Link } from "react-router-dom";
+import { useSamples } from "../api/client";
 import { Fold } from "./ui";
+
+/** Two ways in: look at a finished one, or take the file and run it yourself.
+ *
+ *  Looking comes first, and is the primary control. Somebody deciding whether
+ *  this is worth their dataset wants to see what comes out the other end, and
+ *  before this the only way to find out was to upload something, which is the
+ *  commitment the verdict is supposed to help them make. The download is still
+ *  here, one line down, for anyone who would rather run it than read it.
+ *
+ *  The two results are seeded worked examples, readable by anyone and owned by
+ *  nobody. They are the product's own screen over real numbers, not a mock: the
+ *  gates, findings and activity log are exactly what the run produced.
+ */
+/** Mebibytes, labelled MB, because that is what the rest of this product and
+ *  samples/README.md already say for these same two files. Two numbers for one
+ *  file reads as a mistake even when both are defensible. */
+function megabytes(bytes: number): string {
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+const HAND: Record<string, string> = {
+  two_handed: "Both hands tracked",
+  one_handed: "One hand mostly absent",
+};
+
+function SampleCard() {
+  const { data } = useSamples();
+  // An offer is worth showing if *either* half of it works: a result to read, or
+  // a file to take. Filtering on the file alone hid both datasets outright on a
+  // deployment whose samples directory had not been copied, when the results
+  // they link to were sitting right there and fine.
+  const offers = (data?.samples ?? []).filter((s) => s.available || s.result);
+  if (offers.length === 0) return null;
+
+  return (
+    <div className="sample">
+      <div>
+        <b>Two real datasets, and what each one scored</b>
+        <p>
+          Training sets from an experiment that actually ran:{" "}
+          <code>pick_dual_bottles</code> on an aloha-agilex, 58 clips each, in the
+          layout above. Both share the same 50 RoboTwin demonstrations; what differs
+          is the egocentric human footage added on top, in one case where both hands
+          were tracked and in the other where one was mostly absent.{" "}
+          <b>Open either result</b> to see all four checks through to the feedback,
+          or take the file and run it yourself.
+        </p>
+        <div className="sample-offers">
+          {offers.map((s) => (
+            <div className="sample-offer" key={s.key}>
+              <div className="sample-what">
+                <b>{HAND[s.key] ?? s.what}</b>
+                {/* The size is read off the file. When it is not there, the
+                    clip count still is, and inventing a number to fill the gap
+                    is how the missing file stayed hidden last time. */}
+                <span>58 clips{s.available ? ` · ${megabytes(s.bytes)}` : ""}</span>
+              </div>
+              {/* Only rendered when the server says a result was seeded. A
+                  deployment without the fixture offers the download alone
+                  rather than a link that 404s. */}
+              {s.result ? (
+                <Link className="btn primary" to={`/samples/${s.result}`}>
+                  See the live result
+                </Link>
+              ) : (
+                <span className="sample-none">no result seeded here</span>
+              )}
+              {s.available && (
+                <a className="sample-dl" href={`/api/samples/${s.key}`}>
+                  Download the dataset
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface Check {
   n: string;
@@ -131,27 +212,7 @@ export function HowItWorks({ defaultOpen = false }: { defaultOpen?: boolean }) {
               across the set.
             </p>
 
-            <div className="sample">
-              <div>
-                <b>Two real datasets to try. Either one on its own is enough</b>
-                <p>
-                  Training sets from an experiment that actually ran:{" "}
-                  <code>pick_dual_bottles</code> on an aloha-agilex, 58 clips each, in
-                  the layout above. Both share the same 50 RoboTwin demonstrations; what
-                  differs is the egocentric human footage added on top, in one case where
-                  both hands were tracked and in the other where one was mostly absent.{" "}
-                  <b>Take whichever you like.</b> A single upload runs the whole flow.
-                </p>
-                <div className="sample-links">
-                  <a className="btn primary" href="/api/samples/two_handed">
-                    Both hands · 58 clips · 9.4 MB
-                  </a>
-                  <a className="btn" href="/api/samples/one_handed">
-                    One hand · 58 clips · 9.6 MB
-                  </a>
-                </div>
-              </div>
-            </div>
+            <SampleCard />
           </section>
 
           <section>

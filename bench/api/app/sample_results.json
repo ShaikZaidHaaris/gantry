@@ -1,0 +1,764 @@
+{
+ "version": 1,
+ "note": "Seeded worked examples. Exported from the run recorded in experiments/robotwin_ego/. Owned by nobody; see Submission.demo.",
+ "samples": [
+  {
+   "key": "two_handed",
+   "id": "sample_two_handed",
+   "name": "Baseline plus ego, both hands tracked",
+   "benchmark_key": "pick_dual_bottles",
+   "status": "awaiting_user",
+   "current_gate": "g3",
+   "created_at": "2026-08-01T17:52:10+00:00",
+   "dataset": {
+    "version": 1,
+    "bytes": 9888178,
+    "detected_json": "{\"episodes\": 58, \"frames\": 8423, \"fps\": 25.0, \"robot_type\": \"aloha-agilex\", \"channels\": [{\"name\": \"observation.images.head\", \"dtype\": \"video\", \"shape\": [224, 224, 3], \"width\": null}, {\"name\": \"observation.state\", \"dtype\": \"float32\", \"shape\": [16], \"width\": 16}, {\"name\": \"action\", \"dtype\": \"float32\", \"shape\": [16], \"width\": 16}, {\"name\": \"timestamp\", \"dtype\": \"float32\", \"shape\": [1], \"width\": 1}, {\"name\": \"frame_index\", \"dtype\": \"int64\", \"shape\": [1], \"width\": 1}, {\"name\": \"episode_index\", \"dtype\": \"int64\", \"shape\": [1], \"width\": 1}, {\"name\": \"index\", \"dtype\": \"int64\", \"shape\": [1], \"width\": 1}, {\"name\": \"task_index\", \"dtype\": \"int64\", \"shape\": [1], \"width\": 1}], \"videos\": 58, \"unreadable_videos\": [], \"videos_opened\": 8, \"has_stats\": true, \"has_sidecar\": true, \"tasks\": [\"pick_dual_bottles\"]}",
+    "meaning_json": "{}",
+    "created_at": "2026-08-01T17:52:10+00:00"
+   },
+   "gates": [
+    {
+     "submission_id": "sample_two_handed",
+     "version": 1,
+     "key": "g0",
+     "status": "passed",
+     "verdict_json": "{\"summary\": \"58 episodes \\u00b7 8423 frames \\u00b7 25.0 fps \\u00b7 8 channels\"}",
+     "findings_json": "[]",
+     "measures_json": "{}",
+     "abstained_json": "[]",
+     "detail_json": "{}",
+     "progress_json": "{\"phase\": \"unpacking the dataset\"}",
+     "started_at": "2026-08-01T17:52:11+00:00",
+     "finished_at": "2026-08-01T17:52:11+00:00",
+     "cost_cents": 0,
+     "trials": 0
+    },
+    {
+     "submission_id": "sample_two_handed",
+     "version": 1,
+     "key": "g1",
+     "status": "passed",
+     "verdict_json": "{\"summary\": \"5 findings, 2 worth fixing before you refilm \\u00b7 58 clips read by 6 checks\"}",
+     "findings_json": "[{\"code\": \"capture.one_instruction\", \"severity\": \"strong\", \"summary\": \"1 distinct instruction across 58 clips.\", \"prescription\": \"Describe each clip by what was actually done in it, rather than reusing one sentence for the whole upload. A language-conditioned policy trains on the sentence. One sentence everywhere means the language carries no information.\", \"evidence\": {\"measured\": 1.0, \"threshold\": 2.0, \"clips\": 58}, \"module\": \"capture\"}, {\"code\": \"coverage.no_task_list\", \"severity\": \"info\", \"summary\": \"No evaluation task list was supplied, so whether this data is about what is being measured cannot be assessed.\", \"prescription\": \"Pass the instructions the benchmark evaluates. Without them a low delta cannot be told apart from a task mismatch, and reporting one as the other is the most unfair thing this pipeline can do.\", \"evidence\": {}, \"module\": \"coverage\"}, {\"code\": \"extraction.healthy\", \"severity\": \"info\", \"summary\": \"Every measured extraction stage for your data is above its floor; the limit on this dataset is the footage rather than the pipeline.\", \"prescription\": null, \"evidence\": {}, \"module\": \"extraction\"}, {\"code\": \"provenance.nothing_declared\", \"severity\": \"strong\", \"summary\": \"Your data carries no licence information at all, so what it may be used for is unknown rather than unrestricted.\", \"prescription\": \"Every component that touches the data should record its licence, and the connectors here already do. An episode with none came from somewhere that does not, and that component is the one to find.\", \"evidence\": {}, \"module\": \"provenance\"}, {\"code\": \"stillness.none\", \"severity\": \"info\", \"summary\": \"Every part of the action moves in all 58 clips.\", \"prescription\": null, \"evidence\": {}, \"module\": \"stillness\"}]",
+     "measures_json": "{\"your data.instructions\": {\"value\": 1.0, \"n\": 58, \"ci\": null, \"units\": null, \"method\": \"mean over the cohort's clips\", \"detail\": {\"threshold\": 2.0, \"fires\": true}, \"module\": \"capture\"}}",
+     "abstained_json": "[{\"module\": \"Filming\", \"reason\": \"7 checks had nothing to read. Not measured is not the same as fine.\", \"codes\": []}, {\"module\": \"Hand tracking\", \"reason\": \"5 stages wrote no signal. Not measured is not the same as fine.\", \"codes\": []}, {\"module\": \"Cohort screening\", \"reason\": \"Screen needs at least 2 cohorts, got 1.\", \"codes\": [\"feedback.too_few_cohorts\"]}]",
+     "detail_json": "{\"modules_installed\": {\"attribution\": \"0.1.0.dev0\", \"calibrate\": \"0.1.0.dev0\", \"capture\": \"0.1.0.dev0\", \"compare\": \"0.1.0.dev0\", \"control\": \"0.1.0.dev0\", \"coverage\": \"0.1.0.dev0\", \"extraction\": \"0.1.0.dev0\", \"funnel\": \"0.1.0.dev0\", \"harden\": \"0.1.0.dev0\", \"power\": \"0.1.0.dev0\", \"protocol\": \"0.1.0.dev0\", \"provenance\": \"0.1.0.dev0\", \"rank\": \"0.1.0.dev0\", \"screen\": \"0.1.0.dev0\", \"stillness\": \"0.1.0.dev0\", \"verify\": \"0.1.0.dev0\"}, \"modules_applied\": [\"capture\", \"coverage\", \"extraction\", \"provenance\", \"screen\", \"stillness\"], \"modules_required\": [], \"modules_missing\": []}",
+     "progress_json": "{\"phase\": \"running checks\", \"current\": 5, \"total\": 6, \"note\": \"stillness\"}",
+     "started_at": "2026-08-01T23:35:16+00:00",
+     "finished_at": "2026-08-01T23:35:16+00:00",
+     "cost_cents": 0,
+     "trials": 0
+    },
+    {
+     "submission_id": "sample_two_handed",
+     "version": 1,
+     "key": "g2",
+     "status": "passed",
+     "verdict_json": "{\"summary\": \"your data beat its own shuffled control on 14 of 14 held-out clips (p=0.000), cutting prediction error by 41%\"}",
+     "findings_json": "[{\"code\": \"signal.present\", \"severity\": \"info\", \"summary\": \"a fit on your clips predicts held-out actions 41% better than the same fit with the actions detached\", \"prescription\": \"There is a relationship between what the camera saw and what the hands did, and it holds up on clips the fit never saw. The robot test is what measures how much it is worth. This check used a deliberately cheap model, so it tells you the signal is there, not how strong it is.\", \"module\": \"signal\"}]",
+     "measures_json": "{\"held_out.clips_your_data_predicted_better\": {\"value\": 1.0, \"n\": 14, \"ci\": [0.7846891972623643, 1.0], \"units\": \"fraction\", \"method\": \"wilson\", \"detail\": {}, \"module\": \"signal\"}, \"held_out.error_your_data\": {\"value\": 0.015304, \"n\": 14, \"ci\": null, \"units\": \"mean squared error\", \"method\": \"median over held-out clips\", \"module\": \"signal\"}, \"held_out.error_shuffled_control\": {\"value\": 0.025801, \"n\": 14, \"ci\": null, \"units\": \"mean squared error\", \"method\": \"median over held-out clips\", \"module\": \"signal\"}}",
+     "abstained_json": "[]",
+     "detail_json": "{\"pairs\": [{\"episode\": \"rt_two_handed/episode_000007\", \"yours\": 0.01611, \"shuffled\": 0.033433, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000032\", \"yours\": 0.01612, \"shuffled\": 0.020031, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000045\", \"yours\": 0.015109, \"shuffled\": 0.02033, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000036\", \"yours\": 0.010346, \"shuffled\": 0.012374, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000043\", \"yours\": 0.022505, \"shuffled\": 0.037109, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000033\", \"yours\": 0.014037, \"shuffled\": 0.024512, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000006\", \"yours\": 0.013612, \"shuffled\": 0.029951, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000052\", \"yours\": 0.116406, \"shuffled\": 0.240089, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000040\", \"yours\": 0.010794, \"shuffled\": 0.012482, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000028\", \"yours\": 0.013033, \"shuffled\": 0.019002, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000038\", \"yours\": 0.015668, \"shuffled\": 0.027912, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000049\", \"yours\": 0.0155, \"shuffled\": 0.02709, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000055\", \"yours\": 0.140148, \"shuffled\": 0.278137, \"better\": true}, {\"episode\": \"rt_two_handed/episode_000016\", \"yours\": 0.014781, \"shuffled\": 0.017196, \"better\": true}], \"p_value\": 0.00012, \"fit_clips\": 44, \"held_out_clips\": 14, \"read\": [\"observation.images.head\"], \"leakage_checkable\": false, \"grouped_by\": null}",
+     "progress_json": "{\"phase\": \"scoring\", \"current\": 14, \"total\": 14, \"note\": \"rt_two_handed/episode_000016\"}",
+     "started_at": "2026-08-01T23:35:22+00:00",
+     "finished_at": "2026-08-01T23:35:51+00:00",
+     "cost_cents": 0,
+     "trials": 0
+    },
+    {
+     "submission_id": "sample_two_handed",
+     "version": 1,
+     "key": "g3",
+     "status": "passed",
+     "verdict_json": "{\"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}",
+     "findings_json": "[{\"code\": \"robot.no_control_arm\", \"severity\": \"strong\", \"summary\": \"no shuffled control was run, so any difference here cannot be attributed to the correspondence in your footage\", \"prescription\": \"Run the shuffled control: the same clips, the same actions, the same number of gradient steps, with each clip's actions belonging to a different clip. Fine-tuning on anything moves a model, so beating the baseline only shows the model changed. Beating the shuffle is what shows the change came from what your camera saw.\", \"module\": \"robot\"}, {\"code\": \"robot.rungs_unmeasured\", \"severity\": \"strong\", \"summary\": \"the 'baseline' arm reported no lifted, moved events. Those rungs are unmeasured for it, not failed\", \"prescription\": \"Re-run that arm with the same instrumentation as the others, or compare only on the rungs both measured. An arm evaluated before the stage events existed scores zero on every rung, which reads as a total loss and is really an absence of measurement.\", \"module\": \"robot\"}, {\"code\": \"robot.not_separated_on_success\", \"severity\": \"info\", \"summary\": \"success rate did not separate from the baseline on 50 paired scenes\", \"prescription\": \"Success is the coarsest rung and the hardest to move. Look at the rungs below it: they are measured on the same rollouts at no extra cost, and they separate at sample sizes success never will.\", \"module\": \"robot\"}, {\"code\": \"robot.bottleneck\", \"severity\": \"strong\", \"summary\": \"74% of scenes are lost between 'lifted all 2' and 'solved', which makes that step the bottleneck\", \"prescription\": \"The policy gets to 'lifted all 2' and stops. Footage that demonstrates 'solved' clearly and repeatedly is what would move this; more clips of the part it already does will not.\", \"module\": \"robot\"}]",
+     "measures_json": "{\"lifted \\u00b7 your data\": {\"value\": 1.0, \"n\": 50, \"ci\": [0.9286, 1.0], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}, \"moved \\u00b7 your data\": {\"value\": 1.0, \"n\": 50, \"ci\": [0.9286, 1.0], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}, \"moved all 2 \\u00b7 your data\": {\"value\": 0.88, \"n\": 50, \"ci\": [0.7619, 0.9438], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}, \"lifted all 2 \\u00b7 your data\": {\"value\": 0.82, \"n\": 50, \"ci\": [0.692, 0.9023], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}, \"solved \\u00b7 your data\": {\"value\": 0.08, \"n\": 50, \"ci\": [0.0315, 0.1884], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}, \"solved \\u00b7 baseline\": {\"value\": 0.12, \"n\": 100, \"ci\": [0.07, 0.1981], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}}",
+     "abstained_json": "[]",
+     "detail_json": "{\"ladder\": [{\"rung\": \"lifted\", \"arms\": {\"your data\": {\"measured\": true, \"wins\": 50, \"n\": 50, \"rate\": 1.0, \"ci\": [0.9286, 1.0], \"unmeasured\": 0}, \"baseline\": {\"measured\": false, \"n\": 0, \"unmeasured\": 100}}, \"vs baseline\": {\"rung\": \"lifted\", \"scenes\": 0, \"measured\": false}}, {\"rung\": \"moved\", \"arms\": {\"your data\": {\"measured\": true, \"wins\": 50, \"n\": 50, \"rate\": 1.0, \"ci\": [0.9286, 1.0], \"unmeasured\": 0}, \"baseline\": {\"measured\": false, \"n\": 0, \"unmeasured\": 100}}, \"vs baseline\": {\"rung\": \"moved\", \"scenes\": 0, \"measured\": false}}, {\"rung\": \"moved all 2\", \"arms\": {\"your data\": {\"measured\": true, \"wins\": 44, \"n\": 50, \"rate\": 0.88, \"ci\": [0.7619, 0.9438], \"unmeasured\": 0}, \"baseline\": {\"measured\": false, \"n\": 0, \"unmeasured\": 100}}, \"vs baseline\": {\"rung\": \"moved all 2\", \"scenes\": 0, \"measured\": false}}, {\"rung\": \"lifted all 2\", \"arms\": {\"your data\": {\"measured\": true, \"wins\": 41, \"n\": 50, \"rate\": 0.82, \"ci\": [0.692, 0.9023], \"unmeasured\": 0}, \"baseline\": {\"measured\": false, \"n\": 0, \"unmeasured\": 100}}, \"vs baseline\": {\"rung\": \"lifted all 2\", \"scenes\": 0, \"measured\": false}}, {\"rung\": \"solved\", \"arms\": {\"your data\": {\"measured\": true, \"wins\": 4, \"n\": 50, \"rate\": 0.08, \"ci\": [0.0315, 0.1884], \"unmeasured\": 0}, \"baseline\": {\"measured\": true, \"wins\": 12, \"n\": 100, \"rate\": 0.12, \"ci\": [0.07, 0.1981], \"unmeasured\": 0}}, \"vs baseline\": {\"rung\": \"solved\", \"measured\": true, \"scenes\": 50, \"a_only\": 4, \"b_only\": 6, \"agreed\": 40, \"p_value\": 0.7539, \"separated\": false}}], \"order\": [\"lifted\", \"moved\", \"moved all 2\", \"lifted all 2\", \"solved\"], \"arms\": [\"your data\", \"baseline\"], \"objects_tracked\": 2, \"reached\": {\"pick_dual_bottles#000\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#001\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#002\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#003\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#004\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#006\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": true}, \"pick_dual_bottles#007\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#008\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#009\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#011\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#012\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": true}, \"pick_dual_bottles#013\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#014\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#015\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#016\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#017\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#018\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#019\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#020\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#021\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#022\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#023\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#024\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#025\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": true}, \"pick_dual_bottles#027\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#028\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#029\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#031\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#032\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#033\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#034\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#035\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#036\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#038\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#039\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#040\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#042\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#043\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#044\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#045\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#046\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#049\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#050\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#051\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#052\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": true}, \"pick_dual_bottles#053\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#054\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#056\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#057\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#058\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}}, \"unreported\": {\"baseline\": [\"lifted\", \"moved\"]}, \"has_control\": false, \"has_baseline\": true, \"alpha\": 0.05}",
+     "progress_json": "{\"phase\": \"reading\", \"note\": \"baseline.json\"}",
+     "started_at": "2026-08-01T23:36:21+00:00",
+     "finished_at": "2026-08-01T23:36:21+00:00",
+     "cost_cents": 0,
+     "trials": 0
+    }
+   ],
+   "events": [
+    {
+     "ts": "2026-08-01T17:52:10+00:00",
+     "kind": "submission.created",
+     "payload_json": "{\"name\": \"Two-handed pick \\u2014 58 clips\", \"benchmark\": \"pick_dual_bottles\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:10+00:00",
+     "kind": "dataset.uploaded",
+     "payload_json": "{\"version\": 1, \"bytes\": 9888178}"
+    },
+    {
+     "ts": "2026-08-01T17:52:10+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g0\", \"version\": 1}"
+    },
+    {
+     "ts": "2026-08-01T17:52:11+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g0\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:11+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g1\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:11+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g0\", \"status\": \"passed\", \"summary\": \"58 episodes \\u00b7 8423 frames \\u00b7 25.0 fps \\u00b7 8 channels\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:13+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g1\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:13+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:13+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g1\", \"status\": \"passed\", \"summary\": \"5 finding(s), 2 worth fixing before you refilm \\u00b7 58 clip(s) read by 6 module(s)\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:14+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:43+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:43+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g2\", \"status\": \"passed\", \"summary\": \"your data beat its own shuffled control on 14 of 14 held-out clips (p=0.000), cutting prediction error by 41%\"}"
+    },
+    {
+     "ts": "2026-08-01T17:53:13+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T17:55:29+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"failed\", \"summary\": \"the run did not finish: the trainer stopped while computing normalisation statistics. Retried, and the retry is the run reported above.\"}"
+    },
+    {
+     "ts": "2026-08-01T17:55:55+00:00",
+     "kind": "gate.retried",
+     "payload_json": "{\"gate\": \"g3\", \"attempt\": 2}"
+    },
+    {
+     "ts": "2026-08-01T17:58:55+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T17:58:55+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:32+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g1\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:32+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:32+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g1\", \"status\": \"passed\", \"summary\": \"5 finding(s), 2 worth fixing before you refilm \\u00b7 58 clip(s) read by 6 module(s)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:33+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:33+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:33+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:33+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:34+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:10:05+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:10:05+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g2\", \"status\": \"passed\", \"summary\": \"your data beat its own shuffled control on 14 of 14 held-out clips (p=0.000), cutting prediction error by 41%\"}"
+    },
+    {
+     "ts": "2026-08-01T23:10:05+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:10:05+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:27+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g1\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:27+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:27+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g1\", \"status\": \"passed\", \"summary\": \"5 finding(s), 2 worth fixing before you refilm \\u00b7 58 clip(s) read by 6 module(s)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:27+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:27+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:28+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:28+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:28+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:28+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:29+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:30:00+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:30:00+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g2\", \"status\": \"passed\", \"summary\": \"your data beat its own shuffled control on 14 of 14 held-out clips (p=0.000), cutting prediction error by 41%\"}"
+    },
+    {
+     "ts": "2026-08-01T23:30:00+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:30:00+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:16+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g1\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:16+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:16+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g1\", \"status\": \"passed\", \"summary\": \"5 findings, 2 worth fixing before you refilm \\u00b7 58 clips read by 6 checks\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:17+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:17+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:18+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:18+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:19+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:19+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:21+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:21+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:22+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:51+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:51+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g2\", \"status\": \"passed\", \"summary\": \"your data beat its own shuffled control on 14 of 14 held-out clips (p=0.000), cutting prediction error by 41%\"}"
+    },
+    {
+     "ts": "2026-08-01T23:36:21+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:36:21+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 4/50 scenes against the baseline's 12/100, which these 50 paired scenes cannot separate (p=0.7539)\"}"
+    }
+   ]
+  },
+  {
+   "key": "one_handed",
+   "id": "sample_one_handed",
+   "name": "Baseline plus ego, one hand mostly absent",
+   "benchmark_key": "pick_dual_bottles",
+   "status": "awaiting_user",
+   "current_gate": "g3",
+   "created_at": "2026-08-01T17:52:10+00:00",
+   "dataset": {
+    "version": 1,
+    "bytes": 10017317,
+    "detected_json": "{\"episodes\": 58, \"frames\": 8512, \"fps\": 25.0, \"robot_type\": \"aloha-agilex\", \"channels\": [{\"name\": \"observation.images.head\", \"dtype\": \"video\", \"shape\": [224, 224, 3], \"width\": null}, {\"name\": \"observation.state\", \"dtype\": \"float32\", \"shape\": [16], \"width\": 16}, {\"name\": \"action\", \"dtype\": \"float32\", \"shape\": [16], \"width\": 16}, {\"name\": \"timestamp\", \"dtype\": \"float32\", \"shape\": [1], \"width\": 1}, {\"name\": \"frame_index\", \"dtype\": \"int64\", \"shape\": [1], \"width\": 1}, {\"name\": \"episode_index\", \"dtype\": \"int64\", \"shape\": [1], \"width\": 1}, {\"name\": \"index\", \"dtype\": \"int64\", \"shape\": [1], \"width\": 1}, {\"name\": \"task_index\", \"dtype\": \"int64\", \"shape\": [1], \"width\": 1}], \"videos\": 58, \"unreadable_videos\": [], \"videos_opened\": 8, \"has_stats\": true, \"has_sidecar\": true, \"tasks\": [\"pick_dual_bottles\"]}",
+    "meaning_json": "{}",
+    "created_at": "2026-08-01T17:52:10+00:00"
+   },
+   "gates": [
+    {
+     "submission_id": "sample_one_handed",
+     "version": 1,
+     "key": "g0",
+     "status": "passed",
+     "verdict_json": "{\"summary\": \"58 episodes \\u00b7 8512 frames \\u00b7 25.0 fps \\u00b7 8 channels\"}",
+     "findings_json": "[]",
+     "measures_json": "{}",
+     "abstained_json": "[]",
+     "detail_json": "{}",
+     "progress_json": "{\"phase\": \"unpacking the dataset\"}",
+     "started_at": "2026-08-01T17:52:12+00:00",
+     "finished_at": "2026-08-01T17:52:12+00:00",
+     "cost_cents": 0,
+     "trials": 0
+    },
+    {
+     "submission_id": "sample_one_handed",
+     "version": 1,
+     "key": "g1",
+     "status": "passed",
+     "verdict_json": "{\"summary\": \"5 findings, 2 worth fixing before you refilm \\u00b7 58 clips read by 6 checks\"}",
+     "findings_json": "[{\"code\": \"capture.one_instruction\", \"severity\": \"strong\", \"summary\": \"1 distinct instruction across 58 clips.\", \"prescription\": \"Describe each clip by what was actually done in it, rather than reusing one sentence for the whole upload. A language-conditioned policy trains on the sentence. One sentence everywhere means the language carries no information.\", \"evidence\": {\"measured\": 1.0, \"threshold\": 2.0, \"clips\": 58}, \"module\": \"capture\"}, {\"code\": \"coverage.no_task_list\", \"severity\": \"info\", \"summary\": \"No evaluation task list was supplied, so whether this data is about what is being measured cannot be assessed.\", \"prescription\": \"Pass the instructions the benchmark evaluates. Without them a low delta cannot be told apart from a task mismatch, and reporting one as the other is the most unfair thing this pipeline can do.\", \"evidence\": {}, \"module\": \"coverage\"}, {\"code\": \"extraction.healthy\", \"severity\": \"info\", \"summary\": \"Every measured extraction stage for your data is above its floor; the limit on this dataset is the footage rather than the pipeline.\", \"prescription\": null, \"evidence\": {}, \"module\": \"extraction\"}, {\"code\": \"provenance.nothing_declared\", \"severity\": \"strong\", \"summary\": \"Your data carries no licence information at all, so what it may be used for is unknown rather than unrestricted.\", \"prescription\": \"Every component that touches the data should record its licence, and the connectors here already do. An episode with none came from somewhere that does not, and that component is the one to find.\", \"evidence\": {}, \"module\": \"provenance\"}, {\"code\": \"stillness.none\", \"severity\": \"info\", \"summary\": \"Every part of the action moves in all 58 clips.\", \"prescription\": null, \"evidence\": {}, \"module\": \"stillness\"}]",
+     "measures_json": "{\"your data.instructions\": {\"value\": 1.0, \"n\": 58, \"ci\": null, \"units\": null, \"method\": \"mean over the cohort's clips\", \"detail\": {\"threshold\": 2.0, \"fires\": true}, \"module\": \"capture\"}}",
+     "abstained_json": "[{\"module\": \"Filming\", \"reason\": \"7 checks had nothing to read. Not measured is not the same as fine.\", \"codes\": []}, {\"module\": \"Hand tracking\", \"reason\": \"5 stages wrote no signal. Not measured is not the same as fine.\", \"codes\": []}, {\"module\": \"Cohort screening\", \"reason\": \"Screen needs at least 2 cohorts, got 1.\", \"codes\": [\"feedback.too_few_cohorts\"]}]",
+     "detail_json": "{\"modules_installed\": {\"attribution\": \"0.1.0.dev0\", \"calibrate\": \"0.1.0.dev0\", \"capture\": \"0.1.0.dev0\", \"compare\": \"0.1.0.dev0\", \"control\": \"0.1.0.dev0\", \"coverage\": \"0.1.0.dev0\", \"extraction\": \"0.1.0.dev0\", \"funnel\": \"0.1.0.dev0\", \"harden\": \"0.1.0.dev0\", \"power\": \"0.1.0.dev0\", \"protocol\": \"0.1.0.dev0\", \"provenance\": \"0.1.0.dev0\", \"rank\": \"0.1.0.dev0\", \"screen\": \"0.1.0.dev0\", \"stillness\": \"0.1.0.dev0\", \"verify\": \"0.1.0.dev0\"}, \"modules_applied\": [\"capture\", \"coverage\", \"extraction\", \"provenance\", \"screen\", \"stillness\"], \"modules_required\": [], \"modules_missing\": []}",
+     "progress_json": "{\"phase\": \"opening the clips\"}",
+     "started_at": "2026-08-01T23:35:17+00:00",
+     "finished_at": "2026-08-01T23:35:17+00:00",
+     "cost_cents": 0,
+     "trials": 0
+    },
+    {
+     "submission_id": "sample_one_handed",
+     "version": 1,
+     "key": "g2",
+     "status": "passed",
+     "verdict_json": "{\"summary\": \"your data beat its own shuffled control on 14 of 14 held-out clips (p=0.000), cutting prediction error by 37%\"}",
+     "findings_json": "[{\"code\": \"signal.present\", \"severity\": \"info\", \"summary\": \"a fit on your clips predicts held-out actions 37% better than the same fit with the actions detached\", \"prescription\": \"There is a relationship between what the camera saw and what the hands did, and it holds up on clips the fit never saw. The robot test is what measures how much it is worth. This check used a deliberately cheap model, so it tells you the signal is there, not how strong it is.\", \"module\": \"signal\"}]",
+     "measures_json": "{\"held_out.clips_your_data_predicted_better\": {\"value\": 1.0, \"n\": 14, \"ci\": [0.7846891972623643, 1.0], \"units\": \"fraction\", \"method\": \"wilson\", \"detail\": {}, \"module\": \"signal\"}, \"held_out.error_your_data\": {\"value\": 0.015017, \"n\": 14, \"ci\": null, \"units\": \"mean squared error\", \"method\": \"median over held-out clips\", \"module\": \"signal\"}, \"held_out.error_shuffled_control\": {\"value\": 0.023742, \"n\": 14, \"ci\": null, \"units\": \"mean squared error\", \"method\": \"median over held-out clips\", \"module\": \"signal\"}}",
+     "abstained_json": "[]",
+     "detail_json": "{\"pairs\": [{\"episode\": \"rt_one_handed/episode_000007\", \"yours\": 0.015855, \"shuffled\": 0.032101, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000032\", \"yours\": 0.015849, \"shuffled\": 0.021968, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000045\", \"yours\": 0.015096, \"shuffled\": 0.024201, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000036\", \"yours\": 0.010769, \"shuffled\": 0.012902, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000043\", \"yours\": 0.022103, \"shuffled\": 0.030809, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000033\", \"yours\": 0.01401, \"shuffled\": 0.023283, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000006\", \"yours\": 0.013506, \"shuffled\": 0.028755, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000052\", \"yours\": 0.170707, \"shuffled\": 0.304073, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000040\", \"yours\": 0.011111, \"shuffled\": 0.012382, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000028\", \"yours\": 0.012986, \"shuffled\": 0.020595, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000038\", \"yours\": 0.014911, \"shuffled\": 0.022842, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000049\", \"yours\": 0.014937, \"shuffled\": 0.028918, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000055\", \"yours\": 0.216742, \"shuffled\": 0.274098, \"better\": true}, {\"episode\": \"rt_one_handed/episode_000016\", \"yours\": 0.015984, \"shuffled\": 0.019303, \"better\": true}], \"p_value\": 0.00012, \"fit_clips\": 44, \"held_out_clips\": 14, \"read\": [\"observation.images.head\"], \"leakage_checkable\": false, \"grouped_by\": null}",
+     "progress_json": "{\"phase\": \"scoring\", \"current\": 14, \"total\": 14, \"note\": \"rt_one_handed/episode_000016\"}",
+     "started_at": "2026-08-01T23:35:51+00:00",
+     "finished_at": "2026-08-01T23:36:20+00:00",
+     "cost_cents": 0,
+     "trials": 0
+    },
+    {
+     "submission_id": "sample_one_handed",
+     "version": 1,
+     "key": "g3",
+     "status": "passed",
+     "verdict_json": "{\"summary\": \"solved 0/50 scenes, fewer than the baseline's 12/100 (p=0.0312)\"}",
+     "findings_json": "[{\"code\": \"robot.no_control_arm\", \"severity\": \"strong\", \"summary\": \"no shuffled control was run, so any difference here cannot be attributed to the correspondence in your footage\", \"prescription\": \"Run the shuffled control: the same clips, the same actions, the same number of gradient steps, with each clip's actions belonging to a different clip. Fine-tuning on anything moves a model, so beating the baseline only shows the model changed. Beating the shuffle is what shows the change came from what your camera saw.\", \"module\": \"robot\"}, {\"code\": \"robot.rungs_unmeasured\", \"severity\": \"strong\", \"summary\": \"the 'baseline' arm reported no lifted, moved events. Those rungs are unmeasured for it, not failed\", \"prescription\": \"Re-run that arm with the same instrumentation as the others, or compare only on the rungs both measured. An arm evaluated before the stage events existed scores zero on every rung, which reads as a total loss and is really an absence of measurement.\", \"module\": \"robot\"}, {\"code\": \"robot.bottleneck\", \"severity\": \"strong\", \"summary\": \"62% of scenes are lost between 'lifted all 2' and 'solved', which makes that step the bottleneck\", \"prescription\": \"The policy gets to 'lifted all 2' and stops. Footage that demonstrates 'solved' clearly and repeatedly is what would move this; more clips of the part it already does will not.\", \"module\": \"robot\"}]",
+     "measures_json": "{\"moved \\u00b7 your data\": {\"value\": 1.0, \"n\": 50, \"ci\": [0.9286, 1.0], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}, \"lifted \\u00b7 your data\": {\"value\": 0.98, \"n\": 50, \"ci\": [0.895, 0.9965], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}, \"moved all 2 \\u00b7 your data\": {\"value\": 0.68, \"n\": 50, \"ci\": [0.5419, 0.7924], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}, \"lifted all 2 \\u00b7 your data\": {\"value\": 0.62, \"n\": 50, \"ci\": [0.4815, 0.7414], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}, \"solved \\u00b7 your data\": {\"value\": 0.0, \"n\": 50, \"ci\": [0.0, 0.0714], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}, \"solved \\u00b7 baseline\": {\"value\": 0.12, \"n\": 100, \"ci\": [0.07, 0.1981], \"units\": \"fraction of scenes\", \"method\": \"Wilson 95%\", \"module\": \"robot\"}}",
+     "abstained_json": "[]",
+     "detail_json": "{\"ladder\": [{\"rung\": \"moved\", \"arms\": {\"your data\": {\"measured\": true, \"wins\": 50, \"n\": 50, \"rate\": 1.0, \"ci\": [0.9286, 1.0], \"unmeasured\": 0}, \"baseline\": {\"measured\": false, \"n\": 0, \"unmeasured\": 100}}, \"vs baseline\": {\"rung\": \"moved\", \"scenes\": 0, \"measured\": false}}, {\"rung\": \"lifted\", \"arms\": {\"your data\": {\"measured\": true, \"wins\": 49, \"n\": 50, \"rate\": 0.98, \"ci\": [0.895, 0.9965], \"unmeasured\": 0}, \"baseline\": {\"measured\": false, \"n\": 0, \"unmeasured\": 100}}, \"vs baseline\": {\"rung\": \"lifted\", \"scenes\": 0, \"measured\": false}}, {\"rung\": \"moved all 2\", \"arms\": {\"your data\": {\"measured\": true, \"wins\": 34, \"n\": 50, \"rate\": 0.68, \"ci\": [0.5419, 0.7924], \"unmeasured\": 0}, \"baseline\": {\"measured\": false, \"n\": 0, \"unmeasured\": 100}}, \"vs baseline\": {\"rung\": \"moved all 2\", \"scenes\": 0, \"measured\": false}}, {\"rung\": \"lifted all 2\", \"arms\": {\"your data\": {\"measured\": true, \"wins\": 31, \"n\": 50, \"rate\": 0.62, \"ci\": [0.4815, 0.7414], \"unmeasured\": 0}, \"baseline\": {\"measured\": false, \"n\": 0, \"unmeasured\": 100}}, \"vs baseline\": {\"rung\": \"lifted all 2\", \"scenes\": 0, \"measured\": false}}, {\"rung\": \"solved\", \"arms\": {\"your data\": {\"measured\": true, \"wins\": 0, \"n\": 50, \"rate\": 0.0, \"ci\": [0.0, 0.0714], \"unmeasured\": 0}, \"baseline\": {\"measured\": true, \"wins\": 12, \"n\": 100, \"rate\": 0.12, \"ci\": [0.07, 0.1981], \"unmeasured\": 0}}, \"vs baseline\": {\"rung\": \"solved\", \"measured\": true, \"scenes\": 50, \"a_only\": 0, \"b_only\": 6, \"agreed\": 44, \"p_value\": 0.0312, \"separated\": true}}], \"order\": [\"moved\", \"lifted\", \"moved all 2\", \"lifted all 2\", \"solved\"], \"arms\": [\"your data\", \"baseline\"], \"objects_tracked\": 2, \"reached\": {\"pick_dual_bottles#000\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#001\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#002\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#003\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#004\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#006\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#007\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#008\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#009\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#011\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#012\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#013\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#014\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#015\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#016\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#017\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#018\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#019\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#020\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#021\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#022\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#023\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#024\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#025\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#027\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#028\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#029\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#031\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#032\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#033\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#034\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#035\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#036\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#038\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#039\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#040\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#042\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#043\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#044\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#045\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#046\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#049\": {\"lifted\": false, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#050\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#051\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#052\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#053\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#054\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}, \"pick_dual_bottles#056\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#057\": {\"lifted\": true, \"lifted all 2\": true, \"moved\": true, \"moved all 2\": true, \"solved\": false}, \"pick_dual_bottles#058\": {\"lifted\": true, \"lifted all 2\": false, \"moved\": true, \"moved all 2\": false, \"solved\": false}}, \"unreported\": {\"baseline\": [\"lifted\", \"moved\"]}, \"has_control\": false, \"has_baseline\": true, \"alpha\": 0.05}",
+     "progress_json": "{\"phase\": \"reading\", \"note\": \"baseline.json\"}",
+     "started_at": "2026-08-01T23:36:21+00:00",
+     "finished_at": "2026-08-01T23:36:21+00:00",
+     "cost_cents": 0,
+     "trials": 0
+    }
+   ],
+   "events": [
+    {
+     "ts": "2026-08-01T17:52:10+00:00",
+     "kind": "submission.created",
+     "payload_json": "{\"name\": \"One-handed pick \\u2014 58 clips\", \"benchmark\": \"pick_dual_bottles\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:10+00:00",
+     "kind": "dataset.uploaded",
+     "payload_json": "{\"version\": 1, \"bytes\": 10017317}"
+    },
+    {
+     "ts": "2026-08-01T17:52:10+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g0\", \"version\": 1}"
+    },
+    {
+     "ts": "2026-08-01T17:52:12+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g0\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:12+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g1\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:12+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g0\", \"status\": \"passed\", \"summary\": \"58 episodes \\u00b7 8512 frames \\u00b7 25.0 fps \\u00b7 8 channels\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:14+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g1\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:14+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:14+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g1\", \"status\": \"passed\", \"summary\": \"5 finding(s), 2 worth fixing before you refilm \\u00b7 58 clip(s) read by 6 module(s)\"}"
+    },
+    {
+     "ts": "2026-08-01T17:52:44+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T17:53:13+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T17:53:13+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g2\", \"status\": \"passed\", \"summary\": \"your data beat its own shuffled control on 14 of 14 held-out clips (p=0.000), cutting prediction error by 37%\"}"
+    },
+    {
+     "ts": "2026-08-01T17:55:30+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T17:58:54+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"failed\", \"summary\": \"the run did not finish: the trainer stopped while computing normalisation statistics. Retried, and the retry is the run reported above.\"}"
+    },
+    {
+     "ts": "2026-08-01T18:02:20+00:00",
+     "kind": "gate.retried",
+     "payload_json": "{\"gate\": \"g3\", \"attempt\": 2}"
+    },
+    {
+     "ts": "2026-08-01T18:02:21+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T18:02:21+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes \\u2014 fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:32+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g1\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:32+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:32+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g1\", \"status\": \"passed\", \"summary\": \"5 finding(s), 2 worth fixing before you refilm \\u00b7 58 clip(s) read by 6 module(s)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:33+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:33+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes \\u2014 fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:33+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:34+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes \\u2014 fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:09:34+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:10:05+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:10:05+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g2\", \"status\": \"passed\", \"summary\": \"your data beat its own shuffled control on 14 of 14 held-out clips (p=0.000), cutting prediction error by 37%\"}"
+    },
+    {
+     "ts": "2026-08-01T23:10:06+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:10:06+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes \\u2014 fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:27+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g1\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:27+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:27+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g1\", \"status\": \"passed\", \"summary\": \"5 finding(s), 2 worth fixing before you refilm \\u00b7 58 clip(s) read by 6 module(s)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:28+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:28+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes \\u2014 fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:28+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:28+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes \\u2014 fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:29+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:29+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes \\u2014 fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:29:29+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:30:00+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:30:00+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g2\", \"status\": \"passed\", \"summary\": \"your data beat its own shuffled control on 14 of 14 held-out clips (p=0.000), cutting prediction error by 37%\"}"
+    },
+    {
+     "ts": "2026-08-01T23:30:01+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:30:01+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes \\u2014 fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:17+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g1\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:17+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:17+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g1\", \"status\": \"passed\", \"summary\": \"5 findings, 2 worth fixing before you refilm \\u00b7 58 clips read by 6 checks\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:18+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:18+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes, fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:19+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:19+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes, fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:20+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:20+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes, fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:21+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:21+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes, fewer than the baseline's 12/100 (p=0.0312)\"}"
+    },
+    {
+     "ts": "2026-08-01T23:35:51+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g2\"}"
+    },
+    {
+     "ts": "2026-08-01T23:36:20+00:00",
+     "kind": "gate.queued",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:36:20+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g2\", \"status\": \"passed\", \"summary\": \"your data beat its own shuffled control on 14 of 14 held-out clips (p=0.000), cutting prediction error by 37%\"}"
+    },
+    {
+     "ts": "2026-08-01T23:36:21+00:00",
+     "kind": "gate.started",
+     "payload_json": "{\"gate\": \"g3\"}"
+    },
+    {
+     "ts": "2026-08-01T23:36:21+00:00",
+     "kind": "gate.finished",
+     "payload_json": "{\"gate\": \"g3\", \"status\": \"passed\", \"summary\": \"solved 0/50 scenes, fewer than the baseline's 12/100 (p=0.0312)\"}"
+    }
+   ]
+  }
+ ]
+}
