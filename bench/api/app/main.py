@@ -17,7 +17,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from .db import (
@@ -867,10 +867,24 @@ def claim_job(body: dict, session: Session = Depends(db), _=Depends(worker)):
     ).first()
     if row is None:
         return {"job": None}
-    row.status = "running"
-    row.claimed_by = worker
-    row.attempts += 1
-    row.heartbeat_at = now()
+    # The guard this function's docstring has always described. A plain
+    # SELECT-then-mutate lets two workers read the same queued row and both
+    # return it, and the damage is not a duplicated run: the loser crashes or
+    # finishes second and writes its result onto a gate the winner already owns,
+    # so a gate reads `failed` for a reason that is nowhere in its own record.
+    # Restricting the UPDATE to rows still `queued` means exactly one caller can
+    # change it; rowcount is how we learn whether we were that caller.
+    claimed = session.execute(
+        update(Job)
+        .where(Job.id == row.id, Job.status == "queued")
+        .values(status="running", claimed_by=worker, attempts=Job.attempts + 1, heartbeat_at=now())
+    )
+    if claimed.rowcount != 1:
+        # Someone else took it between the select and the update. Not an error,
+        # and not worth retrying inside one request -- the worker polls again.
+        session.rollback()
+        return {"job": None}
+    session.refresh(row)
     gate = session.scalar(
         select(Gate).where(
             Gate.submission_id == row.submission_id, Gate.key == row.gate_key, Gate.version == row.version
