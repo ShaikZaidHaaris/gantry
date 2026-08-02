@@ -3,15 +3,15 @@
 The plugin owns both directions of its own format, so this is where "convert
 anything to LeRobot" lives. There is no robomimic-to-lerobot converter and there
 should not be one: read with any connector, write with this, and every pair is
-covered — csv, evallog, robomimic, or whatever gets written next.
+covered -- csv, evallog, robomimic, or whatever gets written next.
 
 Loss is declared, not discovered
 --------------------------------
 This is the whole reason the writer exists rather than a script.
 
 LeRobot v2.1 has nowhere to put a per-episode outcome and nowhere to put a
-milestone. A dataset that has them — robomimic's ``dones``, an evaluation log's
-success column — comes out the other side without them, and nothing about the
+milestone. A dataset that has them -- robomimic's ``dones``, an evaluation log's
+success column -- comes out the other side without them, and nothing about the
 result looks wrong. That is not hypothetical: the lift conversion in this
 project's own history lost every success label and 96% of one split, and the
 single most useful fact about that data (244 of 1500 demonstrations succeed)
@@ -19,8 +19,7 @@ became unavailable from the copy everybody then used.
 
 So :func:`write_episodes` computes what it cannot carry *before* writing and
 refuses unless the caller says, in the call, that the loss is acceptable. The
-refusal names each thing being dropped. Somebody may still choose to drop it —
-that is a legitimate choice and it should be a choice.
+refusal names each thing being dropped. Somebody may still choose to drop it -- that is a legitimate choice and it should be a choice.
 
 What is carried
 ---------------
@@ -368,7 +367,7 @@ def _stats(episode, specs, cameras) -> dict[str, Any]:
     Written here because this is the only place that has the arrays.
 
     Image statistics are per channel over pixels, normalised to [0, 1], which is
-    the convention the format uses and not an obvious one — a reader that
+    the convention the format uses and not an obvious one -- a reader that
     expected 0-255 would silently mis-normalise every frame.
     """
     out: dict[str, Any] = {}
@@ -419,7 +418,7 @@ def _sidecar(root: Path, episodes: Sequence[EpisodeRecord]) -> None:
 
     LeRobot v2.1 records no per-episode outcome, no milestones and no
     annotations, and ``accept_loss=True`` says go ahead and drop them. That is
-    the right default for producing a dataset somebody else will read — and it
+    the right default for producing a dataset somebody else will read -- and it
     silently destroys the entire input to the feedback layer, which is what
     happened the first time a report was generated from a written dataset: it
     correctly announced that no component had declared a licence, that the

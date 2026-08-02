@@ -330,7 +330,7 @@ def test_against_the_real_simulator():  # pragma: no cover
 #
 # RoboTwin randomises object placement per seed and not every arrangement is
 # solvable. Scoring a policy on one that is not charges it for the sampler, and
-# the unsolvable fraction moves with the seed range — so two runs over different
+# the unsolvable fraction moves with the seed range -- so two runs over different
 # ranges are not comparable even on the same task. RoboTwin's own loop screens
 # with the scripted expert for exactly this reason.
 
@@ -447,7 +447,7 @@ def test_a_screened_run_records_the_experts_own_rate():
     labels = record.episodes[0].labels.annotations
     assert labels["expert_screened"] is True
     # Seeds 0, 1 and 2 were tried and two were solved. The denominator is what
-    # was actually examined, not the limit — screening stops as soon as it has
+    # was actually examined, not the limit -- screening stops as soon as it has
     # enough, so the limit says nothing about how hard the task was.
     assert made.built[0].played == [0, 1, 2]
     assert labels["expert_solve_rate"] == round(2 / 3, 4)
@@ -465,7 +465,7 @@ def test_screening_needs_an_expert_and_says_so_when_there_is_none():
 def test_success_detected_mid_motion_is_not_lost_when_the_object_settles_back():
     """RoboTwin interpolates one command into hundreds of physics steps and
     latches eval_success inside that loop. Asking check_success() afterwards can
-    disagree — and the trial that succeeded would be recorded as a failure."""
+    disagree -- and the trial that succeeded would be recorded as a failure."""
 
     class Settles(FakeTask):
         def take_action(self, action, action_type="qpos"):

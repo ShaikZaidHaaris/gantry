@@ -41,7 +41,7 @@ class ComponentSpec:
     Chains exist because the interesting pipelines are compositions. Reading raw
     ego video, estimating hands onto it, and turning those into robot actions is
     three connectors stacked, and until a manifest could say so the whole
-    pipeline lived in hand-written scripts — declarative in principle and
+    pipeline lived in hand-written scripts -- declarative in principle and
     bespoke in practice. A manifest that cannot express the thing it is for is
     not a manifest.
     """
@@ -52,7 +52,7 @@ class ComponentSpec:
     over: "ComponentSpec | None" = None
     #: Whether the run continues without this link when it cannot be built.
     #:
-    #: For stages that genuinely may not apply — lifting to a world frame needs
+    #: For stages that genuinely may not apply -- lifting to a world frame needs
     #: a camera trajectory, and half of real uploads do not have one. An
     #: optional link that fails is a note in the record, not a failed run; a
     #: required one that fails is a refusal.
@@ -80,7 +80,7 @@ class ComponentSpec:
         if not isinstance(payload, list) or not payload:
             raise ConfigError(
                 f"{where}: 'chain' must be a non-empty list of components, "
-                "innermost first — the one that reads from disk comes first and "
+                "innermost first, the one that reads from disk comes first and "
                 "each later one reads from the one before it"
             )
         built: "ComponentSpec | None" = None
@@ -135,7 +135,7 @@ class Manifest:
 
     name: str
     cohorts: Mapping[str, ComponentSpec] = field(default_factory=dict)
-    #: Which plane the cohorts are components of — the axis under comparison.
+    #: Which plane the cohorts are components of -- the axis under comparison.
     #:
     #: Defaulted to the dataset plane because that is the common case, not
     #: because it is privileged. Comparing three checkpoints in one world is the
@@ -149,7 +149,7 @@ class Manifest:
     #: checked against each other from provenance at analysis time.
     varies: str = "dataset"
     #: Every single-valued plane, keyed by plane name. A plane registered by a
-    #: plugin lands here with no edit to this class — which is the difference
+    #: plugin lands here with no edit to this class -- which is the difference
     #: between a manifest that supports six planes and one that supports planes.
     components: Mapping[str, ComponentSpec] = field(default_factory=dict)
     feedback: tuple[ComponentSpec, ...] = ()
@@ -189,7 +189,7 @@ class Manifest:
         raw_cohorts = payload.get("cohorts", {})
         varies = payload.get("varies", "dataset")
         if isinstance(raw_cohorts, Mapping) and "plane" in raw_cohorts and "of" in raw_cohorts:
-            # {"cohorts": {"plane": "policy", "of": {...}}} — the explicit form.
+            # {"cohorts": {"plane": "policy", "of": {...}}} -- the explicit form.
             varies = str(raw_cohorts["plane"])
             raw_cohorts = raw_cohorts["of"]
         if not isinstance(raw_cohorts, Mapping):
@@ -226,7 +226,7 @@ class Manifest:
             # A many-valued plane used to be skipped here, because the only
             # many-valued plane was the one cohorts were always built on. Now
             # that any plane can be the axis, naming one as a single component
-            # is meaningful — "the dataset every policy is measured on". The
+            # is meaningful -- "the dataset every policy is measured on". The
             # conflict check below catches naming it both ways.
             if payload.get(plane) is not None:
                 components[plane] = ComponentSpec.parse(payload[plane], f"{where}.{plane}")
@@ -252,7 +252,7 @@ class Manifest:
         if str(varies) in components:
             raise ConfigError(
                 f"{where}: {varies!r} is named both as the varying axis and as a "
-                f"single component. It is one or the other — if it varies, every value "
+                f"single component. It is one or the other, if it varies, every value "
                 f"belongs in 'cohorts'."
             )
         return cls(
@@ -319,7 +319,7 @@ class Manifest:
         return self.provides("policy") and self.provides("evaluation")
 
     def provides(self, plane: str) -> bool:
-        """Is this plane supplied at all — as one component or as the axis?"""
+        """Is this plane supplied at all -- as one component or as the axis?"""
         return self.varies == plane or self.components.get(plane) is not None
 
     def spec_for(self, plane: str, cohort: str) -> ComponentSpec | None:
@@ -365,7 +365,7 @@ class Manifest:
                 Verdict.no(
                     "manifest.no_dataset",
                     f"{self.name}: cohorts vary on {self.varies!r}, so the dataset plane "
-                    "has to be named — otherwise there is nothing for them to be "
+                    "has to be named, otherwise there is nothing for them to be "
                     "measured on",
                 )
             )

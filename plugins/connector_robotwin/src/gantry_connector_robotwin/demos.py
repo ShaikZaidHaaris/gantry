@@ -12,7 +12,7 @@ than a file, and an episode's length is its own.
 The action space is the pose, not the joints
 --------------------------------------------
 Each file carries both: ``joint_action`` for the arms' angles and ``endpose``
-for where the grippers actually are. This reads the pose, for one reason — it is
+for where the grippers actually are. This reads the pose, for one reason -- it is
 the only space the ego pipeline can also produce. ``retargeter_hands`` refuses to
 turn hand poses into joint angles and says why. Two datasets that cannot be
 expressed in one action space cannot be mixed, and mixing them is the whole
@@ -23,7 +23,7 @@ Actions are the next pose, not the current one
 ``endpose[t]`` is where the arms *were* at step t. The command that produced
 step t+1 is ``endpose[t+1]``, so that is what the action at t must be. Reading
 the file's rows straight across would train a policy to predict where it already
-is — a loss that falls beautifully and a policy that never moves.
+is -- a loss that falls beautifully and a policy that never moves.
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ def action_spec(name: str = ACTION) -> ChannelSpec:
 def _decode(raw: Any) -> np.ndarray:
     """One frame, from whatever the file stored it as.
 
-    RoboTwin stores camera frames as encoded bytes rather than arrays — a
+    RoboTwin stores camera frames as encoded bytes rather than arrays -- a
     fixed-width ``|S`` column of PNG or JPEG. Reading it as an array gives a
     string of the right length and entirely the wrong thing.
     """

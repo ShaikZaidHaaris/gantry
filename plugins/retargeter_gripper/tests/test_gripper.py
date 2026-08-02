@@ -82,7 +82,7 @@ def test_six_coupled_joints_reduce_to_one_number_and_come_back_on_the_line():
 
 def test_two_grippers_of_equal_width_are_still_not_interchangeable():
     # The whole reason this package exists. Both hands report two numbers, so
-    # no width check objects to swapping them — and yet, measured in robosuite,
+    # no width check objects to swapping them -- and yet, measured in robosuite,
     # a Rethink hand read on Panda's scale spans only 0 to 0.28. Its entire
     # travel, shut to wide open, looks like a hand that never opens past a
     # quarter. A policy trained on Panda would never see it let go.
@@ -185,7 +185,7 @@ def test_it_passes_the_conformance_kit():
 
 
 def test_a_two_handed_body_is_refused_for_being_two_handed():
-    """Not for being undescribed — it is described, and fully.
+    """Not for being undescribed -- it is described, and fully.
 
     A body that reports two hands cannot be read by a conversion that maps one
     onto one, and picking a hand for the caller would be the framework making

@@ -1,8 +1,8 @@
 """RoboCasa's shape, checked without RoboCasa or its several gigabytes of assets.
 
-The fake copies the robosuite API RoboCasa inherits — ``reset`` returning an
+The fake copies the robosuite API RoboCasa inherits -- ``reset`` returning an
 observation dict, ``step`` returning four values, ``_check_success``,
-``action_dim`` — and records which (layout, style) it was built with, since the
+``action_dim`` -- and records which (layout, style) it was built with, since the
 scene identity is the thing this plugin exists to keep hold of.
 """
 
@@ -136,7 +136,7 @@ def test_one_environment_is_built_per_kitchen_and_reused_across_draws():
 
 
 def test_the_held_and_varied_scene_conditions_are_both_expressible():
-    """This is the experiment the plugin is for — the same comparison this
+    """This is the experiment the plugin is for -- the same comparison this
     project ran by hand as 'lift narrow' against 'lift wide', except the wide
     condition is a set of kitchens rather than a bigger rectangle on one table."""
     held = evaluator(layouts=(0,), styles=(0,)).task_for(per_scene=10)
@@ -215,8 +215,7 @@ def test_the_body_is_one_argument_and_reaches_the_environment():
     assert humanoid.descriptor().provides["hosts_embodiment"] is True
     record = humanoid.run(Chunker(), humanoid.task_for(per_scene=1), Protocol())
     assert record.episodes[0].meta.embodiment == "GR1FixedLowerBody"
-    # The factory is shared, so the kitchen it actually built is visible here —
-    # the body has to reach the environment, not just the record.
+    # The factory is shared, so the kitchen it actually built is visible here --     # the body has to reach the environment, not just the record.
     assert panda.built[0].robot == "GR1FixedLowerBody"
 
 

@@ -2,7 +2,7 @@
 
 Neither side knows the whole thing:
 
-**The server** knows what the model wants — which state, video and language keys
+**The server** knows what the model wants -- which state, video and language keys
 it reads, and how many timesteps of each. It does not know how wide any of them
 are, because that is a property of the data it was trained on.
 
@@ -86,11 +86,11 @@ class Layout:
 
         The preferred path, and the one that keeps this plugin on its own plane.
         Reading ``modality.json`` directly means a *policy* knows a *dataset*
-        format — it works, and it is a leak: two plugins on two planes end up
+        format -- it works, and it is a leak: two plugins on two planes end up
         parsing the same file, and the third format to arrive has to teach both.
 
         A connector's job is to describe its data, and a described channel
-        already carries ``dim_labels`` — one name per element. That is the same
+        already carries ``dim_labels`` -- one name per element. That is the same
         information the sidecar holds, in the vocabulary the framework already
         speaks, so it is what this reads.
         """
@@ -189,8 +189,8 @@ def _from_labels(spec: Any, modality: str) -> tuple[Field, ...]:
     """Dimension labels back to spans, collapsing ``gripper.0``/``gripper.1``.
 
     The inverse of what a connector does when it reads a sidecar, so a channel
-    labelled by any reader — from a sidecar, from a feature list, or declared by
-    hand — describes the same fields to the model.
+    labelled by any reader -- from a sidecar, from a feature list, or declared by
+    hand -- describes the same fields to the model.
     """
     if spec is None:
         return ()

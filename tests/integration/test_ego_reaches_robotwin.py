@@ -1,8 +1,8 @@
 """The ego chain's output, accepted by a dual-arm evaluator.
 
 This is the join that did not exist. ``retargeter_hands`` refuses to produce
-joint positions — inverse kinematics needs link lengths, joint limits and a
-choice of elbow configuration, none of which a retargeter has — and every
+joint positions -- inverse kinematics needs link lengths, joint limits and a
+choice of elbow configuration, none of which a retargeter has -- and every
 bimanual config installed until now wanted joint positions. So the ego pipeline
 produced commands nothing could execute, and the report correctly refused to say
 whether the data helped.
@@ -51,7 +51,7 @@ def joint_target():
 
 def test_the_retargeter_still_refuses_joint_space_and_names_what_is_missing():
     """The refusal that made this necessary, unweakened. The evaluator met the
-    retargeter's terms, not the other way round — nothing here relaxed to make
+    retargeter's terms, not the other way round -- nothing here relaxed to make
     the join happen."""
     source = hand_command("right_wrist", scale="metric", frame="world")
     verdict = retargeter().accepts(source, joint_target())
@@ -72,8 +72,7 @@ def test_end_effector_mode_is_the_space_the_retargeter_emits():
 
 
 def test_the_widths_line_up_per_arm():
-    """Eight numbers an arm on both sides — position, wxyz quaternion, gripper —
-    so two arms concatenated is exactly what the evaluator reads."""
+    """Eight numbers an arm on both sides -- position, wxyz quaternion, gripper --     so two arms concatenated is exactly what the evaluator reads."""
     per_arm = arm_command("arm", rotation_repr="quat_wxyz").width
     assert per_arm == 8
     assert width_of("ee") == per_arm * 2

@@ -2,7 +2,7 @@
 
 A feedback module consumes records and nothing else. It never imports a
 simulator, a policy, or a connector, and it cannot tell whether an episode was
-recorded by a person or produced by a policy — which is exactly why one module
+recorded by a person or produced by a policy -- which is exactly why one module
 can screen a dataset and diagnose an evaluation without being told which it
 received.
 
@@ -46,7 +46,7 @@ CAP_PRESCRIBES = "prescribes"
 #: datasets is only measuring the data if the policy and the evaluator were the
 #: same; change the policy too and the difference is unattributable, but the
 #: table looks exactly the same either way. Declaring the held planes lets that
-#: be checked instead of assumed — which is the difference between a result and
+#: be checked instead of assumed -- which is the difference between a result and
 #: a coincidence.
 CAP_HOLDS = "holds"
 
@@ -237,7 +237,7 @@ class FeedbackModule(ABC):
 
         Answered from provenance, which is why every run records what produced
         it. A cohort with no provenance cannot be checked, and that is reported
-        rather than treated as agreement — "nobody wrote it down" is not the
+        rather than treated as agreement -- "nobody wrote it down" is not the
         same as "it matched".
         """
         held = self.holds()
@@ -287,7 +287,7 @@ class FeedbackModule(ABC):
             if all((cohort.provenance or empty).component(plane) is None for cohort in cohorts)
         ]
         if absent and len(absent) == len(held):
-            # Nothing downstream existed for any cohort — the ordinary shape of
+            # Nothing downstream existed for any cohort -- the ordinary shape of
             # a screen over raw recordings. Vacuously satisfied, and said out
             # loud so the reader knows the guarantee was cheap here.
             checks.append(
@@ -343,7 +343,7 @@ class FeedbackModule(ABC):
 
         A module declares a requirement; this is what makes that declaration
         real. Channels are matched by name, by alias, and by meaning, and arrive
-        renamed to the module's own roles — so ``analyse`` reads what it asked
+        renamed to the module's own roles -- so ``analyse`` reads what it asked
         for and never goes looking.
 
         Done here rather than only in a runner because a module must be correct

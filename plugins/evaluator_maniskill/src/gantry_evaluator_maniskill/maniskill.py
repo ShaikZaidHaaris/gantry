@@ -1,7 +1,7 @@
 """ManiSkill as an evaluator, and the reason it is worth having: many robots.
 
 Almost every suite in this field has one body welded in. LIBERO is a Panda, the
-robomimic tasks are a Panda, Meta-World is a Sawyer — which means that "does this
+robomimic tasks are a Panda, Meta-World is a Sawyer -- which means that "does this
 policy transfer to a different arm" is not a question those suites can be asked,
 and a benchmark built only on them measures one embodiment while sounding general.
 
@@ -17,7 +17,7 @@ Throughput. ManiSkill's headline feature is thousands of environments stepping
 together on a GPU, and none of that helps here yet, because Gantry's trial loop
 asks one policy for one action at a time. Making the parallelism real needs a
 policy contract that accepts a batch of observations and returns a batch of
-chunks — a genuine piece of work on the policy plane, not a flag on this
+chunks -- a genuine piece of work on the policy plane, not a flag on this
 evaluator. So ``num_envs`` is fixed at one, said out loud in the descriptor, and
 the speedup is not claimed anywhere.
 
@@ -50,7 +50,7 @@ from gantry.spine import ChannelSpec, Descriptor
 VERSION = "0.1.0.dev0"
 
 #: Bodies ManiSkill ships that are worth pointing a manipulation policy at.
-#: Not exhaustive and not a whitelist — an unknown uid is passed straight
+#: Not exhaustive and not a whitelist -- an unknown uid is passed straight
 #: through, because a suite adding a robot should not need this file edited.
 ROBOTS = (
     "panda",
@@ -97,8 +97,7 @@ def numeric(value: Any) -> np.ndarray:
     """A torch tensor, numpy array or scalar as a plain host-side numpy array.
 
     In one place on purpose. ManiSkill returns CUDA tensors with a leading batch
-    axis of one, and ``np.asarray`` on such a tensor raises rather than copying —
-    so every caller that skipped this would need its own ``.cpu().numpy()``, and
+    axis of one, and ``np.asarray`` on such a tensor raises rather than copying --     so every caller that skipped this would need its own ``.cpu().numpy()``, and
     the ones that forgot would work anyway on the CPU backend and break on GPU.
     """
     for attribute in ("detach", "cpu"):
@@ -113,7 +112,7 @@ def unbatch(array: np.ndarray) -> np.ndarray:
     """Drop a leading axis of length one.
 
     Not a squeeze: ``squeeze()`` would also collapse a genuine dimension of one
-    further in — a single-channel depth image, say — and silently change the
+    further in -- a single-channel depth image, say -- and silently change the
     shape a policy is handed.
     """
     if array.ndim >= 1 and array.shape[0] == 1:
@@ -316,7 +315,7 @@ class ManiskillEvaluator(ClosedLoop):
         """The same task on a different body.
 
         ``embodiment`` may be a name or anything with one. The uid is passed
-        through unchecked against :data:`ROBOTS` — that tuple is documentation,
+        through unchecked against :data:`ROBOTS` -- that tuple is documentation,
         not a gate, and a ManiSkill release adding an arm should not need this
         file edited to be usable.
         """

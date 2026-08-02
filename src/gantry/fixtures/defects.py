@@ -12,7 +12,7 @@ actuator). They are verified by a statistic shifting between the defective and
 clean halves of a suite.
 
 **Schema** defects change how a channel is *described* rather than what it
-contains — the same motion recorded in millimetres, or in a different reference
+contains -- the same motion recorded in millimetres, or in a different reference
 frame. They are verified by :func:`gantry.spine.compatible` refusing with a
 specific code, which is the only way to catch a class of bug that is invisible
 to every statistic: numbers that look fine and mean something else.

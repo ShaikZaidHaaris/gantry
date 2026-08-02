@@ -3,6 +3,7 @@
 import { Link, useParams } from "react-router-dom";
 import { useRetryGate, useStartGate, useSubmission, useSubmissionEvents } from "../api/client";
 import { BudgetPanel } from "../components/BudgetPanel";
+import { Channels } from "../components/Channels";
 import { DataReport } from "../components/DataReport";
 import { Verdict } from "../components/Verdict";
 import { Versions } from "../components/Versions";
@@ -67,7 +68,7 @@ export function SubmissionDetail() {
   // The gate whose price is a choice, if it has not run. Not simply the next
   // paid gate: the signal check is fixed work at a fixed price, and putting a
   // trial slider on it would offer a decision that does not exist. The budget
-  // question also belongs here rather than in the upload wizard — nobody should
+  // question also belongs here rather than in the upload wizard, nobody should
   // pick a trial count before knowing their data is readable, and a price
   // quoted before intake is a price for work that may never happen.
   const sized = data.gates.find((g) => g.sized && g.status === "queued");
@@ -106,7 +107,7 @@ export function SubmissionDetail() {
             <span className="v">{detected.videos}</span>
             <span className="k">Channels</span>
             <span className="v">
-              {detected.channels?.map((c) => `${c.name}${c.width ? ` (${c.width})` : ""}`).join("  ·  ")}
+              <Channels channels={detected.channels ?? []} />
             </span>
             {detected.tasks && detected.tasks.length > 0 && (
               <>

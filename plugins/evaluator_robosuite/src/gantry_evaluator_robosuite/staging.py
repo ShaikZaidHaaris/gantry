@@ -12,8 +12,8 @@ Two things are deliberately kept apart.
 
 **Translation is pure.** Turning a region into sampler arguments imports no
 simulator, so a task can be checked for stageability on a laptop with nothing
-installed. Only :func:`materialise` — called from inside the env builder, where
-robosuite is already imported — turns those arguments into objects.
+installed. Only :func:`materialise` -- called from inside the env builder, where
+robosuite is already imported -- turns those arguments into objects.
 
 **Whether it worked is measured, not assumed.** Some environments here build
 their own placement unconditionally and discard an injected sampler. Nothing in
@@ -67,7 +67,7 @@ class Placement:
 
         Environments here call ``add_objects_to_sampler(f"{name}Sampler", ...)``
         with their own object name. A composite sampler missing that exact key
-        raises inside robosuite, which is the correct outcome — loud, and at
+        raises inside robosuite, which is the correct outcome -- loud, and at
         build time.
         """
         return f"{self.object_name}Sampler"
@@ -218,7 +218,7 @@ def materialise(placements: tuple[Placement, ...], reference: Any, *, composite:
 
     Environments here bind their objects to an injected sampler in two
     incompatible ways, and neither is discoverable from a description: some call
-    ``add_objects`` — which a composite sampler refuses outright — and some call
+    ``add_objects`` -- which a composite sampler refuses outright -- and some call
     ``add_objects_to_sampler`` with a name, which only a composite sampler has.
     Which one an environment uses is a fact about its source, so it is found by
     offering a shape and seeing whether the world accepts it, rather than by a
@@ -235,7 +235,7 @@ def materialise(placements: tuple[Placement, ...], reference: Any, *, composite:
             sampler.append_sampler(sampler=UniformRandomSampler(**placement.as_kwargs(reference)))
         return sampler
     # One rectangle for everything the environment adds. Only reachable when
-    # every placement agrees on it — see :func:`shared_region`.
+    # every placement agrees on it -- see :func:`shared_region`.
     kwargs = placements[0].as_kwargs(reference)
     kwargs["name"] = "ObjectSampler"
     return UniformRandomSampler(**kwargs)
@@ -246,7 +246,7 @@ def sampler_shapes(placements: tuple[Placement, ...]) -> tuple[bool, ...]:
 
     Per-object regions can only be expressed by the composite shape, so a task
     declaring different regions for different objects gets one candidate rather
-    than two — an environment that will not take it is refused, which is the
+    than two -- an environment that will not take it is refused, which is the
     correct outcome. Coercing it into a single region would be the failure this
     module exists to prevent.
     """
@@ -258,8 +258,7 @@ def accepts_placement(env_class: Any) -> bool:
 
     Not every one can: some take no such argument, so passing one is a
     ``TypeError`` from deep inside a constructor rather than an answer. Asked of
-    the signature instead, which is both a clearer refusal and a general one —
-    an environment written next week is judged the same way.
+    the signature instead, which is both a clearer refusal and a general one --     an environment written next week is judged the same way.
     """
     import inspect
 
@@ -276,7 +275,7 @@ def surface_origin(env: Any) -> Any:
     """Where this world puts the surface objects rest on.
 
     Measured from the built environment. Regions in a task file are relative to
-    the surface — that is what makes them printable onto a real table — and this
+    the surface -- that is what makes them printable onto a real table -- and this
     is the offset that turns them into this world's coordinates.
     """
     origin = getattr(env, "table_offset", None)
@@ -295,7 +294,7 @@ def verify_honoured(env: Any, sampler: Any, env_name: str) -> None:
     an injected sampler. That is silent: the world runs, the run succeeds, and
     every number it reports is against a layout the task file did not specify.
     Detected by identity rather than by a list of environment names, so an
-    environment added later — by robosuite or by you — is judged on what it
+    environment added later -- by robosuite or by you -- is judged on what it
     does rather than on whether anyone remembered to list it.
     """
     kept = getattr(env, "placement_initializer", None)

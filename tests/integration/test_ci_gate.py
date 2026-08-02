@@ -1,6 +1,6 @@
 """The regression gate, against this project's own measurements.
 
-What matters here is not that it computes a p-value — it is which way it fails.
+What matters here is not that it computes a p-value -- it is which way it fails.
 A gate that blocks on noise gets switched off within a week and then protects
 nothing, and a gate that blocks the very first run on a task blocks the commit
 that would establish its baseline. Both are tested.

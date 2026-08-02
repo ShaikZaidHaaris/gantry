@@ -5,8 +5,7 @@ One check per invariant sentence in :mod:`gantry.contracts.curation`.
 Three of these carry most of the weight.
 
 **Determinism**, because a curator that proposes a different set of episodes on
-a second reading of the same data cannot be reviewed and cannot be verified —
-the plan that was tested is not the plan that would be applied.
+a second reading of the same data cannot be reviewed and cannot be verified -- the plan that was tested is not the plan that would be applied.
 
 **Actionability**, because a plan naming episodes the dataset does not contain
 is not a plan. It is the most common way a curation pipeline silently does

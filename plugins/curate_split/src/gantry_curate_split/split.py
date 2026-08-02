@@ -22,7 +22,7 @@ the measurement per episode, and what the matching cost.
 
 Why this is not a curator
 -------------------------
-The curation plane prescribes changes — drop these, collect more of that, and
+The curation plane prescribes changes -- drop these, collect more of that, and
 here is what I predict will happen. This prescribes nothing. It describes a
 corpus and cuts it where it was told to, and the cutting is not a claim that
 either half is better. What each half is worth is decided downstream by a
@@ -57,7 +57,7 @@ class Part:
     measured: tuple[float, ...] = ()
     #: Episodes dropped from this part to match another's size, and their frames.
     dropped: tuple[str, ...] = ()
-    #: What identified the groups, or None if nothing did — in which case the
+    #: What identified the groups, or None if nothing did -- in which case the
     #: two halves may share a participant and there is no way to tell.
     grouped_by: str | None = None
 
@@ -112,7 +112,7 @@ def group_of(episode: Any) -> str:
     """What must not straddle a split.
 
     Two halves that share a participant, a kitchen or a recording session are
-    not two contributors — they are one, cut in half. The grouping key is taken
+    not two contributors -- they are one, cut in half. The grouping key is taken
     from the episode's own metadata where it says, and falls back to the episode
     id, which makes each episode its own group and is the safe reading rather
     than the useful one.
@@ -135,7 +135,7 @@ class Split:
 
     measure: Measure
     threshold: float
-    #: (at or above, below) — named so the ordering is legible in the report.
+    #: (at or above, below) -- named so the ordering is legible in the report.
     names: tuple[str, str] = ("high", "low")
     #: What the measure is, in words. Required: a number with no name is not a
     #: criterion, it is a coincidence.
@@ -319,7 +319,7 @@ def moving_fraction(channel: str = "action", arms: int = 2, width: int = 7) -> M
     An arm the tracker never found is held at its last value by the connector,
     so it reads as a frozen block of identical numbers rather than as missing.
     That is invisible to any shape or dtype check and it is the difference
-    between two-handed footage and one-handed footage — which, for a two-armed
+    between two-handed footage and one-handed footage -- which, for a two-armed
     task, is the difference between data that could teach it and data that
     cannot.
 

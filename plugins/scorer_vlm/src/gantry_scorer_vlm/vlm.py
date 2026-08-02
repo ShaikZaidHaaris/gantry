@@ -16,7 +16,7 @@ judge nobody has checked.
 The wire is a callable
 ----------------------
 No SDK is a hard dependency. ``ask`` is any function taking ``(prompt, frames)``
-and returning text — which means a lab with its own inference stack substitutes
+and returning text -- which means a lab with its own inference stack substitutes
 that, an air-gapped setup substitutes a local model, and the tests substitute a
 dictionary. Baking in one vendor's client would make the plugin a bet on that
 vendor rather than on the method.
@@ -86,7 +86,7 @@ own idea of what success should mean, and do not give partial credit.
 Rules:
 - Answer exactly one line per criterion, formatted `<name>: yes` or `<name>: no` \
 or `<name>: unclear`.
-- Answer `unclear` whenever the frames do not settle the question — for example \
+- Answer `unclear` whenever the frames do not settle the question, for example \
 if the object leaves view, if the final state is not visible, or if the standard \
 requires seeing something the frames do not show. `unclear` is a correct and \
 useful answer; guessing is not.
@@ -165,14 +165,14 @@ def parse_answer(text: str, criteria: Sequence[str]) -> Answer:
 
     Unmatched criteria abstain: a model that skipped a question has not answered
     it, and filling in a default would invent a label. Criteria the task never
-    asked about are dropped — a judge that volunteers extra verdicts is not
+    asked about are dropped -- a judge that volunteers extra verdicts is not
     grading the task in front of it.
     """
     wanted = list(criteria)
     verdicts: dict[str, bool | None] = {name: None for name in wanted}
     # Matched case-insensitively. A model that replies "Lifted: yes" has
     # answered the question, and dropping it for capitalisation would abstain
-    # on a settled criterion — the one direction of error that looks like
+    # on a settled criterion -- the one direction of error that looks like
     # caution while actually discarding data.
     by_lower = {name.lower(): name for name in wanted}
     found = False
@@ -228,8 +228,8 @@ def frames_from_video(path: str | Path, count: int = FRAMES) -> list[bytes]:
         for index, frame in enumerate(container.decode(video=0)):
             if index in wanted or not total:
                 # Encoded explicitly rather than through ``_repr_png_``, which
-                # is an IPython display hook and returns something else — or
-                # nothing — outside a notebook. Frames that are not really PNG
+                # is an IPython display hook and returns something else -- or
+                # nothing -- outside a notebook. Frames that are not really PNG
                 # reach a model as garbage and it dutifully abstains, which
                 # looks like an honest judge on unclear footage.
                 buffer = io.BytesIO()
@@ -245,7 +245,7 @@ def replay(transcripts: Mapping[str, str]) -> Callable[[str, Sequence[bytes]], s
 
     What makes this plugin testable and re-analysable. A stored transcript is a
     complete record of what the judge said, so agreement can be recomputed, a
-    parser can be fixed, and a rubric can be re-scored — none of which should
+    parser can be fixed, and a rubric can be re-scored -- none of which should
     require paying for inference twice or having network access at all.
     """
     remaining = dict(transcripts)
@@ -332,8 +332,7 @@ class VlmScorer(Scorer):
             frames = frames_from_video(evidence.video, self._frames) if evidence.video else []
         except Exception:  # noqa: BLE001
             # A video that will not decode is missing evidence, not a crash. The
-            # model is then asked with no frames, sees nothing, and abstains —
-            # which is the honest outcome. Raising here would make an unreadable
+            # model is then asked with no frames, sees nothing, and abstains --             # which is the honest outcome. Raising here would make an unreadable
             # file indistinguishable from a broken judge.
             frames = []
 
@@ -386,7 +385,7 @@ class VlmScorer(Scorer):
                 )
             elif verdict is None:
                 why = answer.reasons.get(name) or (
-                    f"{self._name}: answered unclear — the frames did not settle it"
+                    f"{self._name}: answered unclear, the frames did not settle it"
                 )
             else:
                 why = answer.reasons.get(name) or (
@@ -401,7 +400,7 @@ class VlmScorer(Scorer):
     def annotate(cls, trials, task, path, **options):
         """Write the prompt this judge would be given, for a person to read.
 
-        Not a page to click through — the surface a model needs is its prompt,
+        Not a page to click through -- the surface a model needs is its prompt,
         and the reason to write it out is that a prompt nobody has read is a
         prompt nobody can criticise. Reviewing it beside the rubric is the
         cheapest way to catch a judge being asked the wrong question.

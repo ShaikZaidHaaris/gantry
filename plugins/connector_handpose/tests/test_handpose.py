@@ -150,8 +150,7 @@ def test_position_is_normalized_and_only_the_hand_shape_is_metric():
 
     Image landmarks are pixel fractions; world landmarks are metres centred on
     the hand. So the hand's shape is metric and its position in the room is not,
-    and calling both "unscaled" let a hand span be applied to a pixel fraction —
-    which produced a smooth, confident trajectory inside a 19 cm box.
+    and calling both "unscaled" let a hand span be applied to a pixel fraction --     which produced a smooth, confident trajectory inside a 19 cm box.
     """
     episode = derived().open("handpose/ego/0")
     for name in ("left_hand", "right_hand", "left_wrist"):
@@ -207,7 +206,7 @@ def test_confidence_is_kept_as_a_channel_rather_than_thresholded_away():
     episode = derived(estimator=Scripted(confidence=0.4)).open("handpose/ego/0")
     assert episode.array("left_confidence").shape == (20,)
     assert float(episode.array("left_confidence")[0]) == pytest.approx(0.4)
-    # And the poses are still there — the threshold is only for the count.
+    # And the poses are still there -- the threshold is only for the count.
     assert episode.array("left_hand").shape == (20, 21, 3)
 
 
@@ -239,7 +238,7 @@ def test_usable_length_marks_a_clip_too_short_to_hold_a_whole_attempt():
 
 def test_the_signals_are_counts_and_not_judgements():
     """Which number is worth worrying about, and what to do, is decided somewhere
-    else — a module that both measured and graded would be scoring its own work."""
+    else -- a module that both measured and graded would be scoring its own work."""
     annotations = derived().open("handpose/ego/0").labels.annotations
     assert set(annotations) >= {"hands_visible", "motion_ok", "usable_length", "steps"}
     assert not any("should" in str(value) for value in annotations.values())
@@ -278,7 +277,7 @@ def test_the_aperture_is_thumb_tip_to_index_tip():
 
 
 def test_the_joint_table_is_per_convention_and_an_unknown_one_is_refused():
-    """Exactly the table that gets silently wrong — MANO and MediaPipe are both
+    """Exactly the table that gets silently wrong -- MANO and MediaPipe are both
     21 joints in different orders."""
     assert set(JOINTS) >= {"mediapipe", "mano"}
     assert JOINTS["mediapipe"] != JOINTS["mano"]

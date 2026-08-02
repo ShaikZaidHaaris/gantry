@@ -4,8 +4,8 @@ Two places need this: writing a run to disk, and passing one across a process
 boundary. They are the same problem, and having each solve it separately is how
 a record written by one and read by the other quietly loses a field.
 
-Everything here is symmetric by construction — every ``*_to_dict`` has a
-``*_from_dict`` that inverts it — and the round-trip is tested rather than
+Everything here is symmetric by construction -- every ``*_to_dict`` has a
+``*_from_dict`` that inverts it -- and the round-trip is tested rather than
 assumed, because "we serialise it" and "we can read it back" are different
 claims and only the second one is worth anything.
 

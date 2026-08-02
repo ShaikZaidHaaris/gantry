@@ -108,7 +108,7 @@ def test_the_unused_fraction_is_measured():
 def test_the_default_measure_is_generous_with_a_shared_verb_and_says_so():
     """A known limitation, pinned rather than hidden. "pick up the mug and put it
     in the sink" and "pick up the cube" share only `pick`, and over the shorter
-    instruction that is half its content — enough to count as a match.
+    instruction that is half its content -- enough to count as a match.
 
     That is the cost of a measure a user can check by eye. It errs toward
     claiming coverage, which is the safer direction here: over-claiming coverage

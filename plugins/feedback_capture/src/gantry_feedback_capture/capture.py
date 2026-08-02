@@ -9,7 +9,7 @@ separating this upload from the ones above it".
 Where the numbers come from
 ---------------------------
 Nowhere new. Every signal here was computed by something that already had to look
-at the data — the connector counted scenes and durations, the hand estimator
+at the data -- the connector counted scenes and durations, the hand estimator
 reported how often it found a hand, the retargeter reported what fraction of the
 reaching was inside the arm's workspace. This module reads those off the record
 and turns them into sentences. It never opens a video, which is what keeps it
@@ -23,7 +23,7 @@ theirs**. Datasets scoring above them have hands off-frame 4% of the time; that
 does not license "fix this and you gain five points". So the finding says what
 the better datasets look like and stops, and :data:`CAUSAL_WORDS` exists as a
 reminder of the phrasing this module is not allowed to use. It is the same rule
-the rest of the feedback plane keeps — describe, do not promise — and it is
+the rest of the feedback plane keeps -- describe, do not promise -- and it is
 easier to break here than anywhere else, because a prescription *wants* to
 promise something.
 
@@ -53,7 +53,7 @@ from gantry.spine import Descriptor, Measurement, count_of, plural
 VERSION = "0.1.0.dev0"
 
 #: Phrasings this module must not use. Here as documentation rather than as a
-#: filter — the point is that somebody editing a prescription reads them and
+#: filter -- the point is that somebody editing a prescription reads them and
 #: remembers why. The cost figures are correlational across datasets; they do not
 #: license a causal promise about this one.
 CAUSAL_WORDS = (
@@ -107,7 +107,7 @@ class Check:
         return max(0.0, float(distance)) / scale * float(self.weight)
 
 
-#: The checks themselves. Ordered here for readability only — findings come out
+#: The checks themselves. Ordered here for readability only -- findings come out
 #: ordered by measured cost, not by position in this list.
 CHECKS: tuple[Check, ...] = (
     Check(
@@ -136,7 +136,7 @@ CHECKS: tuple[Check, ...] = (
     ),
     Check(
         # A count, not a per-clip ratio. As a ratio, six clips in one kitchen
-        # scored better than forty in one kitchen and passed — but one location
+        # scored better than forty in one kitchen and passed -- but one location
         # is one location, and the advice is identical either way. The ratio
         # conflated "few clips" with "many locations".
         key="scenes",
@@ -218,12 +218,12 @@ def measured(cohort: Cohort, checks: Sequence[Check] = CHECKS) -> dict[str, floa
     """The capture signals, averaged over the cohort's episodes.
 
     ``checks`` is passed rather than read from the module constant, because a
-    caller who added their own check should get it read — the version that
+    caller who added their own check should get it read -- the version that
     consulted the global reported every custom check as "nothing to read", which
     is exactly the wrong answer and a quiet one.
 
     Read off annotations that earlier stages wrote. A signal nobody measured is
-    absent rather than zero — the difference between "your hands were never
+    absent rather than zero -- the difference between "your hands were never
     visible" and "nobody looked" is the whole distinction this project keeps
     everywhere else, and it would be especially cruel to get wrong here.
     """
@@ -325,7 +325,7 @@ class Capture(FeedbackModule):
     ):
         """``better`` is what the datasets scoring above this one look like.
 
-        Optional, and the findings are useful without it — they simply say what
+        Optional, and the findings are useful without it -- they simply say what
         is wrong rather than how far from the field it is. Supplied, every finding
         gains one comparative sentence, phrased as an observation about those
         datasets and never as a promise about this one.
@@ -419,7 +419,7 @@ class Capture(FeedbackModule):
         counts: Mapping[str, int],
         rank: int,
     ) -> Finding:
-        # `missing` is the *actual* shortfall a person would recognise — footage
+        # `missing` is the *actual* shortfall a person would recognise -- footage
         # with no hands in it at all is 100% missing, not 90%. An earlier version
         # formatted the distance below the threshold instead, so a clip with
         # hands_visible=0.0 was reported as "out of frame for 90%" because the
@@ -451,7 +451,7 @@ class Capture(FeedbackModule):
         if reference is not None:
             evidence["datasets_above_this_one"] = round(float(reference), 4)
             # Phrased as an observation about those datasets. Not "fix this and
-            # you gain N" — the association is across datasets and says nothing
+            # you gain N" -- the association is across datasets and says nothing
             # causal about this one.
             prescription += (
                 f" For reference, uploads that scored above this one average {reference:.0%} here."

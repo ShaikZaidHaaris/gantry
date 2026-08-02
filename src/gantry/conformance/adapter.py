@@ -120,7 +120,7 @@ def _is_deterministic(context: Context) -> Verdict:
 def _lossless_claim_is_true(context: Context) -> Verdict:
     """If it says it costs nothing, going back must return what went in.
 
-    Only checkable when the adapter is reversible in principle — same width and
+    Only checkable when the adapter is reversible in principle -- same width and
     a declared inverse pair. Where it is checkable, it is the difference between
     a truthful provenance and a comforting one.
     """
@@ -179,7 +179,7 @@ def check_adapter(
     if values is None:
         # Fractional and irregular on purpose. Whole numbers survive rounding,
         # truncation and integer casts unchanged, so probe data made of them
-        # cannot catch an adapter that quietly loses precision — the round trip
+        # cannot catch an adapter that quietly loses precision -- the round trip
         # comes back clean and the lossless claim goes unchallenged.
         steps = 8
         base = np.arange(steps * source.width, dtype=float).reshape(steps, source.width)

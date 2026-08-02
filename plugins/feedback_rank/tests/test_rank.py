@@ -1,8 +1,8 @@
 """Ranking a matrix of policies by tasks, and refusing to aggregate a floor.
 
 The fixtures are this project's measured Lift results and the shape of its actual
-thirteen-task matrix, because the misreading this module prevents — averaging one
-real task with twelve zero-shot ones — is one this project was about to make.
+thirteen-task matrix, because the misreading this module prevents -- averaging one
+real task with twelve zero-shot ones -- is one this project was about to make.
 """
 
 from __future__ import annotations
@@ -109,7 +109,7 @@ def test_probability_of_improvement_is_reported_per_pair():
     """Keys are alphabetical, so the same pair always lands in the same place
     rather than depending on the order cohorts were passed in."""
     report = MatrixRanking(resamples=200).analyse(measured())
-    # mg before mh alphabetically, so the key reads mg_beats_mh — and mg loses.
+    # mg before mh alphabetically, so the key reads mg_beats_mh -- and mg loses.
     assert report.measurements["mg_official_beats_mh_official"].value == pytest.approx(0.0)
     assert report.measurements["mg_official_beats_ph_official"].value == pytest.approx(0.0)
 

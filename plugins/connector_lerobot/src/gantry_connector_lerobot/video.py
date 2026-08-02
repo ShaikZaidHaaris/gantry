@@ -9,8 +9,8 @@ Two things follow, and both matter more than the decoding itself.
 
 **Nothing is decoded until it is asked for.** A hundred episodes of two cameras
 is a few gigabytes of pixels; opening them to look at a state vector would make
-the lazy spine a lie. So a video channel is described from ``info.json`` — which
-already carries the shape, the codec and the frame rate — and touched only when
+the lazy spine a lie. So a video channel is described from ``info.json`` -- which
+already carries the shape, the codec and the frame rate -- and touched only when
 somebody reads it.
 
 **Frames are checked against the parquet.** A truncated mp4 is the failure this
@@ -42,8 +42,7 @@ from gantry.errors import ComponentError, ConfigError
 #: a window near the front it does the same work with more moving parts.
 SEEK_THRESHOLD = 32
 
-#: What a decoded frame is converted to. Three channels, eight bits, no scaling —
-#: any normalisation is the consumer's decision and its business to declare.
+#: What a decoded frame is converted to. Three channels, eight bits, no scaling -- #: any normalisation is the consumer's decision and its business to declare.
 PIXEL_FORMAT = "rgb24"
 
 

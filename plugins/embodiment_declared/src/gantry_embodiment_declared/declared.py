@@ -7,15 +7,15 @@ Panda here, no humanoid, no arm at all. There is a format for saying what a
 machine is, and two ways to fill it in.
 
 **From a file.** You write down what your robot's actuators accept and what its
-sensors report. That is knowledge nobody can derive — joint limits, gripper
-polarity, control rate — and writing it once is what lets every later run be
+sensors report. That is knowledge nobody can derive -- joint limits, gripper
+polarity, control rate -- and writing it once is what lets every later run be
 checked against it rather than against somebody's memory.
 
 **From a dataset's schema.** A connector already describes its channels, with
 one label per dimension and units where the format declares them. That is most
 of an embodiment description, obtained from data that already exists. It is
-weaker than a written spec — a recording shows what a robot *did*, not what it
-*can* do, so no limits come out of it — and it is enormously cheaper, so it is
+weaker than a written spec -- a recording shows what a robot *did*, not what it
+*can* do, so no limits come out of it -- and it is enormously cheaper, so it is
 the honest starting point rather than the finished article.
 
 What this refuses to invent
@@ -41,7 +41,7 @@ from gantry.spine import ChannelSpec
 VERSION = "0.1.0.dev0"
 
 #: Capability names the contract already knows. Anything else in a file's
-#: ``capabilities`` list is carried through untouched — this plugin does not
+#: ``capabilities`` list is carried through untouched -- this plugin does not
 #: adjudicate what a machine can do.
 KNOWN_CAPABILITIES = ("resettable", "seedable", "simulated")
 
@@ -120,7 +120,7 @@ def from_schema(
     """Describe a machine from channels a connector already reported.
 
     Cheap and weaker, and the docstring above says how. Everything the schema
-    declares is carried — shape, dtype, units, meaning, dimension labels — and
+    declares is carried -- shape, dtype, units, meaning, dimension labels -- and
     nothing it does not is invented. In particular there are no limits, because
     a recording cannot establish one.
     """

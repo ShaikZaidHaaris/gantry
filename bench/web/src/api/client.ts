@@ -67,7 +67,7 @@ export function useSubmission(id: string | undefined): UseQueryResult<Submission
 
 /** What a trial count buys. Keyed on the inputs so moving the slider is
  *  instant once a position has been seen, and `placeholderData` keeps the last
- *  answer on screen while the next one loads — a panel that blanks between
+ *  answer on screen while the next one loads, a panel that blanks between
  *  positions is unreadable while being dragged. */
 export function usePlan(benchmark: string | undefined, trials: number, magnitude: number) {
   return useQuery({
@@ -85,7 +85,7 @@ export function usePlan(benchmark: string | undefined, trials: number, magnitude
 /** The leaderboard for one benchmark, on one rung.
  *
  *  Keyed on the rung so switching is instant once seen, and `placeholderData`
- *  holds the previous table on screen while the next loads — a leaderboard that
+ *  holds the previous table on screen while the next loads, a leaderboard that
  *  blanks between rungs is unreadable while being explored, which is exactly
  *  what the rung switch is for. */
 export function useCompare(benchmark: string, rung: string) {
@@ -144,12 +144,12 @@ export function uploadDataset(
 /** Buy a gate. The only way a paid one ever runs.
  *
  *  Free gates queue themselves when the one before them passes; paid ones do
- *  not. The asymmetry is the product — nobody is billed for work they did not
- *  ask for — so this is a deliberate action with a button behind it, never
+ *  not. The asymmetry is the product, nobody is billed for work they did not
+ *  ask for, so this is a deliberate action with a button behind it, never
  *  something a page does on the user's behalf while they are reading.
  *
  *  The trial count travels with it, because the number chosen is what the run
- *  is able to conclude — a panel that shows "detects 8 points" and then starts
+ *  is able to conclude, a panel that shows "detects 8 points" and then starts
  *  a job that does not know how many scenes were picked is quoting a number
  *  about a different experiment. */
 export function useStartGate(id: string) {
@@ -170,8 +170,8 @@ export function useStartGate(id: string) {
 /** Run a gate again after our machinery broke.
  *
  *  Deliberately separate from `useStartGate`. Buying a gate and re-running one
- *  that failed on our side are different acts — the first spends money on a new
- *  experiment, the second finishes one already paid for — and a single hook
+ *  that failed on our side are different acts, the first spends money on a new
+ *  experiment, the second finishes one already paid for, and a single hook
  *  doing both would make the distinction a parameter instead of a decision. */
 export function useRetryGate(id: string) {
   const client = useQueryClient();
@@ -206,7 +206,7 @@ export function useConfirmMeaning(id: string) {
  *
  *  `progress` frames are where the running gate is. These are returned rather
  *  than cached, because refetching the whole submission every time a training
- *  step ticks would be absurd — and because progress is the one thing on the
+ *  step ticks would be absurd, and because progress is the one thing on the
  *  page that is genuinely allowed to be a moment out of date.
  *
  *  The connection is *not* closed on error. EventSource reconnects on its own

@@ -1,6 +1,6 @@
 """The simulator's own answer, demoted to one opinion among several.
 
-Nothing here is new behaviour — this is the predicate that has been deciding
+Nothing here is new behaviour -- this is the predicate that has been deciding
 every success rate in this project all along. What changes is its status. It
 used to be *the* definition of success; it becomes a scorer with a name, a
 declared evidence requirement, and a version, which makes three things possible
@@ -86,8 +86,7 @@ class MachinePredicate(Scorer):
         if not criteria:
             return ()
         # One judgement per declared criterion. A predicate cannot tell the
-        # criteria apart — the world reports one boolean for the whole task —
-        # so it says the same thing about each and says that it did.
+        # criteria apart -- the world reports one boolean for the whole task --         # so it says the same thing about each and says that it did.
         return tuple(
             Judgement(
                 criterion=criterion.check,
@@ -109,7 +108,7 @@ class ThresholdPredicate(Scorer):
     """Judges each criterion separately, from measured quantities.
 
     Where :class:`MachinePredicate` reads one boolean for the whole task, this
-    evaluates a criterion at a time against numbers in the final state — so
+    evaluates a criterion at a time against numbers in the final state -- so
     "lifted 4 cm" and "held for a second" become separable, which is what makes
     a disagreement with a rubric locatable rather than merely present.
 

@@ -150,7 +150,7 @@ def test_no_trajectory_at_all_is_refused_when_the_stage_is_built():
     before anything is read.
 
     Saying it here rather than on the first ``open`` is what lets a chain mark
-    the stage optional and fall back to camera frame — an escape hatch that
+    the stage optional and fall back to camera frame -- an escape hatch that
     only fires at build time cannot catch a refusal raised mid-run."""
     with pytest.raises(ConfigError, match="no episode this stage could place in a world"):
         WorldFrameConnector(CameraFrame(), trajectories={})

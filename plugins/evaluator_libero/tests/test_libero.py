@@ -2,8 +2,8 @@
 
 The suite and the environment are both injected, so everything here runs on a
 laptop with no MuJoCo. The fakes copy the real API exactly as the vendored
-source defines it — ``get_task``/``get_task_init_states`` on a suite,
-``reset``/``set_init_state``/``step``/``check_success`` on an environment — so
+source defines it -- ``get_task``/``get_task_init_states`` on a suite,
+``reset``/``set_init_state``/``step``/``check_success`` on an environment -- so
 what is tested is this plugin's use of that API rather than a convenient
 paraphrase of it.
 

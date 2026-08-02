@@ -3,7 +3,7 @@
 Five encodings are in common use and they are mutually unreadable: a quaternion
 scalar-first and one scalar-last are both four floats, axis-angle and Euler are
 both three, and a channel described only by its width cannot tell you which it
-holds. That is why this exists at all — the distinction is invisible to every
+holds. That is why this exists at all -- the distinction is invisible to every
 structural check, and executing one encoding as another produces motion that
 looks plausible and points somewhere else.
 
@@ -17,7 +17,7 @@ A two-armed command is two of those laid end to end, so it holds *two* rotation
 blocks and they do not sit at the same offset on both sides of a conversion: a
 right-arm Euler block starts at ten where the quaternion one starts at eleven.
 Converting only the first would leave the second arm's three numbers in place
-and read as the first three of a quaternion — a well-formed vector, a plausible
+and read as the first three of a quaternion -- a well-formed vector, a plausible
 trajectory, and the wrong arm pointing somewhere arbitrary.
 
 So a channel may declare several blocks, and what has to agree between the two
@@ -70,7 +70,7 @@ def _canonical(quaternion: np.ndarray) -> np.ndarray:
     """Pick the representative with a non-negative scalar part.
 
     ``q`` and ``-q`` name the same rotation. Without this, a round trip can
-    return the antipode — correct as a rotation, and a sign flip to anything
+    return the antipode -- correct as a rotation, and a sign flip to anything
     comparing numbers.
     """
     flip = quaternion[:, 0] < 0
@@ -212,7 +212,7 @@ def from_matrix(matrices: np.ndarray, encoding: str) -> np.ndarray:
 #: Where the rotation block starts, when a channel says. Needed because a
 #: channel is ``[prefix][rotation][suffix]`` and the width alone does not say how
 #: the non-rotation numbers are split around it. An integer for one block, or a
-#: sequence of them for a channel that carries several — one per arm.
+#: sequence of them for a channel that carries several -- one per arm.
 OFFSET_KEY = "rotation_offset"
 
 #: How many arms a command drives, when the channel says. Only ever used to
@@ -230,8 +230,8 @@ def _encoding(spec: ChannelSpec) -> str | None:
 def _offsets(spec: ChannelSpec, encoding: str) -> tuple[int, ...] | None:
     """Where each rotation starts, or ``None`` if it cannot be known.
 
-    Declared wins. Otherwise there is exactly one unambiguous case — the whole
-    channel is the rotation — and one conventional one: a pose is a position
+    Declared wins. Otherwise there is exactly one unambiguous case -- the whole
+    channel is the rotation -- and one conventional one: a pose is a position
     followed by a rotation, so the block starts at three. Anything else is a
     guess about someone's layout, and guessing here reinterprets whichever three
     numbers happen to come first as a position.
@@ -260,7 +260,7 @@ def _segments(spec: ChannelSpec, offsets: tuple[int, ...], block: int) -> tuple[
     cannot: an Euler block and the quaternion block replacing it have different
     widths, so everything after the first one shifts.
 
-    ``None`` when the declared offsets do not describe a partition — overlapping
+    ``None`` when the declared offsets do not describe a partition -- overlapping
     blocks, or one running off the end.
     """
     cursor, gaps = 0, []

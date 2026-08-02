@@ -368,7 +368,7 @@ def test_a_lossy_adapter_used_by_a_run_reaches_its_provenance(tmp_path):
 
 
 def test_the_whole_loop_runs_from_one_manifest(tmp_path):
-    """Data, policy, closed-loop world, diagnosis — no GPU, no simulator."""
+    """Data, policy, closed-loop world, diagnosis -- no GPU, no simulator."""
     from gantry_connector_csv import write_episodes
     from gantry_evaluator_waypoint import GreedyPolicy, WaypointWorld
 
@@ -422,7 +422,7 @@ def test_cohorts_default_to_the_dataset_plane():
 
 
 def test_cohorts_can_vary_the_policy_instead():
-    """One world, three checkpoints — the shape the manifest could not express.
+    """One world, three checkpoints -- the shape the manifest could not express.
 
     The dataset plane was hard-coded as the axis, which meant a manifest could
     say 'three datasets, one policy' and not its mirror image. That was the

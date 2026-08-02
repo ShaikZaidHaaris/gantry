@@ -6,7 +6,7 @@ skipped and routinely worth more than the answer people go looking for.
 
 In this project's own benchmark, changing how many actions of each predicted
 chunk were executed before re-planning moved a fixed policy on fixed data by
-fourteen points — no retraining, no collection, no new demonstrations. Nobody
+fourteen points -- no retraining, no collection, no new demonstrations. Nobody
 had a module for it, so it was found by hand and could easily not have been.
 
 How it works
@@ -23,7 +23,7 @@ Anything where the comparison would not mean what it looks like. Cohorts that
 differ in policy or evaluator as well as protocol are not a protocol sweep, they
 are a confound, and reporting a winner would attribute to the setting whatever
 the other difference did. Cohorts carrying no protocol at all are not a sweep
-either — that is a run that never recorded how it was executed.
+either -- that is a run that never recorded how it was executed.
 """
 
 from __future__ import annotations

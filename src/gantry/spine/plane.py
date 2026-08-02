@@ -6,7 +6,7 @@ made the one decomposition most likely to need extending the one thing a plugin
 could not extend. This closes that inconsistency.
 
 A plane is registered with everything the framework needs in order to reason
-about it generically — which contract to version-check, which entry-point group
+about it generically -- which contract to version-check, which entry-point group
 to discover, whether more than one may appear in a run, and whether it can be
 run out of process. Once registered, a plane is a first-class citizen: the
 registry accepts it, descriptors validate against it, manifests carry it, the

@@ -1,13 +1,13 @@
 """Ranking policies across many tasks, without letting one easy task decide.
 
 A matrix of policies by tasks is the shape this project's evaluation actually
-produces — three checkpoints across thirteen tasks, six bodies, fifty trials
+produces -- three checkpoints across thirteen tasks, six bodies, fifty trials
 each. The obvious summary of such a matrix is a mean, and the mean is the wrong
 number twice over.
 
 It is dominated by whichever task happened to be tractable. Twelve tasks at zero
 and one at sixty percent averages to five, which reads as "barely works" when the
-truth is "works on the thing it was trained for and nothing else" — a completely
+truth is "works on the thing it was trained for and nothing else" -- a completely
 different sentence with completely different consequences.
 
 And it hides shape. Two policies with the same mean can be mediocre everywhere
@@ -24,7 +24,7 @@ A **performance profile**, because the curve distinguishes the two policies a
 mean conflates.
 
 **Probability of improvement** for each pair, which answers "which should I use"
-rather than "how much better is it" — usually the question actually being asked.
+rather than "how much better is it" -- usually the question actually being asked.
 
 A **compact letter display**, so "these are indistinguishable and those are not"
 is legible at a glance rather than reconstructed from a grid of p-values.
@@ -269,7 +269,7 @@ class MatrixRanking(FeedbackModule):
                     f"Use {best}."
                     if not shares_with_best
                     else f"{best} leads, but shares a letter with "
-                    f"{', '.join(shares_with_best)} — those are not separated at this "
+                    f"{', '.join(shares_with_best)}, those are not separated at this "
                     "number of tasks and runs."
                 ),
                 cohorts=tuple(scores),

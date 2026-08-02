@@ -114,7 +114,7 @@ def test_a_region_this_world_would_silently_ignore_is_noted():
     # The task says where the cube starts; the staging block does not say which
     # of this world's objects that is, so the region would do nothing.
     v = check_staging(task(staging={"robosuite": {"env_name": "Lift", "places": {}}}))
-    assert v.ok  # a note, not a refusal — it still runs, just not as written
+    assert v.ok  # a note, not a refusal, it still runs, just not as written
     assert [r.code for r in v.reasons] == ["robosuite.unmapped_region"]
 
 
@@ -229,7 +229,7 @@ def test_per_object_regions_can_only_be_carried_by_the_composite_shape():
     assert not shared_region(apart)
     # One candidate, not two. A single sampler holds one rectangle, so offering
     # it here would place both nuts in the first nut's region while reporting
-    # the file's numbers — a world that refuses composite is refused instead.
+    # the file's numbers -- a world that refuses composite is refused instead.
     assert sampler_shapes(apart) == (True,)
 
 

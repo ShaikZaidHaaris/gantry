@@ -105,7 +105,7 @@ def test_a_clean_upload_with_a_control_reads_as_a_result():
     text = as_markdown(made)
     # Licence first, and everything that has something to say appears in order.
     # An empty section is omitted rather than rendered as a heading with nothing
-    # under it — on a clean upload there is genuinely no filming advice.
+    # under it -- on a clean upload there is genuinely no filming advice.
     keys = [s.key for s in made.sections if s.findings]
     assert keys.index("usable") < keys.index("signal")
     assert text.index("Can this be used") < text.index("Did the data carry")

@@ -4,10 +4,9 @@ RLBench on its own is a hundred tasks on a Franka, which is breadth this project
 otherwise buys from Meta-World more cheaply. The reason to carry the heavier
 dependency is what sits on top of it.
 
-THE COLOSSEUM takes twenty RLBench tasks and adds fourteen perturbation factors —
-object colour, object size, object texture, table colour, table texture,
+THE COLOSSEUM takes twenty RLBench tasks and adds fourteen perturbation factors -- object colour, object size, object texture, table colour, table texture,
 distractor count, background texture, lighting colour, camera pose, and physical
-properties like mass and friction — each independently controllable and each with
+properties like mass and friction -- each independently controllable and each with
 a graded magnitude. That turns "is this policy robust" from an adjective into an
 experiment with one factor varied at a time.
 
@@ -15,8 +14,8 @@ Why that matters more than another hundred tasks
 ------------------------------------------------
 This project has already measured the thing informally. Lift-narrow against
 lift-wide separated two checkpoints that a narrow evaluation could not tell apart,
-and the conclusion — that the difference was spatial generalisation rather than
-skill — was only available because one variable had been moved and the rest held.
+and the conclusion -- that the difference was spatial generalisation rather than
+skill -- was only available because one variable had been moved and the rest held.
 That was one factor, hand-built, on one task.
 
 Fourteen factors across twenty tasks makes it systematic: the output is not "this
@@ -38,15 +37,15 @@ Two things RLBench does that will bite an adapter
 ------------------------------------------------
 **The instruction is a list.** ``task.reset()`` returns several paraphrases of the
 goal, and which one a policy is given changes its behaviour. So the choice is
-explicit — index zero by default, seeded per scene if asked — and whichever
+explicit -- index zero by default, seeded per scene if asked -- and whichever
 sentence was used is recorded on the episode. A benchmark that resampled it
 silently would have language variation as an uncontrolled variable in every
 result.
 
 **Success is a reward of one at termination.** There is no ``check_success``.
 ``task.step`` returns ``(obs, reward, terminate)``, and the convention is that a
-reward of 1.0 means solved. That means ``terminate`` alone is not success — it
-also fires on failure conditions — and reading it as success inflates every rate.
+reward of 1.0 means solved. That means ``terminate`` alone is not success -- it
+also fires on failure conditions -- and reading it as success inflates every rate.
 """
 
 from __future__ import annotations
@@ -152,7 +151,7 @@ def make_env(
 class Bench:
     """One RLBench task, as a world.
 
-    Holds the sampled instruction so it can be recorded — the language a policy
+    Holds the sampled instruction so it can be recorded -- the language a policy
     was actually given is otherwise unrecoverable from the run.
     """
 
@@ -188,7 +187,7 @@ class Bench:
     def advance(self, action: np.ndarray) -> Step:
         observation, reward, terminate = self.task.step(np.asarray(action, dtype=float))
         value = float(reward)
-        # A reward of one means solved. `terminate` alone does not — it also
+        # A reward of one means solved. `terminate` alone does not -- it also
         # fires on failure conditions, and reading it as success inflates every
         # rate this suite produces.
         solved = value >= self.solved_reward
@@ -212,7 +211,7 @@ def _channels(observation: Any) -> dict[str, np.ndarray]:
     """RLBench's Observation object as named arrays.
 
     An attribute bag rather than a dict, so this reads the ones that exist and
-    ignores the rest — including ``misc``, which is a dict of metadata and not a
+    ignores the rest -- including ``misc``, which is a dict of metadata and not a
     channel.
     """
     if isinstance(observation, Mapping):
@@ -259,7 +258,7 @@ class RlbenchEvaluator(ClosedLoop):
         """``factors`` is the perturbation condition, and it is checked.
 
         More than one named factor is refused. A drop measured with three things
-        moved at once attributes the loss to nothing in particular — the same
+        moved at once attributes the loss to nothing in particular -- the same
         error as varying two planes in one comparison, which this framework
         already refuses on the other side. ``"all"`` is the deliberate stress
         test and says so in the record.
@@ -455,7 +454,7 @@ def _load_task(env: Any, task: str) -> Any:  # pragma: no cover - needs the simu
 def sweep(
     task: str = "open_drawer", factors: Sequence[str] = FACTORS, **kwargs: Any
 ) -> dict[str, RlbenchEvaluator]:
-    """One evaluator per factor, plus the baseline — the whole robustness experiment.
+    """One evaluator per factor, plus the baseline -- the whole robustness experiment.
 
     This is what the plugin is for. Each evaluator moves exactly one thing, the
     baseline moves nothing, and the differences between them are attributable.

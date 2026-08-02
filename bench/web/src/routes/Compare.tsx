@@ -1,4 +1,4 @@
-/** The leaderboard — every submission on one benchmark, ranked and paired.
+/** The leaderboard, every submission on one benchmark, ranked and paired.
  *
  *  This is the screen a lab lead buys, and the one most likely to be misread,
  *  so two things are designed against that.
@@ -28,6 +28,8 @@ function pct(x: number): string {
 
 export function Compare() {
   const [rung, setRung] = useState("solved");
+  const [left, setLeft] = useState<string | null>(null);
+  const [right, setRight] = useState<string | null>(null);
   const { data, isPending, error } = useCompare("pick_dual_bottles", rung);
 
   if (isPending) {
@@ -49,6 +51,27 @@ export function Compare() {
   if (!data) return null;
 
   const best = Math.max(0.0001, ...data.entries.map((e) => e.ci[1]));
+
+  // Which two are being compared. Defaults to the top two, because that is the
+  // question somebody arriving at a leaderboard already has, and every other
+  // pair is one selection away. Every pair is computed by the server, so
+  // changing the choice costs nothing and never refetches.
+  const a = left ?? data.entries[0]?.id ?? "";
+  const b = right ?? data.entries.find((e) => e.id !== a)?.id ?? "";
+  const chosen =
+    a && b
+      ? data.pairs.find(
+          (p) => (p.left === a && p.right === b) || (p.left === b && p.right === a),
+        )
+      : undefined;
+  const named = (id: string) => data.entries.find((e) => e.id === id)?.name ?? id;
+
+  /** The pair is stored as the server ordered it, which is by rate. Read it back
+   *  in the order the reader picked, or "3 went the other way" points at the
+   *  wrong submission. */
+  const flipped = chosen ? chosen.left !== a : false;
+  const forA = chosen && chosen.shared_scenes > 0 ? (flipped ? chosen.right_only : chosen.left_only) : 0;
+  const forB = chosen && chosen.shared_scenes > 0 ? (flipped ? chosen.left_only : chosen.right_only) : 0;
 
   return (
     <div className="page">
@@ -129,50 +152,83 @@ export function Compare() {
             Head to head
             <span className="h2-sub">only the scenes where they disagreed tell you anything</span>
           </h2>
-          <div className="card pad">
-            {data.pairs.length === 0 ? (
-              <div className="what">Only one submission so far, so there is nothing to compare it against.</div>
-            ) : (
-              data.pairs.map((pair) => {
-                const left = data.entries.find((e) => e.id === pair.left);
-                const right = data.entries.find((e) => e.id === pair.right);
-                return (
-                  <div className="headtohead" key={pair.left + pair.right}>
-                    <div className="who">
-                      {left?.name} <span className="v">vs</span> {right?.name}
-                    </div>
-                    <div className="numbers mono">
-                      <span>{pair.shared_scenes} shared scenes</span>
-                      <span className="dim">{pair.agreed} agreed</span>
-                      <span>
-                        {pair.left_only} / {pair.right_only} disagreements
-                      </span>
-                      <span className={pair.separated ? "sep" : "dim"}>
-                        p={pair.p_value.toFixed(4)}
-                      </span>
-                    </div>
-                    <div className="reading">
-                      {pair.separated ? (
-                        <>
-                          Separated on <b>{rung}</b>. Of the {pair.left_only + pair.right_only}{" "}
-                          scenes where they differed, {Math.max(pair.left_only, pair.right_only)} went
-                          the same way.
-                        </>
-                      ) : (
-                        <>
-                          Not separated on <b>{rung}</b>. {pair.agreed} of {pair.shared_scenes}{" "}
-                          scenes came out the same for both, and{" "}
-                          {pair.left_only + pair.right_only} disagreements is too few to tell them
-                          apart. That says more about how many scenes were run than about the
-                          datasets.
-                        </>
-                      )}
-                    </div>
+
+          {data.entries.length < 2 ? (
+            <div className="card pad">
+              <div className="what">
+                Only one submission so far, so there is nothing to compare it against.
+              </div>
+            </div>
+          ) : (
+            <div className="card pad">
+              <div className="picker">
+                <select value={a} onChange={(e) => setLeft(e.target.value)} aria-label="First submission">
+                  {data.entries.map((entry) => (
+                    <option key={entry.id} value={entry.id} disabled={entry.id === b}>
+                      {entry.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="swap"
+                  title="Swap them"
+                  onClick={() => {
+                    setLeft(b);
+                    setRight(a);
+                  }}
+                >
+                  against
+                </button>
+                <select value={b} onChange={(e) => setRight(e.target.value)} aria-label="Second submission">
+                  {data.entries.map((entry) => (
+                    <option key={entry.id} value={entry.id} disabled={entry.id === a}>
+                      {entry.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {!chosen || chosen.shared_scenes === 0 ? (
+                <div className="what">
+                  These two have no scenes in common on this rung, so there is nothing to
+                  compare. That happens when one of them was never measured on it.
+                </div>
+              ) : (
+                // The wrapper is what the `.numbers` and `.reading` rules hang
+                // off. Rendering them bare dropped the spacing and ran the
+                // figures together into one string.
+                <div className="headtohead bare">
+                  <div className="numbers mono">
+                    <span>{chosen.shared_scenes} shared scenes</span>
+                    <span className="dim">{chosen.agreed} agreed</span>
+                    <span>
+                      {forA} / {forB} disagreements
+                    </span>
+                    <span className={chosen.separated ? "sep" : "dim"}>
+                      p={chosen.p_value.toFixed(4)}
+                    </span>
                   </div>
-                );
-              })
-            )}
-          </div>
+                  <div className="reading">
+                    {chosen.separated ? (
+                      <>
+                        Separated on <b>{rung}</b>. Of the {forA + forB} scenes where they
+                        differed, {Math.max(forA, forB)} went to{" "}
+                        <b>{named(forA >= forB ? a : b)}</b>.
+                      </>
+                    ) : (
+                      <>
+                        Not separated on <b>{rung}</b>. {chosen.agreed} of{" "}
+                        {chosen.shared_scenes} scenes came out the same for both, and{" "}
+                        {forA + forB} disagreements is too few to tell them apart. That says
+                        more about how many scenes were run than about the datasets.
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <p className="board-foot">
             Each pair is compared scene by scene, using only the scenes both submissions ran.

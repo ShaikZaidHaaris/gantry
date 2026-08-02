@@ -2,7 +2,7 @@
 
 Gantry already binds a policy's *observations* through the adapter plane, and it
 already *checks* that the actions a policy emits can be accepted. It does not
-convert the action stream at run time — so a policy trained in one pose encoding
+convert the action stream at run time -- so a policy trained in one pose encoding
 and an evaluator reading another either matched exactly or did not run at all,
 with no third option.
 
@@ -15,11 +15,11 @@ Both directions, or neither
 ---------------------------------
 The same gap exists on the way in. ``ClosedLoop`` hands a policy the world's
 observation dict untouched, so a world publishing poses as quaternions and a
-policy reading Euler angles fail in the same way the actions did — except
+policy reading Euler angles fail in the same way the actions did -- except
 quietly, because a state of the wrong width is usually a shape error and a state
 of the right width in the wrong encoding is not an error at all.
 
-Pass ``reading`` — the channels the world actually publishes — and the
+Pass ``reading`` -- the channels the world actually publishes -- and the
 observations are wired through the same plane, using the resolver's own
 ``bind``. Leave it out and only the action is converted, which is honest when
 the state already matches and a trap when it does not.
@@ -228,8 +228,7 @@ def adapt_policy(
 ) -> Any:
     """``policy``, emitting ``to`` and reading what ``reading`` publishes.
 
-    Returns the policy unchanged only when nothing at all needs converting —
-    including the observation side, which is why ``reading`` has to be passed
+    Returns the policy unchanged only when nothing at all needs converting --     including the observation side, which is why ``reading`` has to be passed
     here rather than checked later.
     """
     gap = compatible(policy.action_spec(), to)

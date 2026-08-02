@@ -5,7 +5,7 @@ persistence. This is the question one layer up: given everything already run,
 what should the next decision be?
 
 The gap this closes is small to describe and expensive to leave open. Until now
-every evaluation produced a record and then dropped it — results lived in
+every evaluation produced a record and then dropped it -- results lived in
 whatever scratch directory a sweep happened to write to, the baseline a
 comparison was measured against was remembered by a person, and the number of
 attempts a signal had already made was an argument somebody had to get right. So
@@ -16,7 +16,7 @@ Three specific things it fixes
 ------------------------------
 **Baselines stop being folklore.** "Is this checkpoint worse than the last one"
 requires knowing which run *was* the last one. Pinning makes that a fact on disk
-rather than a claim in a commit message — and a pin rather than "most recent",
+rather than a claim in a commit message -- and a pin rather than "most recent",
 because the most recent run is sometimes the broken one and a regression gate
 that silently re-baselines on failure is not a gate.
 
@@ -149,7 +149,7 @@ class History:
     Content-addressed: a run's key is a hash of its summary, so recording the
     same run twice is one row and a re-judged run does not silently duplicate.
     One file per run rather than one growing index, so two processes writing at
-    once cannot corrupt it and a diff shows what a session added — the same
+    once cannot corrupt it and a diff shows what a session added -- the same
     choice the ledger makes, for the same reasons.
     """
 

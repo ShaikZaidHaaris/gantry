@@ -1,4 +1,4 @@
-"""RoboTwin 2.0 as an evaluator — dual-arm, and it accepts end-effector actions."""
+"""RoboTwin 2.0 as an evaluator -- dual-arm, and it accepts end-effector actions."""
 
 from .robotwin import (
     ACTION_TYPES,

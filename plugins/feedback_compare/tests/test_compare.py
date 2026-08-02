@@ -127,7 +127,7 @@ def test_comparing_one_policy_against_itself_is_noted():
     same = [arm("a", [True, False], policy="same"), arm("b", [True, True], policy="same")]
     verdict = PolicyComparison().check_inputs(same)
     assert "compare.same_policy" in verdict.codes()
-    assert verdict.ok, "a note, not a refusal — it is a legitimate variance check"
+    assert verdict.ok, "a note, not a refusal, it is a legitimate variance check"
 
 
 def test_cohorts_without_outcomes_are_refused():
@@ -199,7 +199,7 @@ def test_the_ranking_is_withheld_not_printed_beside_the_warning():
     )
     assert not any(f.code == "compare.best_policy" for f in report.findings)
     assert any("somebody will quote" in note for note in report.notes)
-    # the per-arm rates are still measured — refusing to rank is not refusing to
+    # the per-arm rates are still measured -- refusing to rank is not refusing to
     # measure, and a reader needs the numbers to see how far below the floor it is
     assert "a.success_rate" in report.measurements
 
@@ -213,7 +213,7 @@ def test_clearing_the_floor_lets_the_ranking_through():
 
 
 def test_the_hardest_trivial_predictor_is_the_one_that_has_to_be_beaten():
-    """Several trivial predictors, and the bar is the best of them — beating the
+    """Several trivial predictors, and the bar is the best of them -- beating the
     weakest while losing to a stronger one is not clearing the floor."""
     floor = floor_of(zeros=0.10, dataset_mean=0.25, copy_state=0.45)
     assert floor.best == ("copy_state", 0.45)

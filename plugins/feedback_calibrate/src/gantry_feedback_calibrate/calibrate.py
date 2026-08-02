@@ -2,7 +2,7 @@
 
 This is the gate that makes cheap judgement safe. A model can score ten thousand
 videos for the price of a coffee, which is worthless unless somebody has checked
-that its answers resemble a person's — and "resemble" has to mean a measured
+that its answers resemble a person's -- and "resemble" has to mean a measured
 number, because a judge that is confidently wrong produces labels shaped exactly
 like correct ones and every aggregate computed from them inherits the error
 silently.
@@ -78,8 +78,7 @@ HEDGES = (
     "reasonably",
 )
 
-#: Below this many judged pairs, an agreement number is not worth computing —
-#: kappa on four trials swings between -1 and 1 on one disagreement.
+#: Below this many judged pairs, an agreement number is not worth computing -- #: kappa on four trials swings between -1 and 1 on one disagreement.
 MIN_PAIRS = 8
 
 
@@ -101,7 +100,7 @@ class Corpus:
 
     #: ``{judge: {trial: {criterion: passed}}}``
     labels: Mapping[str, Mapping[str, Mapping[str, bool | None]]] = field(default_factory=dict)
-    #: Per-trial facts a bias check needs — episode length, presentation order.
+    #: Per-trial facts a bias check needs -- episode length, presentation order.
     context: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     task: str | None = None
 
@@ -161,7 +160,7 @@ def _length_bias(corpus: Corpus, judge: str) -> Measurement | None:
 
     The robotics analogue of verbosity bias. A judge that passes long episodes
     and fails short ones is measuring duration, and duration correlates with
-    success on some tasks and against it on others — so the bias masquerades as
+    success on some tasks and against it on others -- so the bias masquerades as
     signal in whichever direction the task happens to run.
     """
     passed, failed = [], []
@@ -194,7 +193,7 @@ class Calibration(FeedbackModule):
 
     Cohorts are judges: one per scorer, each holding that scorer's judgements of
     the same trials. The comparison axis is the scorer, so everything else must
-    be held — same trials, same task, same evidence.
+    be held -- same trials, same task, same evidence.
     """
 
     def __init__(
@@ -251,8 +250,9 @@ class Calibration(FeedbackModule):
                     Finding(
                         code="criterion.graded_rubric",
                         summary=(
-                            f"the rubric for {criterion!r} hedges — {', '.join(found)} "
-                            "— which invites a rater to split the difference instead "
+                            f"the rubric for {criterion!r} hedges, using "
+                            f"{', '.join(found)}, which invites a rater to split the "
+                            "difference instead "
                             "of deciding"
                         ),
                         severity="info",
@@ -464,7 +464,7 @@ def _prescription(code: str, judge: str, reference: str) -> str:
         )
     return (
         f"{judge} is not measuring what {reference} measures. Either the rubric is "
-        "ambiguous — check the abstention rate and the wording — or this judge "
+        "ambiguous, so check the abstention rate and the wording, or this judge "
         "cannot do this task family. Its labels should not become findings."
     )
 

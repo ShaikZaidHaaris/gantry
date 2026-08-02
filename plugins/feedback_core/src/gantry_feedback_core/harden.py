@@ -3,12 +3,12 @@
 A finding from one dataset cannot tell you what to collect, because it cannot
 distinguish two very different situations:
 
-**Universal** — the same effect appears in every cohort, including the good
+**Universal** -- the same effect appears in every cohort, including the good
 ones. It is a property of the task, the policy, or how the policy is run, and
 collecting more data will not shift it. Acting on it wastes a collection
 budget.
 
-**Data-attributable** — the effect appears in some cohorts and not others. That
+**Data-attributable** -- the effect appears in some cohorts and not others. That
 difference is the actionable part, and it is the only kind of finding that
 should reach whoever decides what to record next.
 
@@ -19,7 +19,7 @@ The mechanism: run the same per-statistic test inside each cohort
 independently, then classify by where it fires. Firing is judged on effect size
 as well as significance, because a statistic sitting near the correction
 threshold clears it in one cohort and misses in the next for no reason but
-sampling — and reading that as "the actionable difference" is how a collection
+sampling -- and reading that as "the actionable difference" is how a collection
 budget gets spent on a coin flip.
 
 When an effect fires in some cohorts but the others are merely unproven rather

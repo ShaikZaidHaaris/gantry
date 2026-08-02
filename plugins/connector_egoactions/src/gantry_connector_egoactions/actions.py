@@ -10,8 +10,8 @@ openpi-ready dataset is connectors composed over connectors and nothing else:
 
 Why a connector and not a function
 ----------------------------------
-Because everything downstream — the writer, the resolver, the conformance kit,
-the provenance — already speaks connector. A function would have needed each of
+Because everything downstream -- the writer, the resolver, the conformance kit,
+the provenance -- already speaks connector. A function would have needed each of
 those taught about it separately, and the one that got missed would be the one
 that silently dropped a channel.
 
@@ -19,7 +19,7 @@ Actions are the next state, and that is a choice
 ------------------------------------------------
 A demonstration records where the hand *was*. A policy is trained to predict what
 to *do*. The convention here is that the action at step ``t`` is the state at
-``t+1`` — the pose the arm should move to next — which is what the ALOHA-family
+``t+1`` -- the pose the arm should move to next -- which is what the ALOHA-family
 configs expect and what makes an absolute-pose action space meaningful.
 
 The last step of an episode has no successor, so it is dropped rather than
@@ -32,8 +32,7 @@ Unsolved frames are dropped, not interpolated
 A frame the estimator could not solve has no pose. Interpolating across it
 invents a hand position nobody observed and puts it in the training set
 indistinguishable from a real one. So those steps are cut, the episode is
-reported as shorter than the footage, and how much was cut is on the record —
-which is also the number that tells somebody their filming needs to change.
+reported as shorter than the footage, and how much was cut is on the record -- which is also the number that tells somebody their filming needs to change.
 """
 
 from __future__ import annotations
@@ -108,7 +107,7 @@ def retargeter_from(spec: Any) -> Any:
     """A retargeter from plain data, or one already built.
 
     Same rule as everywhere else: an argument that has to cross a manifest
-    accepts plain data. The measured quantities stay required — a hand with no
+    accepts plain data. The measured quantities stay required -- a hand with no
     travel and a mount that was never established are still refused, and being
     reachable from JSON does not make them optional.
     """
@@ -149,7 +148,7 @@ def retargeter_from(spec: Any) -> Any:
         raise ConfigError(
             "a retargeter needs the person's hand measured: thumb-to-index closed "
             "and open, and the wrist-to-fingertip span if the source is unscaled. "
-            "These are per-person and cannot be defaulted — an adult's open hand "
+            "These are per-person and cannot be defaulted, an adult's open hand "
             "and a child's differ by a factor that lands in the gripper signal"
         )
     # One per hand, because people are not symmetric.
@@ -185,7 +184,7 @@ class EgoActionConnector(Connector):
         """``retargeter`` is one, or one per hand.
 
         One per hand is the honest default for a bimanual set, because each hand
-        is calibrated separately — people are not symmetric, and a single
+        is calibrated separately -- people are not symmetric, and a single
         calibration applied to both puts the difference straight into the gripper
         signal of whichever was not measured.
         """
@@ -210,7 +209,7 @@ class EgoActionConnector(Connector):
         self._keep_video = bool(keep_video)
         self._hold_missing = bool(hold_missing)
         # Stored frame size, after estimation. Estimation wants every pixel; a
-        # policy does not — openpi resizes to 224 internally regardless, so
+        # policy does not -- openpi resizes to 224 internally regardless, so
         # keeping 1080p in the training set costs disk, encode time and, the way
         # it was found, 44 GB of RAM across a two-dozen-clip build.
         self._size = tuple(size) if size else None
@@ -336,7 +335,7 @@ class EgoActionConnector(Connector):
         # brutal: measured on real ego footage, each hand solves in roughly half
         # the frames and the intersection was 8%. Holding an idle arm at its last
         # pose is the alternative, and it is a claim about the world rather than a
-        # convenience — a person working one-handed leaves the other still, so a
+        # convenience -- a person working one-handed leaves the other still, so a
         # bimanual robot imitating them should too. Declared, recorded, and off by
         # default so nobody gets it without asking.
         any_hand = np.any(np.stack(list(per_hand_solved.values())), axis=0)
@@ -357,7 +356,7 @@ class EgoActionConnector(Connector):
                 f"{episode_id}: only {len(kept)} of {len(merged)} steps are usable "
                 f"({', '.join(f'{h} {int(v.sum())}' for h, v in per_hand_solved.items())} "
                 f"solved), which is below the {self._min_steps} needed for an episode "
-                "with motion in it. This is a filming problem rather than a bug — the "
+                "with motion in it. This is a filming problem rather than a bug, the "
                 "hands were not in frame"
             )
 

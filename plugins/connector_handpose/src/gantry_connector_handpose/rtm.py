@@ -1,15 +1,14 @@
 """RTMPose for the 2D hand, which is the half MediaPipe is weakest at.
 
 MediaPipe's contribution to this pipeline is two things: 2D keypoints, and a
-metric hand model. It is genuinely good at the second — the hand it reconstructs
+metric hand model. It is genuinely good at the second -- the hand it reconstructs
 is a plausible hand at a plausible size, which is what makes the
 perspective-n-point path work at all. It is mediocre at the first, especially
 under motion blur and partial occlusion, which is most of an ego video: measured
 on real kitchen footage it found a hand in 63% and 71% of frames, and the two
 hands together in 8%.
 
-RTMPose is a stronger 2D detector, it is Apache-2.0, and — the practical part —
-it is reachable through ``rtmlib``, which ships ONNX weights and needs neither
+RTMPose is a stronger 2D detector, it is Apache-2.0, and -- the practical part -- it is reachable through ``rtmlib``, which ships ONNX weights and needs neither
 mmcv nor a matching CUDA toolchain. That last point is why this is buildable and
 HaWoR was not.
 
@@ -19,17 +18,17 @@ What it does not give you
 in space at all. It has to be paired with something that supplies the third
 dimension:
 
-``rtmpose + depth``  — a metric depth model reads the distance directly. Best
+``rtmpose + depth`` -- a metric depth model reads the distance directly. Best
 when the depth model is metric and permissively licensed; see :mod:`.depth`.
 
-``rtmpose + mediapipe`` — RTMPose finds the hand accurately in 2D, MediaPipe's
+``rtmpose + mediapipe`` -- RTMPose finds the hand accurately in 2D, MediaPipe's
 world landmarks supply the metric hand shape, and perspective-n-point does the
 rest. This is the combination that improves the existing path without adding a
 depth model, and it is the one to reach for first.
 
 The point of the module is that these are compositions rather than forks. Each
 piece declares what it produces, and the estimator that combines them declares
-the union — so a report can say which detector found the hand and which model
+the union -- so a report can say which detector found the hand and which model
 supplied the scale, separately, because they are separately wrong.
 """
 
@@ -62,7 +61,7 @@ CONFIDENT = 0.3
 #:
 #: This exists because of what a whole-body model does in egocentric video, and
 #: it is worth stating plainly: COCO-WholeBody assumes a third-person view of a
-#: whole person. Ego footage has no body and no face — just hands, close up — so
+#: whole person. Ego footage has no body and no face -- just hands, close up -- so
 #: the model fits its 133-point skeleton to whatever it can and puts *both* hand
 #: sets on the one visible hand. Measured on real EPIC footage: in 54% of frames
 #: the two predicted hands were less than half a hand-width apart, and in 28%
@@ -88,7 +87,7 @@ def separate(
 
     Whole-body models hallucinate the hand that is not there, on top of the one
     that is. Where the two predictions sit closer together than :data:`APART`,
-    the lower-confidence one is dropped — keeping both would put two skeletons on
+    the lower-confidence one is dropped -- keeping both would put two skeletons on
     one hand and, worse, feed a phantom trajectory into training as though a
     second arm had been doing something.
     """
@@ -121,8 +120,8 @@ def rtmpose(
     """A 2D hand detector, Apache-2.0, through ONNX.
 
     Returns an object with ``detect(frames) -> (keypoints, scores)`` per hand,
-    keypoints in pixels. Deliberately not a full :class:`Estimator` — it cannot
-    be, because it produces no 3D — so it composes rather than substitutes.
+    keypoints in pixels. Deliberately not a full :class:`Estimator` -- it cannot
+    be, because it produces no 3D -- so it composes rather than substitutes.
     """
     if backend not in BACKENDS:
         raise ConfigError(f"unknown rtmlib backend {backend!r}; known: {list(BACKENDS)}")
@@ -221,7 +220,7 @@ def rtm_with_mediapipe(
 
     The composition that improves the existing metric path without introducing a
     depth model. Each half is used for the thing it is good at, and the resulting
-    licence is the union of both — which is still Apache-2.0, which is the point.
+    licence is the union of both -- which is still Apache-2.0, which is the point.
     """
 
     class Combined:
@@ -251,7 +250,7 @@ def rtm_with_mediapipe(
                     continue
                 # RTMPose says where; the shape model says how big. Where the
                 # shape model is missing, this person's own averaged hand stands
-                # in — otherwise the pair inherits the weaker recall of the two,
+                # in -- otherwise the pair inherits the weaker recall of the two,
                 # which measured 6% on real footage against RTMPose's 100%.
                 shape = world.copy()
                 filled = np.zeros(len(world), dtype=bool)
@@ -275,7 +274,7 @@ def rtm_with_mediapipe(
                 # The detector's own rate, because that is what "the detector
                 # found a hand" means and what the extraction report reads. The
                 # agreement between the two is a different and stricter quantity
-                # — reporting it under this name made a 100% detector look like
+                # -- reporting it under this name made a 100% detector look like
                 # a 49% one, and pointed the fix at the wrong component.
                 confidence[hand] = np.asarray(scores, dtype="float32")
                 agreement[hand] = np.minimum(
@@ -317,7 +316,7 @@ def _confirm(
 ) -> dict[str, tuple[np.ndarray, np.ndarray]]:
     """Drop an RTMPose hand the handedness classifier did not also see.
 
-    Only where the classifier saw *something* in that frame — if it found no
+    Only where the classifier saw *something* in that frame -- if it found no
     hands at all, it has no opinion and RTMPose's detection stands. The point is
     to use a disagreement, not to inherit the weaker model's recall again.
     """

@@ -1,8 +1,8 @@
 """CALVIN's chain logic, checked without pybullet.
 
 The fake oracle is the interesting part. CALVIN decides a subtask is solved by
-diffing two ``get_info()`` snapshots, so the fake takes a script — which subtask
-index is solved after how many steps — and the tests then assert on the thing
+diffing two ``get_info()`` snapshots, so the fake takes a script -- which subtask
+index is solved after how many steps -- and the tests then assert on the thing
 that actually matters: that the chain does not reset between subtasks, and that a
 chain broken at three is recorded as three rather than as a failure.
 """
@@ -194,7 +194,7 @@ def test_every_completed_subtask_is_a_milestone_at_the_step_it_landed():
 
 
 def test_a_chain_broken_at_three_is_recorded_as_three_and_names_what_broke():
-    """Not a failure — a length. A policy that reaches three is meaningfully
+    """Not a failure -- a length. A policy that reaches three is meaningfully
     better than one that reaches zero, and a boolean cannot say so."""
     made = tracking(solves=3)
     record = made.run(Chunker(), made.task_for(chains=1), Protocol())

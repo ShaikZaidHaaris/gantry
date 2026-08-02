@@ -101,7 +101,7 @@ class IncompatibleError(GantryError):
 
     A ``GantryError`` because that is what it is. The runner, and every sweep
     written against it, catches ``GantryError`` to record a component refusing
-    as a refusal — so an escalated refusal outside that hierarchy is caught by
+    as a refusal -- so an escalated refusal outside that hierarchy is caught by
     nothing and reads as a crash. The distinction it used to draw, that a
     refusal is not a failure, is carried by the verdict it holds rather than
     by its base class.

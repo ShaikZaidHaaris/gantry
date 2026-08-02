@@ -1,8 +1,8 @@
 """Reading a folder of egocentric clips, and refusing the ones that describe nothing.
 
 This is the front door. Somebody uploads video through a GUI and it lands here,
-and everything downstream — the estimator, the retargeter, the training run, the
-ranking against public datasets — inherits whatever this reader decided was true.
+and everything downstream -- the estimator, the retargeter, the training run, the
+ranking against public datasets -- inherits whatever this reader decided was true.
 So it decides as little as possible.
 
 The manifest is the contract with the user
@@ -12,13 +12,13 @@ per clip, what the person was doing and where. That file is the entire Tier-1
 input contract, and it exists because two of its fields are load-bearing in ways
 that are not obvious to whoever is uploading:
 
-``instruction`` — required, refused if absent. Not for politeness: a
+``instruction`` -- required, refused if absent. Not for politeness: a
 language-conditioned policy trains on the sentence, so a clip without one is a
 clip that cannot be used for the thing being measured. Silently dropping it would
 shrink somebody's dataset without telling them; silently substituting the folder
 name would train on a label nobody wrote.
 
-``scene`` — required, and the reason is the ranking. "Forty clips" and "forty
+``scene`` -- required, and the reason is the ranking. "Forty clips" and "forty
 clips in one kitchen" are wildly different datasets, and only the second sentence
 is checkable. Without a scene id there is no way to tell them apart afterwards,
 and location diversity turns out to be the single biggest separator between the
@@ -36,7 +36,7 @@ Frames are read lazily
 ----------------------
 An hour of video is tens of gigabytes decoded. ``episode_ids`` and ``schema``
 answer from the manifest and the container header alone, so a whole upload can be
-inspected, screened and planned against before a single frame is decoded — which
+inspected, screened and planned against before a single frame is decoded -- which
 is what makes it possible to tell a user their manifest is wrong in seconds
 rather than after an hour of decoding.
 """
@@ -66,7 +66,7 @@ VERSION = "0.1.0.dev0"
 #: What the sidecar is called when the caller does not say.
 MANIFEST = "clips.json"
 
-#: Containers worth trying. Not a gate — a path in the manifest is used as given,
+#: Containers worth trying. Not a gate -- a path in the manifest is used as given,
 #: and this only drives directory discovery.
 SUFFIXES = (".mp4", ".mov", ".mkv", ".avi", ".MP4", ".MOV")
 
@@ -74,12 +74,12 @@ SUFFIXES = (".mp4", ".mov", ".mkv", ".avi", ".MP4", ".MOV")
 REQUIRED = {
     "path": "which file this is",
     "instruction": (
-        "what the person was doing, in words — a language-conditioned policy "
+        "what the person was doing, in words, a language-conditioned policy "
         "trains on this sentence, so a clip without one cannot be used for what "
         "is being measured"
     ),
     "scene": (
-        "where this was filmed — 'forty clips' and 'forty clips in one kitchen' "
+        "where this was filmed, 'forty clips' and 'forty clips in one kitchen' "
         "are different datasets, and without a scene id nobody can tell them "
         "apart afterwards"
     ),
@@ -148,7 +148,7 @@ def read_manifest(path: str | Path, *, root: Path | None = None) -> tuple[Clip, 
             continue
         missing = [key for key in REQUIRED if not str(raw.get(key, "")).strip()]
         if missing:
-            problems.extend(f"{where}: no {key} — {REQUIRED[key]}" for key in missing)
+            problems.extend(f"{where}: no {key}, {REQUIRED[key]}" for key in missing)
             continue
         file = Path(str(raw["path"]))
         if not file.is_absolute():
@@ -190,8 +190,8 @@ def _outcome(value: Any) -> bool | None:
     """Whether the attempt worked, if the uploader said.
 
     Tri-state and it matters. A dataset where every clip is an unlabelled failure
-    trains nothing at all — that happened here once, with a checkpoint fine-tuned
-    on a split that was 0-for-52 — and the only defence is that "unlabelled" and
+    trains nothing at all -- that happened here once, with a checkpoint fine-tuned
+    on a split that was 0-for-52 -- and the only defence is that "unlabelled" and
     "failed" stay different values.
     """
     if value is None or value == "":
@@ -390,7 +390,7 @@ class EgoVideoConnector(Connector):
     def unlabelled(self) -> tuple[str, ...]:
         """Clips whose outcome nobody stated.
 
-        Not a defect on its own — most ego uploads are unlabelled and that is
+        Not a defect on its own -- most ego uploads are unlabelled and that is
         expected. It matters because a dataset that is secretly all failures is
         indistinguishable from one that is all successes until somebody looks,
         and this is the list to look at.

@@ -157,7 +157,7 @@ class Client:
     _context: Any = None
     _socket: Any = None
     #: Whether the server has ever replied. Decides whether a failure is a lost
-    #: trial or a wrong address — the same split the served-policy client makes,
+    #: trial or a wrong address -- the same split the served-policy client makes,
     #: for the same reason: a typo'd port otherwise produces a full run of
     #: uniform failures that reads exactly like a bad model.
     answered: bool = False

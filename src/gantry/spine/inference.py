@@ -2,8 +2,8 @@
 
 Everything here is numpy. That is deliberate and it is not asceticism: the
 alternative is that ``pip install gantry-core`` pulls scipy, statsmodels,
-rliable and a bootstrap library, and the one thing this framework promises — that
-describing and judging an experiment costs nothing to install — stops being true.
+rliable and a bootstrap library, and the one thing this framework promises -- that
+describing and judging an experiment costs nothing to install -- stops being true.
 So the algorithms are written out, and each one is checked against its reference
 implementation inside a plugin's dev extras, where those libraries are allowed.
 Vendoring the algorithm is cheap; vendoring the dependency is not.
@@ -229,8 +229,7 @@ def confidence_sequence(
 
     Predictably-mixed empirical Bernstein, after Waudby-Smith and Ramdas: a
     betting-style construction whose intervals hold at *every* sample size at
-    once. That property is what a caller actually wants and almost never has —
-    an ordinary interval is valid only at the sample size it was computed for,
+    once. That property is what a caller actually wants and almost never has --     an ordinary interval is valid only at the sample size it was computed for,
     so looking at it repeatedly and stopping when it looks good is exactly the
     error that makes small-n robotics results irreproducible.
 
@@ -301,7 +300,7 @@ def barnard(a: int, b: int, c: int, d: int, *, grid: int = 200) -> float:
 
     ``[[a, b], [c, d]]`` with rows the two arms. Strictly more powerful than
     Fisher's exact test at the sample sizes robot evaluation runs at, because it
-    does not condition on margins that were not fixed by the design — nobody
+    does not condition on margins that were not fixed by the design -- nobody
     decided in advance how many successes there would be.
 
     Maximised over the nuisance success probability on a grid, which is the
@@ -345,7 +344,7 @@ def holm(pvalues: Sequence[float], *, alpha: float = 0.05) -> tuple[bool, ...]:
     """Which hypotheses survive Holm's step-down correction.
 
     Controls the family-wise error rate, which is the right guarantee when the
-    question is "did *any* of these comparisons find something real" — the
+    question is "did *any* of these comparisons find something real" -- the
     situation you are in the moment you evaluate more than one checkpoint and
     report the best. Benjamini-Hochberg controls a different thing and is the
     wrong tool for a selection claim.
@@ -371,7 +370,7 @@ def holm(pvalues: Sequence[float], *, alpha: float = 0.05) -> tuple[bool, ...]:
 
 
 def iqm(scores: Sequence[float]) -> float:
-    """Interquartile mean — the mean of the middle half.
+    """Interquartile mean -- the mean of the middle half.
 
     Preferred to both the mean and the median when aggregating across tasks.
     The mean is dominated by whichever task happened to be easy; the median
@@ -428,7 +427,7 @@ def performance_profile(
     """Fraction of runs scoring above each threshold, as ``(tau, fraction)``.
 
     A curve rather than a number, and the reason to prefer one: two methods
-    with the same aggregate can have completely different profiles — one
+    with the same aggregate can have completely different profiles -- one
     mediocre everywhere, one excellent on half the tasks and hopeless on the
     rest. A table of means cannot tell those apart and a profile cannot hide it.
     """
@@ -474,7 +473,7 @@ def mmrv(real: Sequence[float], proxy: Sequence[float]) -> float:
 
     Zero when the cheap evaluator orders policies exactly as the expensive one
     does; larger when it swaps a pair, and weighted by how far apart that pair
-    really was — swapping two policies that genuinely differ by forty points is
+    really was -- swapping two policies that genuinely differ by forty points is
     a serious failure, swapping two that differ by one is noise.
 
     This is the number that says whether a simulator may stand in for a bench,
@@ -527,7 +526,7 @@ def ppi_mean(
     set measures that bias; the large cheap-only set then estimates the mean
     with the bias removed. What comes back is a valid interval about the
     *expensive* world, usually much tighter than the paired trials alone could
-    give — which is the entire argument for owning a simulator you have
+    give -- which is the entire argument for owning a simulator you have
     validated rather than one you hope is right.
 
     With ``tune``, the correction is scaled by the variance-minimising factor

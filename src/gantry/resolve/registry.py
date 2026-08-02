@@ -1,7 +1,7 @@
 """Which implementations exist, per plane.
 
 Deliberately dumb. The registry maps ``(plane, name)`` to a factory and knows
-nothing else — every judgement about whether a component *fits* belongs to the
+nothing else -- every judgement about whether a component *fits* belongs to the
 resolver, working from descriptors.
 
 Discovery is opt-in. ``register`` is explicit and enough for a script or a
@@ -52,7 +52,7 @@ class Registration:
         whole convention for chaining: a component that reads from another takes
         it first and positionally. That is already how every chained connector in
         this repo is written, so the convention is a description of practice
-        rather than a new rule — but it is a rule now, because a manifest naming
+        rather than a new rule -- but it is a rule now, because a manifest naming
         a chain has no other way to know where the previous stage goes.
         """
         settings = dict(config or {})
@@ -73,9 +73,8 @@ class Registration:
     def descriptor(self, config: Mapping[str, Any] | None = None, source: Any = None) -> Descriptor:
         """Describe without committing to a full build, where possible.
 
-        A chained component's description depends on what it is built on — a
-        connector reports the licence and the media capability of its source —
-        so a cheap describe hook is skipped when there is a source, because it
+        A chained component's description depends on what it is built on -- a
+        connector reports the licence and the media capability of its source --         so a cheap describe hook is skipped when there is a source, because it
         cannot have accounted for one.
         """
         if self.describe is not None and source is None:
@@ -193,7 +192,7 @@ class _LazyEntryPoint:
         """What the entry point names, imported now.
 
         A factory is usually the component's class, and some things are asked
-        of the class rather than of an instance — writing a dataset that does
+        of the class rather than of an instance -- writing a dataset that does
         not exist yet, for one. Exposed rather than left for callers to reach
         into a private attribute for.
         """

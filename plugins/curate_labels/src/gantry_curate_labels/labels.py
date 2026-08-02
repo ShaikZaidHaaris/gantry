@@ -2,7 +2,7 @@
 
 This is the bottom rung of the ladder and it is not a toy. Pointed at a public
 multi-stage collection, the screening pass in this project found 244 of 1500
-demonstrations succeed — sixteen percent. Everything else in that dataset is a
+demonstrations succeed -- sixteen percent. Everything else in that dataset is a
 person trying and not managing it, and a policy fitted to it is being taught to
 try and not manage it.
 
@@ -15,7 +15,7 @@ is labelled failed has skipped the free win.
 What it will not do
 -------------------
 It refuses to guess. An episode with no success label is not evidence of
-failure, and treating it as such would silently delete unlabelled data — so
+failure, and treating it as such would silently delete unlabelled data -- so
 unlabelled episodes are reported separately and dropped only when asked. That
 distinction is the difference between "this dataset is 16% good" and "this
 dataset is 16% *labelled* good", and they are not the same sentence.
@@ -111,7 +111,7 @@ class FailedDemonstrations(Curator):
         else:
             # Nothing to do is a legitimate answer and has to be sayable. An
             # empty plan is refused by the contract, so say "keep everything"
-            # explicitly — it applies cleanly and records that this signal was
+            # explicitly -- it applies cleanly and records that this signal was
             # asked and had no objection.
             actions.append(
                 CurationAction(

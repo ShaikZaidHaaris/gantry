@@ -6,7 +6,7 @@ That separation is what lets a machine nobody has built yet participate: writing
 a descriptor is a config file, not a plugin.
 
 Retargeting is the hard half, and it is deliberately not hidden. There is no
-universal robot space to convert into — the mapping from a seven-jointed arm to
+universal robot space to convert into -- the mapping from a seven-jointed arm to
 a six-jointed one, or from joint angles to an end-effector pose, throws
 information away, and which information depends on the pair. So a
 :class:`Retargeter` is a declared, named transform between two specific
@@ -57,7 +57,7 @@ class EmbodimentDescriptor:
     #: Where the kinematics live (a URDF, an MJCF, a vendor file). A reference,
     #: never a parsed model: core has no business knowing these formats.
     kinematics: str | None = None
-    #: Free-form operating notes — joint layout, gripper polarity, workspace
+    #: Free-form operating notes -- joint layout, gripper polarity, workspace
     #: limits. Written for a human or a policy that reads text, and carried
     #: verbatim rather than parsed.
     notes: str | None = None

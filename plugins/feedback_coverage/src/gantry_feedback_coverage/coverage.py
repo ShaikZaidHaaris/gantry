@@ -6,8 +6,8 @@ zero, and a report goes out saying their data did not help. That report is
 false. Their data was never given a chance to help, and nothing in the delta
 distinguishes "this data is poor" from "this data is about something else".
 
-Those two conclusions lead to opposite actions — throw it away, or evaluate it on
-something relevant — so conflating them is not a rounding error, it is the single
+Those two conclusions lead to opposite actions -- throw it away, or evaluate it on
+something relevant -- so conflating them is not a rounding error, it is the single
 most unfair thing a data-quality product can do. This runs before the delta is
 interpreted, and where the overlap is low it says the number is about task match
 rather than about quality.
@@ -21,7 +21,7 @@ touches. Those cells are measuring transfer, not learning, and pooling them into
 one mean makes an average that means neither.
 
 *Unused data*: clips about things nothing in the benchmark evaluates. This is the
-half people forget, and it is the more actionable one — "31% of your footage is
+half people forget, and it is the more actionable one -- "31% of your footage is
 about tasks we cannot see" is a statement about the benchmark's blind spot as
 much as the contributor's, and it is the honest thing to tell somebody who paid
 attention while filming.
@@ -63,7 +63,7 @@ from gantry.spine import Descriptor, Measurement, count_of
 VERSION = "0.1.0.dev0"
 
 #: Below this, an aggregate delta is reported as a task-match statement rather
-#: than a data-quality one. Not tuned — chosen as "less than a third of the
+#: than a data-quality one. Not tuned -- chosen as "less than a third of the
 #: evaluated tasks have anything to do with this data", which is the point at
 #: which the mean is dominated by cells that were never in scope.
 COVERED = 0.34
@@ -85,7 +85,7 @@ STOPWORDS = frozenset(
 )
 
 #: Verbs common in manipulation instructions. Used to report verb overlap
-#: separately, never to filter — an instruction whose verb is not here is not
+#: separately, never to filter -- an instruction whose verb is not here is not
 #: thereby less of an instruction.
 VERBS = frozenset(
     """pick place put grasp grab lift move push pull open close press turn
@@ -107,7 +107,7 @@ def overlap(left: str, right: str) -> float:
     Over the *smaller* rather than the union, on purpose: "pick up the mug" and
     "pick up the red mug from the second shelf and put it in the sink" describe
     overlapping activity, and a Jaccard would score that pair low because one
-    sentence is longer. Asymmetry is not a problem here — the question is whether
+    sentence is longer. Asymmetry is not a problem here -- the question is whether
     the shorter thing is contained in the longer one.
     """
     a, b = set(words(left)), set(words(right))
@@ -156,7 +156,7 @@ class Coverage(FeedbackModule):
         Supplied rather than discovered, because the evaluation suite is not in
         this module's hands and a coverage number computed against the wrong task
         list would be worse than none. An empty list produces a refusal rather
-        than a coverage of zero — "nothing to compare against" and "no overlap"
+        than a coverage of zero -- "nothing to compare against" and "no overlap"
         are different sentences with different fixes.
         """
         self._evaluates = tuple(str(text) for text in evaluates if str(text).strip())
@@ -169,7 +169,7 @@ class Coverage(FeedbackModule):
         return feedback_descriptor(
             name="coverage",
             version=VERSION,
-            # One dataset at a time. This is not a comparison — it is a property
+            # One dataset at a time. This is not a comparison -- it is a property
             # of one dataset against one benchmark.
             min_cohorts=1,
             prescribes=True,

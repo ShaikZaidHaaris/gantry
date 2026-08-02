@@ -4,7 +4,7 @@ Every simulator-backed evaluator in this project independently grew the same
 hundred and fifty lines: build the world, reset it on a scene, ask the policy for
 an action chunk, play some prefix of it, read whether the thing succeeded,
 accumulate arrays, assemble an episode, tally a success rate. Four plugins, four
-copies, four places for the same off-by-one to live — and the copies had already
+copies, four places for the same off-by-one to live -- and the copies had already
 begun to disagree about whether an observation is recorded before or after the
 step that follows it.
 
@@ -16,9 +16,8 @@ So the loop lives here and the suites supply only what is genuinely theirs
 -------------------------------------------------------------------------
 A :class:`World` is three methods: start a scene, take an action, stop. That is
 the entire surface a benchmark suite has to present, and it is small enough that
-adding a suite is a morning rather than a project. Everything downstream of it —
-chunk handling, horizons, event de-duplication, schema inference, provenance,
-the success rate and its interval — is identical across suites and is written
+adding a suite is a morning rather than a project. Everything downstream of it -- chunk handling, horizons, event de-duplication, schema inference, provenance,
+the success rate and its interval -- is identical across suites and is written
 once, here.
 
 What this is not
@@ -29,7 +28,7 @@ is deliberate: the moment core can name a physics engine, "no plane gives
 preference to any implementation" has stopped being true, and the test that
 enforces it caught an earlier draft of this very paragraph.
 
-Not the duck-typed step/reset bridge either — that one lives in a plugin, adapts
+Not the duck-typed step/reset bridge either -- that one lives in a plugin, adapts
 whatever it is handed, and guesses dialects and success conventions. This asks a
 suite to say plainly what it means, which is the right shape when someone is
 writing an adapter on purpose rather than wrapping an environment they were given.
@@ -100,7 +99,7 @@ class Step:
 class World(Protocol):
     """One scene of one suite, mid-attempt.
 
-    Stateful by nature — ``advance`` depends on every ``advance`` before it — so
+    Stateful by nature -- ``advance`` depends on every ``advance`` before it -- so
     a world is obtained per scene rather than shared. Suites for which
     construction is expensive return the same cached object with fresh state;
     that is the adapter's business and not visible here.
@@ -127,7 +126,7 @@ class Concluding(Protocol):
     say until the episode is exhausted.
 
     Without this hook every such adapter would have to fake a per-step answer,
-    and the natural fake — report failure until the last step — makes a trial
+    and the natural fake -- report failure until the last step -- makes a trial
     that ran out of horizon indistinguishable from one that was watched and
     judged to have failed.
     """
@@ -141,7 +140,7 @@ class Speaking(Protocol):
 
     Optional and checked for by ``hasattr``, like :class:`Concluding`. A scene
     can only carry an instruction someone wrote down in advance, and several
-    suites pick the sentence when the scene is built — sampling from a set of
+    suites pick the sentence when the scene is built -- sampling from a set of
     phrasings, or naming whichever object the randomiser actually placed.
 
     Without this hook the policy is prompted with the planned sentence while the
@@ -179,7 +178,7 @@ class Trial:
         ``steps - 1`` rather than ``steps``: this is called after the counter has
         been advanced, so the action responsible is the one at the previous index.
         Off by one and a milestone reached on the final step points one past the
-        end of the episode — which is exactly how conformance caught it, since a
+        end of the episode -- which is exactly how conformance caught it, since a
         stage event outside the episode's step range makes a funnel unjoinable to
         the frames it is supposed to explain.
         """
@@ -209,7 +208,7 @@ def imported(target: str) -> Any:
 
     Here because every suite adapter needs it for the same reason: a manifest is
     JSON, a world factory is code, and the only way to name the second from the
-    first is a string. Kept strict — a target that does not resolve is a
+    first is a string. Kept strict -- a target that does not resolve is a
     :class:`~gantry.errors.ConfigError` naming what was tried, not an
     ``AttributeError`` from inside somebody's ``__init__``.
     """
@@ -233,7 +232,7 @@ def infer_spec(name: str, sample: np.ndarray, *, rate_hz: float | None = None) -
 
     Shape and dtype are genuine; ``kind`` is a guess from rank that happens to be
     right for the cases that occur (an HxWx3 array is an image, a 1-D array is a
-    vector). Semantics are deliberately absent — this function cannot know
+    vector). Semantics are deliberately absent -- this function cannot know
     whether a seven-vector is a joint position or a pose delta, and inventing an
     answer is how a mislabelled channel gets adapted into the wrong slot.
     """
@@ -388,7 +387,7 @@ class ClosedLoop(Evaluator):
 
         Only asked when nothing per-step established an outcome, so a simulator
         with a success predicate is unaffected. A world whose ``verdict`` raises
-        loses that trial rather than the run — the same call made for a policy
+        loses that trial rather than the run -- the same call made for a policy
         that raises, and for the same reason: on a real bench the thing that
         raises here is usually an operator answering a prompt.
         """
@@ -495,7 +494,7 @@ class ClosedLoop(Evaluator):
     def metrics(self, episodes: Sequence[EpisodeRecord]) -> dict[str, Measurement]:
         """Success rate over the trials that established one.
 
-        Abstentions are dropped rather than counted as failures — the same rule
+        Abstentions are dropped rather than counted as failures -- the same rule
         the scorer plane uses, for the same reason: a trial whose policy crashed
         is missing evidence, and folding it in as a loss reports a policy as
         worse than measured on the strength of a bug in the harness.

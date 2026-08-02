@@ -3,7 +3,7 @@
 Four verbs, and the two in the middle are the ones that make the framework
 usable. ``check`` runs a plugin's conformance kit, so an adapter author never
 has to guess whether they got it right. ``plan`` resolves without executing, so
-a mistake costs a second instead of a GPU hour — and prints the refusal, which
+a mistake costs a second instead of a GPU hour -- and prints the refusal, which
 is where most of the value of resolution lives.
 
 Exit codes are meaningful: 0 for a pass, 1 for a refusal or a failure, 2 for
@@ -218,8 +218,8 @@ def cmd_curate_apply(args: argparse.Namespace) -> int:
         return 0
 
     # Reading and writing need not be the same format. The signal has to run
-    # where the evidence is — success labels usually survive only in the
-    # collection's native format — while the trainer reads whatever it reads.
+    # where the evidence is -- success labels usually survive only in the
+    # collection's native format -- while the trainer reads whatever it reads.
     # Curating in one and emitting in the other is the ordinary case, not an
     # exotic one, so it is two arguments rather than an assumption.
     writer_name = args.writer or args.reader
@@ -312,7 +312,7 @@ def cmd_ci(args: argparse.Namespace) -> int:
     The habit this exists to create: every checkpoint gets paired against the
     last accepted one automatically, so a regression is caught by a red build
     rather than by somebody noticing months later. Exits nonzero only when the
-    drop is significant — noise must not block a merge, or the gate gets
+    drop is significant -- noise must not block a merge, or the gate gets
     switched off within a week and stops protecting anything.
     """
     from .history import History

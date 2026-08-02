@@ -3,7 +3,7 @@
 Two wires ship. ``mediapipe`` gives hand shape and image position; ``metric``
 adds perspective-n-point and gives a pose in metres, which is what a retargeter
 can actually use. Both are Apache-2.0, which is the reason they are here rather
-than the better-reconstructing research models — see :mod:`.pnp`.
+than the better-reconstructing research models -- see :mod:`.pnp`.
 """
 
 from .depth import (

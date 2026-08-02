@@ -4,7 +4,7 @@ Deliberately not a step inside the video connector. That connector's docstring
 says why: a reader that quietly estimated hands would make the estimate
 indistinguishable from a measurement, and for ego data that is precisely the
 distinction everything else turns on. So this is a *different dataset*, derived
-from the first, and it says so — ``derived_from`` on every episode, the estimator
+from the first, and it says so -- ``derived_from`` on every episode, the estimator
 named in the descriptor, and every hand channel declaring ``scale="unscaled"``.
 
 The consequence is worth spelling out. Somebody later reading a run's provenance
@@ -15,7 +15,7 @@ and nothing else in the pipeline would have preserved the difference.
 Also not a curation module
 --------------------------
 The curation plane prescribes: drop these episodes, weight that cohort, collect
-this much more. Nothing here prescribes anything — it adds channels. Filing it
+this much more. Nothing here prescribes anything -- it adds channels. Filing it
 under curation would have put an enrichment behind an interface built for
 proposals, and the ladder, the predictions and the leakage guard would all have
 been noise.
@@ -26,15 +26,15 @@ Three per-clip numbers that ``feedback_capture`` later turns into advice, and
 they are written *here* because this is the only stage that ever looks at every
 frame:
 
-``hands_visible`` — the fraction of frames a hand was found in. The single most
+``hands_visible`` -- the fraction of frames a hand was found in. The single most
 expensive property of an ego upload, because a frame with no hand in it cannot
 produce a pose and is dropped before anything trains.
 
-``motion_ok`` — the fraction of frames whose wrist speed is something an arm
+``motion_ok`` -- the fraction of frames whose wrist speed is something an arm
 could follow. Human hands move several times faster than a robot; the fast parts
 are simultaneously blurred and unreachable.
 
-``usable_length`` — whether the clip is long enough to contain a whole attempt.
+``usable_length`` -- whether the clip is long enough to contain a whole attempt.
 
 None of these is a judgement. They are counts, and the module that turns them
 into sentences is somewhere else on purpose.
@@ -43,7 +43,7 @@ Confidence is kept, not thresholded away
 ----------------------------------------
 The estimator's own per-frame confidence travels as a channel. A pipeline that
 threw it away and kept only the poses would leave every downstream consumer
-unable to distinguish a firmly-tracked hand from a guess — and monocular hand
+unable to distinguish a firmly-tracked hand from a guess -- and monocular hand
 estimators are confidently wrong often enough that the difference matters more
 than the poses themselves in the tail.
 """
@@ -82,7 +82,7 @@ VERSION = "0.1.0.dev0"
 HANDS = ("left", "right")
 
 #: What the estimator's confidence has to reach before a frame counts as one a
-#: hand was found in. Not a filter — the poses are kept either way — only the
+#: hand was found in. Not a filter -- the poses are kept either way -- only the
 #: threshold for the ``hands_visible`` count.
 FOUND = 0.5
 
@@ -113,7 +113,7 @@ class Track:
     #: The distinction between this and ``keypoints`` is the single most
     #: important thing in this file, and getting it wrong produced smooth,
     #: confident, wrong trajectories on the first real video ever run through
-    #: here. ``keypoints`` are image-normalised — x and y are fractions of the
+    #: here. ``keypoints`` are image-normalised -- x and y are fractions of the
     #: frame and z is a relative offset near zero. ``world`` is metres, centred
     #: on the hand itself.
     #:
@@ -122,7 +122,7 @@ class Track:
     #: That is the whole Tier-1 versus Tier-2 distinction, and it is a property
     #: of monocular video rather than of any particular estimator.
     world: Mapping[str, np.ndarray] = field(default_factory=dict)
-    #: Which convention the joints are in. Load-bearing — see the ego vocabulary
+    #: Which convention the joints are in. Load-bearing -- see the ego vocabulary
     #: on why MANO and MediaPipe are both 21 joints and not interchangeable.
     convention: str = "mediapipe"
     #: Metric wrist position in the camera frame, per hand, where the estimator
@@ -134,7 +134,7 @@ class Track:
     #: What the weights behind this estimator permit.
     #:
     #: Load-bearing rather than decorative. The best monocular hand
-    #: reconstructions available — HaWoR, WiLoR, anything built on MANO — are
+    #: reconstructions available -- HaWoR, WiLoR, anything built on MANO -- are
     #: CC-BY-NC-ND and registration-gated, so a dataset produced through one is
     #: encumbered. That is discovered at legal review rather than at build time
     #: unless something carries it, and this is the something: it propagates onto
@@ -176,7 +176,7 @@ def mediapipe(model_path: str | None = None, **options: Any) -> Estimator:
                 raise ConfigError(
                     "estimating hands needs a tracker: pip install "
                     "'gantry-connector-handpose[mediapipe]', or pass your own "
-                    "estimator — the interface is one method"
+                    "estimator, the interface is one method"
                 ) from error
             from mediapipe.tasks.python import vision
 
@@ -241,7 +241,7 @@ def wrist_from(keypoints: np.ndarray, *, convention: str = "mediapipe") -> np.nd
 
     Crude and standard. What matters is that it is written down here rather than
     happening implicitly inside an estimator wrapper, because a different choice
-    of axes is a fixed rotation offset on every pose — exactly the error the
+    of axes is a fixed rotation offset on every pose -- exactly the error the
     retargeter's mount is there to absorb, and it can only absorb it if somebody
     knows to measure it.
     """
@@ -261,15 +261,14 @@ def wrist_from(keypoints: np.ndarray, *, convention: str = "mediapipe") -> np.nd
 
 
 def aperture_from(keypoints: np.ndarray, *, convention: str = "mediapipe") -> np.ndarray:
-    """Thumb tip to index tip, per step — what becomes a gripper command."""
+    """Thumb tip to index tip, per step -- what becomes a gripper command."""
     points = np.asarray(keypoints, dtype=float)
     thumb, index = _tips(convention, points.shape[1])
     return np.linalg.norm(points[:, thumb, :] - points[:, index, :], axis=1).astype("float32")
 
 
 #: Joint indices per convention: (index knuckle, pinky knuckle, thumb tip, index
-#: tip). Written out because this is exactly the table that gets silently wrong —
-#: MANO and MediaPipe are both 21 joints in different orders.
+#: tip). Written out because this is exactly the table that gets silently wrong -- #: MANO and MediaPipe are both 21 joints in different orders.
 JOINTS = {
     "mediapipe": (5, 17, 4, 8),
     "mano": (1, 13, 4, 8),
@@ -293,7 +292,7 @@ def _joints(convention: str, joints: int) -> tuple[int, int, int, int]:
     except KeyError:
         raise ConfigError(
             f"no joint indices for {convention!r}; known: {sorted(JOINTS)}. These are "
-            "not interchangeable — MANO and MediaPipe are both 21 joints in "
+            "not interchangeable, MANO and MediaPipe are both 21 joints in "
             "different orders, and using one table for the other attaches every "
             "finger to the wrong knuckle with no error anywhere"
         ) from None
@@ -367,7 +366,7 @@ def metric(
             "metric pose needs the camera's intrinsics. Every distance scales with "
             "the focal length, so a guessed one makes every number in the dataset "
             "wrong by the same unseen factor. Use Intrinsics.from_fov() or for_rig() "
-            "if the camera was never calibrated — both record the assumption"
+            "if the camera was never calibrated, both record the assumption"
         )
     base = mediapipe(model_path, **options)
 
@@ -411,7 +410,7 @@ def metric(
 
 #: Estimator wires addressable by name, so a manifest can choose one.
 #:
-#: Every argument that has to cross a manifest accepts plain data — the same
+#: Every argument that has to cross a manifest accepts plain data -- the same
 #: rule the gym bridge states and the pi0 layouts follow. A component whose key
 #: argument is only constructible in Python is a component no manifest can use,
 #: which means the pipeline that uses it is a script.
@@ -507,8 +506,8 @@ class HandPoseConnector(Connector):
     def estimator(self) -> Estimator:
         if self._estimator is None:
             raise ConfigError(
-                f"{self._name}: no estimator. Pass one — the interface is a single "
-                "estimate(frames) -> Track — or install a worked one with "
+                f"{self._name}: no estimator. Pass one, the interface is a single "
+                "estimate(frames) -> Track, or install a worked one with "
                 "pip install 'gantry-connector-handpose[mediapipe]'"
             )
         if not hasattr(self._estimator, "estimate") and callable(self._estimator):
@@ -582,7 +581,7 @@ class HandPoseConnector(Connector):
 
             # Orientation comes from the metric hand where there is one: a
             # rotation needs no scale, so this part IS recoverable from a single
-            # camera. Position does not come with it — the world landmarks are
+            # camera. Position does not come with it -- the world landmarks are
             # centred on the hand, so they say what shape it is and nothing about
             # where it was.
             solved = np.asarray(track.poses.get(hand, ()), dtype="float32")
@@ -719,7 +718,7 @@ class HandPoseConnector(Connector):
         """The three counts ``feedback_capture`` turns into advice.
 
         Counts, not judgements. Which number is worth worrying about, and what to
-        do, is decided somewhere else on purpose — a module that both measured
+        do, is decided somewhere else on purpose -- a module that both measured
         and graded would be scoring its own homework.
         """
         steps = max(1, len(frames))

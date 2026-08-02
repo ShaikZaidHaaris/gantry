@@ -92,7 +92,7 @@ def test_a_control_that_wins_is_a_blocker_rather_than_a_result():
 
 def test_nothing_is_upgraded_in_transit():
     """The assembler can order, group and quote. It cannot turn a weak finding
-    into a headline — every sentence is traceable to a module that signed it."""
+    into a headline -- every sentence is traceable to a module that signed it."""
     weak = finding("control.not_separated", "weak", "not separated at this n")
     made = assemble([report("control", weak)])
     out = section(made, "signal").findings[0]
@@ -133,7 +133,7 @@ def test_refusals_are_a_section_rather_than_a_footnote():
             report("control", finding("control.not_separated", "weak", "arms overlap")),
             report(
                 "extraction",
-                notes=("theirs: 2 stages wrote no signal — not measured is not the same as fine",),
+                notes=("theirs: 2 stages wrote no signal, not measured is not the same as fine",),
             ),
         ]
     )
@@ -227,7 +227,7 @@ def test_an_empty_run_says_no_conclusion_rather_than_implying_one():
 def test_a_blocking_code_marked_info_by_its_own_module_does_not_block():
     """Severity is the module's judgement of how much its finding matters, and
     the assembler is not entitled to overrule it. Provenance emits
-    `non_commercial` at `info` for a research-intent run — blocking on the code
+    `non_commercial` at `info` for a research-intent run -- blocking on the code
     alone made every research report lead with a stop its own module had called
     a note."""
     made = assemble(

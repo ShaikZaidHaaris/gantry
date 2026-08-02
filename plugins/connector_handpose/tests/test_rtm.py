@@ -3,7 +3,7 @@
 Whole-body pose models assume a third-person view of a whole person. Egocentric
 footage has no body and no face, so the model fits its skeleton to a hand
 close-up and puts both hand sets on the one visible hand. That is not an edge
-case here — measured on real EPIC footage it happened in 54% of frames.
+case here -- measured on real EPIC footage it happened in 54% of frames.
 """
 
 from __future__ import annotations

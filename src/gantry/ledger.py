@@ -1,7 +1,7 @@
 """Every curation that was tested, and whether it worked.
 
-This is the part that compounds. A curation signal is a commodity — there are
-several good ones published and more coming — but *which signal works on which
+This is the part that compounds. A curation signal is a commodity -- there are
+several good ones published and more coming -- but *which signal works on which
 kind of task, at which data regime* is not published anywhere, because
 answering it requires running the loop many times and nobody's evaluation is
 cheap enough to do that.

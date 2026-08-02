@@ -1,4 +1,4 @@
-"""Gate 1 — Data report. What is this footage like?
+"""Gate 1 -- Data report. What is this footage like?
 
 Free, about a minute, and it earns trust: a contributor gets a real report on
 their filming before anything paid is offered, and everything in it is a

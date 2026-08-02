@@ -2,14 +2,14 @@
 
 The resolver works from descriptors and schemas only. It imports no plugin to
 decide whether a plugin fits, so an unrunnable combination is refused in
-milliseconds rather than after a model finishes loading — and the refusal names
+milliseconds rather than after a model finishes loading -- and the refusal names
 the seam, the code, and what would close it.
 
 Two kinds of transform, kept apart on purpose. An **adapter** closes a gap with
 one correct answer and is found by refusal code. A **retargeter** closes a
 structural gap that needs a judgement about what to discard, and is found by
 asking each one about the specific pair. Both produce a :class:`Step`, which is
-what actually runs — and a step remembers which kind it came from, so nothing is
+what actually runs -- and a step remembers which kind it came from, so nothing is
 disguised as anything else.
 """
 

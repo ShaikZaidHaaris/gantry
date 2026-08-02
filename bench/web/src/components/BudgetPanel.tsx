@@ -3,7 +3,7 @@
  *  A contributor choosing a trial count is choosing what the run is able to
  *  conclude, and almost nobody in this space presents it that way. The failure
  *  it prevents is specific and common: pick fifty trials because fifty sounds
- *  reasonable, get a null result, and read it as "the data did not help" — when
+ *  reasonable, get a null result, and read it as "the data did not help", when
  *  fifty trials at a twelve percent baseline could only ever have separated a
  *  thirty-three point difference. The null was about the budget, not the data.
  *
@@ -150,8 +150,7 @@ export function BudgetPanel({
       <div className="budget-facts">
         <div>
           {/* What the GPU time is worth, not what it is being charged. Shown
-              because it is what makes the trial-count choice mean something —
-              a slider with no cost behind it is a slider over nothing. */}
+              because it is what makes the trial-count choice mean something,               a slider with no cost behind it is a slider over nothing. */}
           <span className="k">Compute</span>
           <span className="v big">{money(plan.cost.cents)}</span>
         </div>
@@ -188,7 +187,7 @@ export function BudgetPanel({
           className="btn primary"
           // Never disabled on statistical grounds. A budget that cannot detect
           // anything is a bad idea, not a forbidden one, and the panel says so
-          // in words directly beneath — a greyed-out button explains nothing.
+          // in words directly beneath, a greyed-out button explains nothing.
           disabled={start.isPending}
           onClick={() => start.mutate({ gate: gateKey, trials })}
         >

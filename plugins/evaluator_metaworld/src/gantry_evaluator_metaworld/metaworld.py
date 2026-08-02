@@ -9,7 +9,7 @@ equivalent breadth here is a loop.
 
 What it is not is diverse. One arm, one table, one camera arrangement, low-fidelity
 scenes. A policy that scores well across Meta-World has demonstrated broad *skill
-coverage* and nothing about visual robustness or embodiment transfer — those are
+coverage* and nothing about visual robustness or embodiment transfer -- those are
 what RoboCasa and ManiSkill are for. Reporting a Meta-World average as a general
 capability number is the mistake this docstring exists to prevent.
 
@@ -22,7 +22,7 @@ failure. The convention in every published Meta-World result is *ever* succeeded
 during the episode, and that is what this does: the first ``True`` ends the trial.
 
 This is not a detail. Reading the final flag instead of the first one silently
-lowers every rate, by an amount that depends on how twitchy the policy is — so it
+lowers every rate, by an amount that depends on how twitchy the policy is -- so it
 penalises exactly the near-miss policies a benchmark is meant to distinguish.
 
 Tasks are separate evaluators, deliberately
@@ -30,7 +30,7 @@ Tasks are separate evaluators, deliberately
 One evaluator per task, not one evaluator with a task list. A Meta-World task is a
 different *task-plane* object with a different goal and a different rubric, and
 folding fifty into one evaluator would make "vary the task" invisible to the
-framework — the axis would be inside a component instead of between components,
+framework -- the axis would be inside a component instead of between components,
 which is exactly the arrangement that stops a comparison being checkable.
 """
 
@@ -52,8 +52,7 @@ VERSION = "0.1.0.dev0"
 FAMILIES = ("MT1", "MT10", "MT50", "ML1", "ML10", "ML45")
 
 #: All fifty, by the ids Meta-World's own registry uses. Listed rather than
-#: discovered so that a task list can be planned against with nothing installed —
-#: which is the whole point of a plugin whose simulator is optional.
+#: discovered so that a task list can be planned against with nothing installed -- #: which is the whole point of a plugin whose simulator is optional.
 TASKS = (
     "assembly-v2",
     "basketball-v2",
@@ -163,8 +162,7 @@ class Bench:
     """One Meta-World task, as a world.
 
     The per-scene variation is Meta-World's own ``set_task``: each stored task is a
-    different goal and object placement, and they are a list rather than a seed —
-    so scene ``k`` is the same arrangement on any machine, which is what a paired
+    different goal and object placement, and they are a list rather than a seed --     so scene ``k`` is the same arrangement on any machine, which is what a paired
     comparison needs.
     """
 
@@ -207,7 +205,7 @@ class Bench:
     def verdict(self, trial: Any) -> bool | None:
         """Never succeeded within the horizon, so it failed.
 
-        Safe to state as failure here — unlike a real bench — because Meta-World's
+        Safe to state as failure here -- unlike a real bench -- because Meta-World's
         predicate was evaluated on every one of those steps and answered no each
         time. The trial has been checked, not merely cut short.
         """
@@ -239,8 +237,7 @@ class MetaworldEvaluator(ClosedLoop):
         """``strict`` checks the task id against :data:`TASKS`.
 
         On by default because a typo in a task name is otherwise a run of an
-        environment nobody meant, and Meta-World's ids are easy to get wrong —
-        the ``-v2`` suffix, the side/wall variants. Turn it off to run a task from
+        environment nobody meant, and Meta-World's ids are easy to get wrong --         the ``-v2`` suffix, the side/wall variants. Turn it off to run a task from
         a release newer than this list.
         """
         if strict and task not in TASKS:
@@ -317,6 +314,6 @@ def suite(tasks: Sequence[str] = MT10, **kwargs: Any) -> dict[str, MetaworldEval
     A plain dict rather than a combined evaluator, because a Meta-World task is a
     genuinely separate task-plane object. Keeping them separate is what lets the
     framework see "vary the task" as an axis between components instead of a loop
-    hidden inside one — and a hidden loop is a comparison nobody can check.
+    hidden inside one -- and a hidden loop is a comparison nobody can check.
     """
     return {task: MetaworldEvaluator(task, **kwargs) for task in tasks}

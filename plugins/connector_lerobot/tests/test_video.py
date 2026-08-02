@@ -44,7 +44,7 @@ def write_video(
     """An mp4 whose frames can be told apart afterwards.
 
     Written losslessly in RGB by default. A real dataset is yuv420p, where the
-    colour-space round trip moves a pixel by a few counts — fine for a model,
+    colour-space round trip moves a pixel by a few counts -- fine for a model,
     useless for "is this frame seven". The reader converts whatever it finds to
     rgb24 either way, so the encoding is not what is under test here; one test
     below uses the realistic one to prove that.
@@ -156,8 +156,7 @@ def test_a_yuv420p_file_reads_the_same_way(tmp_path):
 
     The colour-space round trip moves a pixel by a couple of counts, so each
     frame is compared against the one it should be within a tolerance. That
-    still pins the thing that matters — that frame *i* came back at index *i* —
-    because the painted frames are far more than a tolerance apart.
+    still pins the thing that matters -- that frame *i* came back at index *i* --     because the painted frames are far more than a tolerance apart.
     """
     root = with_video(tmp_path / "yuv", episodes=1, steps=10)
     write_video(

@@ -8,8 +8,8 @@ without a scale.
 perfect zero, which is the ceiling: no policy can do better on this measure, so
 a harness that does not put replay at zero is broken.
 
-**Constant** emits the same action forever. That is the floor — the score of
-learning nothing — and a policy that fails to beat it has not learned anything
+**Constant** emits the same action forever. That is the floor -- the score of
+learning nothing -- and a policy that fails to beat it has not learned anything
 either. This project has watched a real evaluation sit below its own random
 baseline for a week because nobody had computed the floor.
 
@@ -40,8 +40,7 @@ def channel(spec: ChannelSpec | Mapping[str, Any]) -> ChannelSpec:
     """A channel spec, or the JSON object a manifest can carry one as.
 
     Without this these policies are constructible only from Python, which makes
-    the reference floor and ceiling — the two things every comparison needs —
-    the only components a manifest cannot name.
+    the reference floor and ceiling -- the two things every comparison needs --     the only components a manifest cannot name.
     """
     if isinstance(spec, ChannelSpec):
         return spec

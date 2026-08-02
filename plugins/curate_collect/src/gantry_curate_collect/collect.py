@@ -8,7 +8,7 @@ Why the failed scenes specifically
 ----------------------------------
 Demonstrations collected in the situations that beat a policy are worth more
 than the same number collected at random. That result is published and it is
-intuitive — a policy that already succeeds from the middle of the table learns
+intuitive -- a policy that already succeeds from the middle of the table learns
 nothing from a hundred more demonstrations of the middle of the table.
 
 What has stopped people acting on it is that reproducing a failure situation is
@@ -27,7 +27,7 @@ the grasp.
 
 What it refuses to invent
 -------------------------
-If nothing failed, it orders nothing — a policy at ceiling on a task does not
+If nothing failed, it orders nothing -- a policy at ceiling on a task does not
 need more of that task, and manufacturing an order would be the framework
 spending someone's collection budget to look useful. If the runs contain no
 seeds, the order is emitted with a note saying it is untargeted, because an

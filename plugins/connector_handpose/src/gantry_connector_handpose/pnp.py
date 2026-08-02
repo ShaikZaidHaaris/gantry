@@ -3,7 +3,7 @@
 The problem this solves is the one the first real ego video exposed. A monocular
 estimator returns two things that look similar and are not: image landmarks,
 which are pixel fractions, and world landmarks, which are real metres but centred
-on the hand — they say what shape the hand is and nothing about where it was.
+on the hand -- they say what shape the hand is and nothing about where it was.
 Neither is a trajectory, and multiplying the first by a hand span produces a
 smooth, confident path inside a box the size of a hand.
 
@@ -23,14 +23,14 @@ evaluation would discover that at legal review rather than at build time.
 
 This path is MediaPipe (Apache-2.0) and OpenCV (Apache-2.0) and nothing else. It
 is less accurate and it is unencumbered, and which of those matters more is a
-business decision rather than an engineering one — so the estimator is pluggable,
+business decision rather than an engineering one -- so the estimator is pluggable,
 every estimator declares its licence, and the licence travels onto the derived
 dataset. Swapping in HaWoR is one argument; what changes with it is recorded.
 
 Intrinsics are required and never guessed
 -----------------------------------------
 PnP needs the camera's focal length. Get it wrong by 20% and every distance is
-wrong by 20% — uniformly, smoothly, with no symptom. So :class:`Intrinsics` has
+wrong by 20% -- uniformly, smoothly, with no symptom. So :class:`Intrinsics` has
 to be constructed deliberately, it records how it was obtained, and a caller who
 only knows the field of view says so with :meth:`Intrinsics.from_fov` rather than
 having a plausible default chosen for them.
@@ -39,7 +39,7 @@ What this still does not give you
 ---------------------------------
 The camera moves. These poses are in the *camera* frame, and for an ego video the
 camera is on a head that turns. That is genuinely fine for the ego-to-robot case
-where the robot's camera sits where the person's eyes were — the relationship
+where the robot's camera sits where the person's eyes were -- the relationship
 being learned is hand-relative-to-viewpoint in both. It is not fine if a
 world-frame trajectory is wanted, and for that the camera's own motion has to
 come from somewhere else. The frame is declared as ``camera`` so nothing
@@ -67,7 +67,7 @@ SOURCES = ("calibrated", "fov", "exif", "declared")
 #: standard at every distance: ten pixels is loose on a hand filling the frame
 #: and impossible on one across the room. Measured on real footage, two good
 #: detectors disagree with each other about where a given knuckle is by roughly
-#: 8% of the hand's span — so demanding a fit tighter than that is demanding
+#: 8% of the hand's span -- so demanding a fit tighter than that is demanding
 #: better than the inputs support, and it showed: at a fixed 10 px this rejected
 #: 109 of 120 frames whose poses were perfectly plausible.
 MAX_REPROJECTION = 0.15
@@ -79,8 +79,8 @@ MIN_REPROJECTION_PX = 6.0
 #: How far from the camera a hand can possibly be, in metres.
 
 #:
-#: Not a nicety. A degenerate point set — a hand edge-on, an averaged template
-#: that came out planar — makes the fallback solvers return a pose that
+#: Not a nicety. A degenerate point set -- a hand edge-on, an averaged template
+#: that came out planar -- makes the fallback solvers return a pose that
 #: reprojects beautifully and sits nine trillion metres away, because at that
 #: distance the projection is essentially unchanged by anything. The reprojection
 #: check cannot catch it; only a statement about where hands actually are can.
@@ -95,7 +95,7 @@ class Intrinsics:
     Deliberately awkward to construct by accident. Every distance this module
     produces scales linearly with ``fx``, so a focal length that was assumed
     rather than measured makes every number in the dataset wrong by the same
-    unknown factor — which is exactly the class of error the whole ego pipeline
+    unknown factor -- which is exactly the class of error the whole ego pipeline
     has already been caught by once.
     """
 
@@ -179,7 +179,7 @@ class Pose:
     position: np.ndarray
     #: Hand orientation as a 3x3 rotation, camera frame.
     rotation: np.ndarray
-    #: Mean reprojection error in pixels. The honest confidence signal — a solve
+    #: Mean reprojection error in pixels. The honest confidence signal -- a solve
     #: that cannot reproduce the 2D points it was given did not converge on the
     #: right pose, whatever the detector's own score said.
     reprojection: float
@@ -220,7 +220,7 @@ def solve(
     model is flat, a handful of joints disagree badly while the palm agrees
     perfectly. A least-squares fit is dragged around by those few; RANSAC finds
     the consistent majority and reports the rest as outliers, which is the
-    correct reading — those joints genuinely are not where the model says.
+    correct reading -- those joints genuinely are not where the model says.
     """
     try:
         import cv2
@@ -248,7 +248,7 @@ def solve(
     )
 
     # SQPNP is the best of these and it asserts outright on a degenerate point
-    # set — a hand seen edge-on, or an averaged template that came out nearly
+    # set -- a hand seen edge-on, or an averaged template that came out nearly
     # planar. That is one frame's problem, not the clip's, so it falls back
     # rather than taking the whole episode down with it.
     ok, rvec, tvec = False, None, None
@@ -373,7 +373,7 @@ def plausible(positions: np.ndarray, *, near: float = 0.10, far: float = 1.20) -
 
     A blunt sanity check with a specific job: catching a wrong focal length. Every
     distance scales with it, so a 2x error puts the whole trajectory at two metres
-    — still smooth, still consistent, and obviously wrong to anybody who looks.
+ -- still smooth, still consistent, and obviously wrong to anybody who looks.
     Nothing else in the pipeline would notice.
     """
     points = np.asarray(positions, dtype=float).reshape(-1, 3)

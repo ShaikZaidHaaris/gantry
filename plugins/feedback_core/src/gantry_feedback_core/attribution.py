@@ -118,7 +118,7 @@ class Attribution(FeedbackModule):
                     summary=(
                         f"{cohort.name}: {name} separates success from failure "
                         f"(delta={delta:+.2f}, q={corrected.q:.3g})"
-                        + ("" if statistic.prescribable else " — context only")
+                        + ("" if statistic.prescribable else " (context only)")
                     ),
                     severity=_severity(delta, statistic.prescribable),
                     measurements={name: measurements[f"{cohort.name}.{name}"]},

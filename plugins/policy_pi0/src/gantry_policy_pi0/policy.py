@@ -1,8 +1,7 @@
 """π₀.₅ over openpi's websocket, as one implementation of the policy plane.
 
 Nothing in Gantry knows this exists. The policy plane is a socket that takes an
-observation and returns an action chunk, and this is one thing that satisfies it —
-the same standing as the GR00T client beside it, the same standing as whatever
+observation and returns an action chunk, and this is one thing that satisfies it -- the same standing as the GR00T client beside it, the same standing as whatever
 comes next. The reason to write it now is that it is the model this project's ego
 pipeline is actually pointed at, not that it is privileged.
 
@@ -11,21 +10,21 @@ What is genuinely different about serving π₀.₅
 **The prompt goes in every call.** The server is stateless per inference: it does
 not remember what task it was told about on the previous step. So the language
 instruction is sent with every observation, and a policy that forgets it does not
-error — it quietly becomes an unconditioned policy, scores badly, and looks like a
+error -- it quietly becomes an unconditioned policy, scores badly, and looks like a
 checkpoint that did not train. That failure is invisible in every log, which is
 why ``reset`` refusing an episode with no instruction is worth more than it looks.
 
 **The chunk horizon belongs to the server.** π₀ and π₀.₅ emit an action chunk
 whose length is a property of the served checkpoint, not of this client. Guessing
 it would put a wrong number in the descriptor, which is then in the provenance of
-every run — and chunk size moved a measured success rate by fourteen points in
+every run -- and chunk size moved a measured success rate by fourteen points in
 this project's own benchmark, so it is not a cosmetic field. It is read from the
 first response and pinned; a later response of a different length is a refusal,
 because a server whose horizon changed mid-run is a server that was swapped.
 
 **Bimanual is where this gets dangerous.** Fourteen numbers, left arm then right,
 and nothing about the array says which is which. The layout carries the labels,
-the action spec carries the layout's labels, and the resolver compares them — so
+the action spec carries the layout's labels, and the resolver compares them -- so
 a retargeter that produced right-then-left is caught by name rather than by an
 arm moving somewhere unexpected.
 
@@ -61,8 +60,8 @@ VERSION = "0.1.0.dev0"
 #: What openpi calls the array it returns.
 ACTIONS = "actions"
 
-#: Checkpoint families served over this wire. Recorded rather than checked — a
-#: new one should not need this file edited — but listed so a report can say
+#: Checkpoint families served over this wire. Recorded rather than checked -- a
+#: new one should not need this file edited -- but listed so a report can say
 #: which was measured.
 VARIANTS = ("pi05", "pi0", "pi0_fast")
 
@@ -82,7 +81,7 @@ def websocket(host: str = "localhost", port: int = 8000, *, timeout: float = 60.
     except ImportError as error:  # pragma: no cover - needs the client
         raise ConfigError(
             "talking to a pi0 server needs openpi's client: pip install "
-            "'gantry-policy-pi0[client]' (openpi-client is the small half — the "
+            "'gantry-policy-pi0[client]' (openpi-client is the small half, the "
             "model and JAX live on the server)"
         ) from error
     return websocket_client_policy.WebsocketClientPolicy(host=host, port=port)
@@ -232,7 +231,7 @@ class Pi0Policy(Policy):
         """Fix the prompt for this episode, and refuse to run without one.
 
         The refusal is the point. A language-conditioned model handed no prompt
-        does not fail — it becomes unconditioned, scores badly, and is
+        does not fail -- it becomes unconditioned, scores badly, and is
         indistinguishable in every log from a checkpoint that did not train. On
         an ego pipeline whose entire premise is that the language mattered, that
         is the single most expensive silent failure available.

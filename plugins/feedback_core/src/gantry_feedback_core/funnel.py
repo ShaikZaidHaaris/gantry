@@ -1,8 +1,8 @@
 """Where a policy stops, and what fixing that one place would be worth.
 
 An end-to-end success rate says a run failed. A funnel says where. Chaining
-milestones into conditional rates — reached, then engaged given reached, then
-completed given engaged — turns one uninformative number into a diagnosis, and
+milestones into conditional rates -- reached, then engaged given reached, then
+completed given engaged -- turns one uninformative number into a diagnosis, and
 the counterfactual makes it actionable: if this one step were perfect and
 nothing else changed, the end-to-end rate would move by *this much*.
 
@@ -61,7 +61,7 @@ class Step:
     def chained(self) -> float:
         """The rate to use when multiplying rungs together.
 
-        An unmeasured rung contributes 1.0 — not because it is known to pass,
+        An unmeasured rung contributes 1.0 -- not because it is known to pass,
         but because the alternative asserts it fails. That makes every product
         involving it zero, which wipes out the uplift of the rung that is
         *actually* blocking and points the diagnosis at the wrong place. The
@@ -114,7 +114,7 @@ def declared_stages(cohort: Cohort) -> tuple[str, ...] | None:
     exactly the case that matters most. A policy that fails at the second
     milestone in *every* episode never produces a second milestone event, so an
     inferred funnel has one rung, reports it at 100%, and says the uplift from
-    fixing it is zero — a clean bill of health for a policy that never does
+    fixing it is zero -- a clean bill of health for a policy that never does
     anything. Reading the intended vocabulary instead turns that into the
     second rung sitting at 0%, which is the truth.
     """

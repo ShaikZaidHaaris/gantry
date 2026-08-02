@@ -3,7 +3,7 @@
 This is the load-bearing step of the whole ego pipeline. Everything before it is
 description; everything after it is a normal Gantry run. If this transform is
 wrong, every number downstream is wrong in a way that looks exactly like the
-answer the product is trying to measure — a policy that did not learn much.
+answer the product is trying to measure -- a policy that did not learn much.
 
 Where it stops
 --------------
@@ -24,7 +24,7 @@ What is genuinely discarded
 ---------------------------
 A human hand has more than twenty degrees of freedom. A parallel-jaw gripper has
 one. So every retargeting through here throws away the entire manner of the grasp
-— which fingers, what opposition, how the object is cradled — and keeps only how
+ -- which fingers, what opposition, how the object is cradled -- and keeps only how
 far apart the jaws should be. Two demonstrations that a person would describe
 completely differently can come out identical.
 
@@ -37,7 +37,7 @@ the policy's fault.
 The number worth reporting
 --------------------------
 :func:`reach_report` is the most useful thing in this file for a user. It says
-what fraction of their reaching happens somewhere the robot cannot go — which is
+what fraction of their reaching happens somewhere the robot cannot go -- which is
 simultaneously a hard limit on their data, a thing they can fix by standing
 closer to what they are doing, and a number nobody else will tell them.
 """
@@ -60,7 +60,7 @@ VERSION = "0.1.0.dev0"
 #: Width of the rotation block for each encoding this accepts.
 ROTATIONS = {"quat_wxyz": 4, "quat_xyzw": 4, "euler_xyz": 3, "axis_angle": 3, "rot6d": 6}
 
-#: Control modes this can produce. Pose commands only — see the module docstring
+#: Control modes this can produce. Pose commands only -- see the module docstring
 #: on why joint targets are refused rather than approximated.
 POSE_MODES = ("eef_abs_pose", "eef_delta_pose")
 
@@ -91,7 +91,7 @@ def hand_command(
     """The retargeter's input: a wrist pose with an aperture on the end.
 
     Defined here rather than in the ego vocabulary because it is not a
-    measurement — it is the *derived* per-step command that a hand-tracking
+    measurement -- it is the *derived* per-step command that a hand-tracking
     pipeline produces once it has decided which numbers matter. Keeping it out of
     the vocabulary keeps the distinction between what was seen and what was
     computed from it.
@@ -147,7 +147,7 @@ def arm_command(
 class HandToArm(Retargeter):
     """One human hand's trajectory as one robot arm's pose-and-gripper command.
 
-    One hand, one arm, one direction — the same restraint the rest of the
+    One hand, one arm, one direction -- the same restraint the rest of the
     retargeter plane keeps. Two of these compose into a bimanual command through
     :func:`assemble`, which reads the target's dimension labels rather than
     assuming an order.
@@ -165,7 +165,7 @@ class HandToArm(Retargeter):
         """``reach`` is optional for the transform and load-bearing for the report.
 
         Without it the retargeting still works and simply cannot say whether any
-        of the resulting poses are somewhere the arm can go — which for the
+        of the resulting poses are somewhere the arm can go -- which for the
         purposes of this product is most of the value.
         """
         self._mount = mount
@@ -215,7 +215,7 @@ class HandToArm(Retargeter):
                 hint="a hand position measured relative to a moving camera changes "
                 "when the head turns and the hand does not. Retargeted as though it "
                 "were fixed, the arm's target swings every time the person looks "
-                "around — smooth, plausible motion toward the wrong place. Compose "
+                "around, smooth, plausible motion toward the wrong place. Compose "
                 "the head pose in first to get a world-frame trajectory",
             )
         scale = source.metadata.get(KEY_SCALE)
@@ -224,7 +224,7 @@ class HandToArm(Retargeter):
         if scale == "normalized":
             return Verdict.no(
                 "hands.image_coordinates",
-                f"{source.name} is in normalized coordinates — pixel fractions, not "
+                f"{source.name} is in normalized coordinates, pixel fractions, not "
                 "a metric hand at an unknown scale",
                 hint="a hand span rescues an unscaled *metric* hand; it cannot "
                 "rescue an image coordinate, because x and y are fractions of the "
@@ -249,7 +249,7 @@ class HandToArm(Retargeter):
                 "nothing to recover the missing factor from",
                 hint="a monocular hand pose is correct up to one unknown multiplier. "
                 "Retargeting it as though it were metres sends the arm to a point "
-                "that does not exist, consistently — which looks exactly like a "
+                "that does not exist, consistently, which looks exactly like a "
                 "policy that never learned to reach. Measure the person's hand span, "
                 "or capture with a calibrated rig",
             )
@@ -300,12 +300,12 @@ class HandToArm(Retargeter):
         if source.metadata.get(KEY_SCALE) != "metric":
             out.append(
                 f"absolute scale, recovered from a measured hand span of "
-                f"{self._hand.span} m rather than observed — every position carries "
+                f"{self._hand.span} m rather than observed, every position carries "
                 "that measurement's error, multiplied"
             )
         if self._clip:
             out.append(
-                "reaches outside the arm's workspace, pulled onto its boundary — the "
+                "reaches outside the arm's workspace, pulled onto its boundary, the "
                 "demonstration becomes a different demonstration wherever that happened"
             )
         if self._mount.workspace_ratio != 1.0:
@@ -368,7 +368,7 @@ class HandToArm(Retargeter):
         placed = self._mount.place(positions)
 
         # A frame the estimator could not solve sits at the origin, which is
-        # inside the arm's inner limit — so counting it as out of reach reports a
+        # inside the arm's inner limit -- so counting it as out of reach reports a
         # detection failure as a workspace problem. They need different fixes
         # (film differently versus stand closer), and conflating them is the same
         # error as scoring an abstention as a loss.
@@ -426,7 +426,7 @@ class HandToArm(Retargeter):
         """The multiplier that turns unscaled positions into metres.
 
         Recovered from the ratio between the measured hand span and the span the
-        estimator reports, which for a unit-normalised hand is one — so the
+        estimator reports, which for a unit-normalised hand is one -- so the
         factor is the span itself. Crude, and the honest description of what
         every monocular ego pipeline does.
         """
@@ -495,7 +495,7 @@ def bimanual(
     """One retargeter per hand, keyed by which.
 
     Two objects rather than one two-armed object, because each hand is calibrated
-    separately — people are not symmetric, and a single calibration applied to
+    separately -- people are not symmetric, and a single calibration applied to
     both puts the difference straight into the gripper signal of whichever hand
     was not measured.
     """

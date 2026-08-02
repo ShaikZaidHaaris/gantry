@@ -1,8 +1,8 @@
 """The policy: wiring discovered, checked, and driven against a fake server.
 
 The layout used here is the one shipped with the RoboMimic-to-LeRobot lift
-dataset in this project — a seven-wide action of x/y/z/roll/pitch/yaw/gripper
-over an eight-wide state — so the shapes are the real ones even though the model
+dataset in this project -- a seven-wide action of x/y/z/roll/pitch/yaw/gripper
+over an eight-wide state -- so the shapes are the real ones even though the model
 behind the socket is four lines of arithmetic.
 """
 

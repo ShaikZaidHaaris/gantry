@@ -4,7 +4,7 @@ The plan has to survive leaving the process that proposed it, for a reason that
 is the whole point of the design rather than a convenience: what gets applied,
 what gets verified, and what the ledger names must be *the same object*. If the
 plan were re-derived at each step from the signal that produced it, three
-things would exist that merely agreed at the time — and the one that eventually
+things would exist that merely agreed at the time -- and the one that eventually
 disagreed would do so silently, months later, when the dataset had changed
 underneath it.
 

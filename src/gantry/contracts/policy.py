@@ -1,12 +1,12 @@
 """Plane 3: something that turns observations into actions.
 
-Anything that produces actions fits here — a learned model, a scripted routine,
+Anything that produces actions fits here -- a learned model, a scripted routine,
 a planner, a language model driving the machine through tool calls, a person at
 a joystick. The contract asks only for the shape of that exchange, so nothing
 about the plane presumes a neural network.
 
 Policies emit a **chunk**: several future actions from one call. That is not a
-convenience, it is how these systems are actually run — inference is slower than
+convenience, it is how these systems are actually run -- inference is slower than
 the control rate, so a burst is predicted and executed open-loop. How much of a
 chunk gets executed before re-planning is a protocol decision, and it is one of
 the largest levers on a measured result. Making the chunk the return type keeps

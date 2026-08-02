@@ -87,7 +87,7 @@ def test_not_beating_the_control_is_reported_as_such_not_rounded_past():
 
 
 def test_a_control_that_wins_stops_the_report_rather_than_appearing_in_it():
-    """A control outperforming the real thing is not a data-quality result — it
+    """A control outperforming the real thing is not a data-quality result -- it
     means labels are misaligned or the split leaked."""
     report = Control().analyse(
         [

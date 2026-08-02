@@ -79,7 +79,7 @@ export function GateTimeline({
 }) {
   const reachedIndex = gates.findIndex((g) => g.key === currentGate);
   // The one gate that may be bought right now: the first that has not run,
-  // with everything before it passed. Not "every unrun paid gate" — offering
+  // with everything before it passed. Not "every unrun paid gate", offering
   // the robot test beside the signal check invites paying for a day of GPU to
   // answer a question a minute would have.
   const firstUnrun = gates.find((g) => g.status === "queued");
@@ -118,11 +118,11 @@ export function GateTimeline({
               )}
 
               {/* Buyable only when everything before it has actually passed.
-                  The server enforces this too — a button is a convenience, not
-                  a guarantee — but offering a purchase that will be refused is
+                  The server enforces this too, a button is a convenience, not
+                  a guarantee, but offering a purchase that will be refused is
                   its own small dishonesty. */}
               {/* Offered only when the failure was ours. A refused gate has no
-                  button here at all — not a disabled one, because a disabled
+                  button here at all, not a disabled one, because a disabled
                   control still says "this is a thing you might do". */}
               {onRetry && gate.retryable && (
                 <button

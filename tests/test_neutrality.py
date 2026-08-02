@@ -4,7 +4,7 @@ Two rules, both easy to break by accident and expensive to discover late:
 
 1. Core imports nothing but numpy and the standard library.
 2. Core mentions no specific dataset format, robot, simulator, policy, or
-   vendor — not in code, not in a default value.
+   vendor -- not in code, not in a default value.
 
 If a future change needs core to know about a particular anything, that is the
 signal it belongs in a plugin instead.

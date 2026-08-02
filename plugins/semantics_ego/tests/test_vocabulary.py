@@ -33,7 +33,7 @@ def test_the_ego_meanings_are_registered():
 def test_an_unscaled_hand_cannot_be_bound_where_metres_are_wanted():
     """The failure this discriminator exists for. Both are float32 (21, 3). One
     is metres; the other is metres times an unknown constant. Retarget the second
-    as the first and the arm reaches for a point that does not exist — which
+    as the first and the arm reaches for a point that does not exist -- which
     looks exactly like a policy that has not learned to reach."""
     estimated = hand_channel("hands", scale="unscaled")
     wanted = hand_channel("hands", scale="metric")
@@ -81,7 +81,7 @@ def test_normalized_is_kept_distinct_from_unscaled():
 def test_mano_and_mediapipe_are_the_same_width_and_do_not_fit_each_other():
     """Twenty-one joints each, different orderings, different roots. Feed one to
     a retargeter written for the other and every finger attaches to the wrong
-    knuckle — shapes agree, dtypes agree, nothing complains."""
+    knuckle -- shapes agree, dtypes agree, nothing complains."""
     assert KEYPOINTS["mano"] == KEYPOINTS["mediapipe"] == 21
 
     mano = hand_channel("hands", keypoints="mano")

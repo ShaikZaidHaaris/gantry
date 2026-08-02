@@ -1,6 +1,6 @@
 """The simulator's predicate, as one judge among several.
 
-The interesting tests are not "does it read a boolean" — it does. They are about
+The interesting tests are not "does it read a boolean" -- it does. They are about
 the two things demoting it from definitional to comparable actually buys: that a
 criterion it has no measurement for produces an abstention rather than a
 failure, and that its disagreement with the rubric written beside it is
@@ -146,7 +146,7 @@ def test_a_predicate_and_its_rubric_can_disagree_and_that_is_the_point():
 
     The rubric says the cube must be *held*; this check tests only the height at
     the end of the episode. A policy that lifts and drops satisfies the
-    predicate and fails the rubric — a disagreement that was invisible while the
+    predicate and fails the rubric -- a disagreement that was invisible while the
     predicate was the definition of success, and is now a measurable difference
     between two named judges.
     """

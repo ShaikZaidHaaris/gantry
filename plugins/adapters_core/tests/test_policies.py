@@ -3,7 +3,7 @@
 Gantry binds a policy's observations through the adapter plane and checks that
 its actions can be accepted, but never converted the action stream at run time.
 So a policy trained in one pose encoding and an evaluator reading another either
-matched exactly or did not run — with no third option. This is that option, and
+matched exactly or did not run -- with no third option. This is that option, and
 the tests are mostly about what it still refuses to do.
 """
 

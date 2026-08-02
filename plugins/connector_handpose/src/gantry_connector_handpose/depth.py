@@ -1,15 +1,15 @@
 """Metric position from a depth map, instead of from the hand's own size.
 
 The perspective-n-point path in :mod:`.pnp` recovers distance by treating the
-hand as a ruler of known length. It works — measured 0.36 to 0.70 m on real
-kitchen footage — and it has one structural weakness: *every* coordinate scales
+hand as a ruler of known length. It works -- measured 0.36 to 0.70 m on real
+kitchen footage -- and it has one structural weakness: *every* coordinate scales
 with the assumed focal length. Get the intrinsics 20% wrong and the whole
 trajectory is 20% away from the truth, uniformly and invisibly.
 
 Reading depth directly is better in a specific and limited way. Distance comes
 from the depth model rather than from the focal length, so an intrinsics error
-no longer scales it. The sideways coordinates still need intrinsics — unprojection
-is ``x = (u - cx) * z / fx`` — so a focal length error skews the trajectory
+no longer scales it. The sideways coordinates still need intrinsics -- unprojection
+is ``x = (u - cx) * z / fx`` -- so a focal length error skews the trajectory
 rather than dilating it. Skew is the less damaging failure of the two, and more
 importantly it is a *different* failure, so the two paths disagreeing is itself
 a signal that something is wrong.
@@ -47,7 +47,7 @@ from .pnp import Intrinsics
 
 #: Half-width of the patch sampled around a keypoint, in pixels. A single pixel
 #: of monocular depth is noisy and, on a hand edge, frequently belongs to the
-#: background instead — which puts the wrist two metres away for one frame and
+#: background instead -- which puts the wrist two metres away for one frame and
 #: produces a trajectory that teleports.
 PATCH = 5
 
@@ -134,8 +134,7 @@ def lift(
 ) -> tuple[np.ndarray, np.ndarray]:
     """A sequence of 2D hands to metric 3D. Returns ``(positions, solved)``.
 
-    ``keypoints`` is ``(steps, joints, 2)`` in pixels. Only the wrist is lifted —
-    the finger joints come from the hand model, and lifting each one
+    ``keypoints`` is ``(steps, joints, 2)`` in pixels. Only the wrist is lifted --     the finger joints come from the hand model, and lifting each one
     independently from a noisy depth map produces a hand that flexes at random.
     """
     if not maps.metric:
@@ -161,7 +160,7 @@ def lift(
             continue
         z = sample(values[index], wrist, patch=patch)
         if not (near <= z[0] <= far):
-            # Out of range is a reading about something else — the ceiling, a
+            # Out of range is a reading about something else -- the ceiling, a
             # hole in the depth map, the far wall seen through a gap between
             # fingers. Left unsolved rather than clamped, because a clamped
             # value is indistinguishable from a real one downstream.
@@ -273,7 +272,7 @@ def constant(metres: float = 0.5, *, shape: tuple[int, int] = (64, 64)) -> Depth
     For tests and for a deliberate baseline: a policy trained on data lifted with
     a constant depth has had all its depth information removed, and comparing
     against it says how much the depth model was actually contributing. Declares
-    itself metric because it is — trivially, and wrongly, which is the point.
+    itself metric because it is -- trivially, and wrongly, which is the point.
     """
 
     class Constant:
@@ -296,9 +295,8 @@ def agreement(
 ) -> dict[str, Any]:
     """How far the two independent paths disagree, in metres.
 
-    Worth computing whenever both are available. They fail differently — a wrong
-    focal length dilates the perspective-n-point answer and skews the depth one —
-    so agreement is evidence that neither is badly wrong, and a large
+    Worth computing whenever both are available. They fail differently -- a wrong
+    focal length dilates the perspective-n-point answer and skews the depth one --     so agreement is evidence that neither is badly wrong, and a large
     disagreement localises the problem without either being ground truth.
     """
     a = np.asarray(pnp_positions, dtype=float).reshape(-1, 3)

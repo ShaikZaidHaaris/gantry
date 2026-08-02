@@ -1,4 +1,4 @@
-"""Gate 2 — Signal check. Is there anything learnable here?
+"""Gate 2 -- Signal check. Is there anything learnable here?
 
 The money gate, and the only one whose job is to say no.
 

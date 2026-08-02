@@ -13,7 +13,7 @@ fifth instruction of a chain those two policies are nowhere near each other.
 
 CALVIN measures exactly that. A row is thirty-four possible instructions, an
 evaluation is a chain of five drawn in sequence, and the chain stops at the first
-one the policy fails. The headline number is not a success rate — it is *average
+one the policy fails. The headline number is not a success rate -- it is *average
 chain length*, between zero and five, and the distinguishing property is that it
 falls off a cliff for policies that need a clean start.
 
@@ -24,11 +24,11 @@ loop's ``success`` field is one boolean per trial, and a chain has five results.
 Collapsing them loses information no matter how it is done, so the collapse is an
 explicit argument rather than a convention:
 
-``all_five`` — success means the whole chain. Harsh, standard in the CALVIN
+``all_five`` -- success means the whole chain. Harsh, standard in the CALVIN
 literature as "5/5", and the right default because it is the one that cannot be
 gamed by a policy that reliably does the first subtask and nothing else.
 
-``at_least(k)`` — success means k or more. Useful while a policy is bad enough
+``at_least(k)`` -- success means k or more. Useful while a policy is bad enough
 that 5/5 is always zero and the benchmark has stopped being informative.
 
 The chain length itself is *always* recorded, per episode, alongside which
@@ -37,7 +37,7 @@ rest of the framework counts things.
 
 Every subtask is a milestone
 ----------------------------
-So a funnel over a CALVIN run is genuinely meaningful — ``stage_events=True``
+So a funnel over a CALVIN run is genuinely meaningful -- ``stage_events=True``
 here, unlike almost every other backend, and the stage names are the instructions
 themselves. "Where does the chain break" is then a table rather than an
 investigation, and it is the single most useful diagnostic this suite produces.
@@ -188,7 +188,7 @@ class Chain:
             self.reached += 1
             self._advance_subtask(info)
         elif self._steps_in_subtask >= self.subtask_steps:
-            # Out of time on this subtask. The chain stops here — that is the
+            # Out of time on this subtask. The chain stops here -- that is the
             # rule that makes chain length mean anything.
             self.broke_on = instruction
             return Step(
@@ -266,7 +266,7 @@ class CalvinEvaluator(ClosedLoop):
         chains = tuple(tuple(str(step) for step in chain) for chain in chains)
         if not chains:
             raise ConfigError(
-                f"{name}: needs its instruction chains — this suite measures what "
+                f"{name}: needs its instruction chains, this suite measures what "
                 "happens on the second instruction after the first, and there is "
                 "nothing to measure without them"
             )
@@ -295,7 +295,7 @@ class CalvinEvaluator(ClosedLoop):
             name=self._name,
             version=VERSION,
             # Every subtask is a milestone, so a funnel here is genuinely
-            # meaningful — which is not true of most backends, where it would
+            # meaningful -- which is not true of most backends, where it would
             # have one rung. "Where does the chain break" becomes a table.
             stage_events=True,
             outcomes=True,

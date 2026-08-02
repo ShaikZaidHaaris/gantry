@@ -1,6 +1,6 @@
 """A person's judgements, recorded and read back.
 
-The scorer itself is thin — it looks up what somebody wrote down. What is worth
+The scorer itself is thin -- it looks up what somebody wrote down. What is worth
 testing is the discipline around that: an unscored trial abstains rather than
 failing, an anonymous session is refused because agreement needs to know who
 judged, and the rubric reaches the page unabridged because the sentence is the

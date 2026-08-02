@@ -1,6 +1,6 @@
 """One gripper's joint readings expressed in another gripper's terms.
 
-`retargeters_core` stops short of this on purpose — its own docstring says a
+`retargeters_core` stops short of this on purpose -- its own docstring says a
 gripper conversion "needs a model of the machine and belongs with whoever owns
 that machine". This package owns that model, and it is a small one: how far
 open each gripper is, as a fraction of its own measured travel.
@@ -20,8 +20,7 @@ one and fed the other reads a closed hand as half-open with the fingers on the
 wrong sides. That is the case this exists to prevent: matching widths are what
 make the mistake silent, so a width check cannot catch it.
 
-So the conversion goes through the only quantity both grippers actually share —
-how far open they are, as a fraction of their own travel — and nothing else
+So the conversion goes through the only quantity both grippers actually share -- how far open they are, as a fraction of their own travel -- and nothing else
 crosses. The reading is projected onto the line from its own measured closed
 pose to its own measured open pose, and rebuilt on the target's line.
 
@@ -35,7 +34,7 @@ retargeter's name so nobody reads it as a native measurement later.
 
 The calibration is measured, never assumed. Numbers written by hand for a
 gripper nobody commanded are the failure mode this whole approach exists to
-avoid — see :func:`calibration_from`, which refuses an embodiment that does not
+avoid -- see :func:`calibration_from`, which refuses an embodiment that does not
 carry one.
 """
 
@@ -139,7 +138,7 @@ def gripper_block(spec: ChannelSpec) -> tuple[str, int] | None:
 
     A state channel here is a pose followed by whatever the hand reports, and
     the measured embodiment files label those trailing values with the gripper
-    class that produced them — ``PandaGripper.0``, ``Robotiq85Gripper.3``. That
+    class that produced them -- ``PandaGripper.0``, ``Robotiq85Gripper.3``. That
     label is what makes two eight-wide states distinguishable, so it is what is
     read, rather than the width.
     """

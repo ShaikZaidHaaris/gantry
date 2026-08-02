@@ -92,7 +92,7 @@ class ArraySource:
 class EmptySource:
     """A :class:`StepSource` with no channels at all.
 
-    For records that carry outcomes and milestones but no trajectory — which is
+    For records that carry outcomes and milestones but no trajectory -- which is
     what most evaluation logs actually contain. Such an episode is a legitimate
     record, not a broken one, and representing it honestly is what lets the
     resolver tell a caller that a trajectory-based analysis cannot run on it,
@@ -172,7 +172,7 @@ class EpisodeMeta:
     ------------------------------------
     A format change renumbers everything. The same demonstration is
     ``mg/demo_1`` in one collection and ``lift_train_mg/episode_000000`` in the
-    copy a trainer reads, and nothing connects them — so anything computed
+    copy a trainer reads, and nothing connects them -- so anything computed
     about the first (it failed; it is worth dropping; it caused this behaviour)
     cannot be acted on in the second.
 

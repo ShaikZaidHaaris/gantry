@@ -209,7 +209,7 @@ def once(api: str, worker: str, gates: list[str], workroot: Path | None = None) 
 
     # The job names a workdir on the *API's* machine. A worker sharing that
     # disk uses it; one on a GPU box cannot, and writing there would either fail
-    # or — worse — succeed against a same-named directory that means something
+    # or -- worse -- succeed against a same-named directory that means something
     # else entirely. So a remote worker is given its own root and keeps each
     # job's scratch under the job id.
     if workroot is not None:
@@ -256,7 +256,7 @@ def once(api: str, worker: str, gates: list[str], workroot: Path | None = None) 
                     "status": "failed",
                     "error": f"{type(error).__name__}: {error}",
                     "verdict": {
-                        "summary": "the check could not complete — this is our fault, not your data's"
+                        "summary": "the check could not complete. This is our fault, not your data's"
                     },
                 },
             )
@@ -273,7 +273,7 @@ def main() -> None:
         "--work",
         default=None,
         help="where to keep fetched datasets. Set this on a worker that does not share a "
-        "disk with the API — the job's own workdir is a path on the API's machine, and "
+        "disk with the API, the job's own workdir is a path on the API's machine, and "
         "using it here would write into a directory that does not exist.",
     )
     parser.add_argument("--once", action="store_true")

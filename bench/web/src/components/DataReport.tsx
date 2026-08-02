@@ -1,4 +1,4 @@
-/** The free data report — what Gate 1 found in somebody's footage.
+/** The free data report, what Gate 1 found in somebody's footage.
  *
  *  This is the first thing a contributor gets back, and for most uploads it is
  *  the only thing they will ever read closely. It is laid out as an argument in

@@ -1,6 +1,6 @@
 """RoboTwin demonstrations, read without RoboTwin.
 
-The fake writes files shaped like the real ones — one HDF5 per episode, poses
+The fake writes files shaped like the real ones -- one HDF5 per episode, poses
 split across four datasets per arm, camera frames stored as encoded bytes rather
 than arrays. Each of those is somewhere this could quietly read the wrong thing.
 """

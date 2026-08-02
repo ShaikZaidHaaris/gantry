@@ -157,7 +157,7 @@ def test_a_dead_worker_becomes_our_failure_not_a_refusal(client, job):
     gate = gate_of(client, sub_id)
     assert gate["status"] == "failed"
     assert "our fault" in gate["verdict"]["summary"]
-    # Never "refused" — that vocabulary is a judgement on somebody's data, and
+    # Never "refused" -- that vocabulary is a judgement on somebody's data, and
     # this was our machine.
     assert client.get(f"/api/submissions/{sub_id}").json()["status"] == "failed"
 

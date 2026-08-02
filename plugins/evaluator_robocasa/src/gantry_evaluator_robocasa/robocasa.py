@@ -2,8 +2,8 @@
 
 The tasks this project has measured so far live on one table. Lift is a cube on a
 tabletop; pick-place-can is a can on the same tabletop; every LIBERO scene is a
-tabletop. So a policy that has learned *this table* — its lighting, its texture,
-the height of the camera above it — scores well, and the number does not
+tabletop. So a policy that has learned *this table* -- its lighting, its texture,
+the height of the camera above it -- scores well, and the number does not
 distinguish that from having learned the skill. There is no way to tell from
 inside a single-scene benchmark which of the two happened.
 
@@ -22,7 +22,7 @@ flag to the robosuite evaluator. That instinct is wrong twice.
 
 Its construction is different in kind: an environment is made with a *layout id*
 and a *style id* drawn from generators, and the scene identity is that pair plus
-the object-instance seed — not a placement-sampler rectangle. Folding that into
+the object-instance seed -- not a placement-sampler rectangle. Folding that into
 the robosuite evaluator means one class with two mutually exclusive halves and a
 flag deciding which is live, which is where the special cases live.
 
@@ -56,7 +56,7 @@ VERSION = "0.1.0.dev0"
 #: install rather than copied from a paper.
 #:
 #: Worth recording why this list is here at all: the first version used the
-#: abbreviations the RoboCasa paper uses — PnPCounterToCab and friends — and
+#: abbreviations the RoboCasa paper uses -- PnPCounterToCab and friends -- and
 #: robosuite refused every one of them, because the registry name is
 #: PickPlaceCounterToCabinet. The paper and the code disagree, the code wins, and
 #: a task name that does not resolve fails at environment construction rather
@@ -134,7 +134,7 @@ CAMERA_SIZE = 128
 CONTROL_HZ = 20.0
 
 #: A mobile Panda takes twelve numbers: the arm's six pose deltas, the gripper,
-#: and the base. Read from the environment rather than trusted — see ``action``.
+#: and the base. Read from the environment rather than trusted -- see ``action``.
 DEFAULT_WIDTH = 12
 
 
@@ -230,14 +230,14 @@ class RobocasaEvaluator(ClosedLoop):
         RoboCasa accepts ``-1`` for "pick a random layout", which is convenient
         and produces a run nobody can reproduce: the record would say the task
         and not the kitchen. So the sentinels are refused here and a caller who
-        wants variety lists the layouts they want varied over — which is also the
+        wants variety lists the layouts they want varied over -- which is also the
         only way a held-scene condition can be stated as held.
         """
         bad = [value for value in (*layouts, *styles) if int(value) in RANDOM_SENTINELS]
         if bad:
             raise ConfigError(
                 f"{name}: layout/style {bad} asks RoboCasa to choose at random, which "
-                "records no scene — the run cannot be repeated and a held-scene "
+                "records no scene, the run cannot be repeated and a held-scene "
                 "condition cannot be told apart from a varied one. List the layouts "
                 f"and styles instead (layouts 0..{LAYOUTS - 1}, styles 0..{STYLES - 1})"
             )
@@ -352,8 +352,8 @@ class RobocasaEvaluator(ClosedLoop):
 
         ``per_scene`` is how many object-instance draws to take within each
         kitchen. Held layout with many seeds and many layouts with one seed each
-        are two genuinely different experiments — the first measures variation
-        within a scene, the second across scenes — and both are expressible here
+        are two genuinely different experiments -- the first measures variation
+        within a scene, the second across scenes -- and both are expressible here
         because the triple is explicit.
         """
         self.check_task()

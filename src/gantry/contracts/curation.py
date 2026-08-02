@@ -1,7 +1,7 @@
 """Plane: what to do to the data, said precisely enough to be wrong.
 
 Every other plane in this framework describes or measures. This one *prescribes*
-— it is the only plane whose output is an instruction to change something. That
+ -- it is the only plane whose output is an instruction to change something. That
 asymmetry is why it is built the way it is.
 
 Why a plan is an object and not a sentence
@@ -19,7 +19,7 @@ matters. A plan that cannot be wrong is a plan nobody should act on.
 Why proposing and verifying are different planes
 ------------------------------------------------
 A curator proposes; the feedback plane judges. Never the same component, and
-this is not tidiness — a signal that scores its own effect is the Goodhart
+this is not tidiness -- a signal that scores its own effect is the Goodhart
 machine in miniature, and every curation method in the literature reports its
 own wins. Here the verdict comes from a retrain and a paired evaluation run by
 machinery that has never heard of the signal.
@@ -31,7 +31,7 @@ deniability: it is labelled a failure; it looks unlike the good ones; the cohort
 containing it trains worse; removing it provably lowers closed-loop return.
 These are not interchangeable, and the ways they get confused are expensive. So
 every plan states its rung and the rung is checked against the language of the
-claim — a screening correlation phrased as a cause is refused by name.
+claim -- a screening correlation phrased as a cause is refused by name.
 
 Why evidence has to name its rollouts
 -------------------------------------
@@ -54,10 +54,10 @@ CURATION_CONTRACT = "curation@1.0"
 
 #: How this curator decided, in ascending cost and descending deniability.
 #:
-#: ``screening``    — a property of the data alone (labels, smoothness, length).
-#: ``unsupervised`` — a property of the data's distribution (how unlike the rest).
-#: ``leave_out``    — the cohort containing it was measured to train worse.
-#: ``influence``    — removing it was estimated to change closed-loop return.
+#: ``screening`` -- a property of the data alone (labels, smoothness, length).
+#: ``unsupervised`` -- a property of the data's distribution (how unlike the rest).
+#: ``leave_out`` -- the cohort containing it was measured to train worse.
+#: ``influence`` -- removing it was estimated to change closed-loop return.
 #:
 #: Ordered, and the order is load-bearing: a claim may always be reported as
 #: weaker than its rung, never as stronger.
@@ -72,7 +72,7 @@ ROLLOUT_RUNGS = frozenset({"influence"})
 CAP_PER_EPISODE = "per_episode"
 #: Needs evaluation runs, not just a dataset.
 CAP_NEEDS_RUNS = "needs_runs"
-#: Needs to see inside training — gradients, losses, a cooperating backend.
+#: Needs to see inside training -- gradients, losses, a cooperating backend.
 CAP_NEEDS_GRADIENTS = "needs_gradients"
 #: The rung this curator argues at.
 CAP_RUNG = "rung"
@@ -147,7 +147,7 @@ class CollectionOrder:
     #: Which milestone it failed at, when a funnel knows. Grasping and placing
     #: are different skills and the demonstrations for them are different work.
     stage: str | None = None
-    #: Anything a person needs that the fields above cannot carry — "failures
+    #: Anything a person needs that the fields above cannot carry -- "failures
     #: cluster on the far edge", "the cube was upright in every failure".
     note: str = ""
 
@@ -193,7 +193,7 @@ class CurationAction:
     weight: float | None = None
     #: For ``collect``.
     order: CollectionOrder | None = None
-    #: Why these and not others — a score, a rank, a reason per episode. Kept
+    #: Why these and not others -- a score, a rank, a reason per episode. Kept
     #: because "drop these 431" is unreviewable and "drop these 431, here is
     #: each one's score" is an argument someone can disagree with.
     detail: Mapping[str, Any] = field(default_factory=dict)
@@ -330,7 +330,7 @@ class CurationPlan:
     def touches_existing_data(self) -> bool:
         """Whether applying this changes the training set, or only adds to it.
 
-        A plan that only orders collection needs no retrain to apply — it needs
+        A plan that only orders collection needs no retrain to apply -- it needs
         a person and a robot. The two are verified differently and the
         distinction is worth having up front.
         """
@@ -366,7 +366,7 @@ class CurationOutcome:
     #: Paired test on the shared scenes.
     p: float | None = None
     verdict: Verdict = field(default_factory=Verdict.yes)
-    #: What it cost to find out — gpu-minutes, trials, wall time. Recorded so
+    #: What it cost to find out -- gpu-minutes, trials, wall time. Recorded so
     #: "was this worth testing" is answerable from the ledger rather than from
     #: memory.
     cost: Mapping[str, Any] = field(default_factory=dict)

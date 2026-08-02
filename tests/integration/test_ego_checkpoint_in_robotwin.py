@@ -7,7 +7,7 @@ simulator and the socket are fakes.
 
 Every failure this pins cost a real run somewhere: a state converted in one
 direction but not the other, an arm order that survives a conversion, a chunk
-lifted wrongly. None of them raise — they produce well-formed arrays that mean
+lifted wrongly. None of them raise -- they produce well-formed arrays that mean
 something else.
 """
 
@@ -262,7 +262,7 @@ def test_the_camera_extrinsics_reach_the_wrapper_through_the_evaluator():
 
 def test_the_commands_land_in_world_coordinates_not_camera_ones():
     """The failure being fixed. The server returns zeros, which in the policy's
-    own frame means the camera origin — so the command must come out at where
+    own frame means the camera origin -- so the command must come out at where
     the camera is in the world, not at the world origin."""
     evaluator, policy, server, envs = framed()
     evaluator.run(policy, evaluator.task_for(scenes=1), Protocol())

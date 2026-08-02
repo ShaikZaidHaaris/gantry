@@ -1,7 +1,7 @@
 """A bench, checked without a bench.
 
 The machine and the operator are both injected, so the whole hardware path runs
-in a test with no robot and no person — which is the only way this plugin's logic
+in a test with no robot and no person -- which is the only way this plugin's logic
 gets tested at all, since the alternative is a lab visit per assertion.
 """
 
@@ -121,7 +121,7 @@ def test_it_never_claims_to_be_seedable():
 
 
 def test_recording_reports_no_outcomes_at_all():
-    """Not zero outcomes — no outcome capability. The labels do not exist yet,
+    """Not zero outcomes -- no outcome capability. The labels do not exist yet,
     and anything needing them should be refused rather than read an empty column
     as a row of failures."""
     bench = evaluator(operator=Recording(prompt=lambda _: ""))

@@ -94,7 +94,7 @@ def score_episode(
     contain what the policy *did*. Emitting only a score leaves the feedback
     plane with nothing to read: every trajectory module refuses, and the only
     thing anyone can do with the run is compare one number. The behaviour is
-    the interesting part — a policy can score respectably and still be visibly
+    the interesting part -- a policy can score respectably and still be visibly
     jittery, and that is exactly what a screen would catch.
     """
     truth = np.asarray(episode.array(action_name), dtype=float)
@@ -195,8 +195,8 @@ class OfflineEvaluator(Evaluator):
     def requires(self) -> Requirement:
         """What a policy must emit.
 
-        Before binding, the width is not known — it is a property of the data
-        that has not arrived yet — so the requirement is declared with a
+        Before binding, the width is not known -- it is a property of the data
+        that has not arrived yet -- so the requirement is declared with a
         wildcard shape rather than guessed at. Binding narrows it to the
         recorded channel's actual spec.
         """

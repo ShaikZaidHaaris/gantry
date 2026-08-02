@@ -319,7 +319,7 @@ def test_a_seed_derived_from_data_is_the_same_in_every_process():
     """The builtin hash() is salted per process for strings.
 
     Both reference policies seeded from it, so they were deterministic within a
-    run and not across two — while still declaring determinism, and still
+    run and not across two -- while still declaring determinism, and still
     passing a conformance check that can only look inside one interpreter. Two
     runs of the same seeded experiment on different days simply disagreed.
     """

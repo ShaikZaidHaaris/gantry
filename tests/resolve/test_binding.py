@@ -29,7 +29,7 @@ def need(*channels, **kwargs):
 
 
 # Stand-ins for the real adapters. They carry a transform because the registry
-# refuses one that cannot be applied — an adapter that closes a gap on paper and
+# refuses one that cannot be applied -- an adapter that closes a gap on paper and
 # not in the data is exactly what that guard exists to stop.
 def _identity(values, provider, consumer):
     return values

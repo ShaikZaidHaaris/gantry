@@ -1,14 +1,13 @@
 """Can somebody add a whole new plane without editing core?
 
-The example plane here is deliberately something Gantry will never ship —
-scheduling when to run things is a third party's concern. It used to be
+The example plane here is deliberately something Gantry will never ship -- scheduling when to run things is a third party's concern. It used to be
 "curation", which stopped working the day curation became a core plane: an
 extensibility test whose example keeps getting absorbed is testing the wrong
 thing. Pick a name core has no ambitions toward.
 
 This is the claim that separates "swappable parts" from "extensible framework",
 and it is easy to believe without checking. Everything below registers a plane
-Gantry has never heard of and then uses it exactly as if it were built in — the
+Gantry has never heard of and then uses it exactly as if it were built in -- the
 registry accepts it, descriptors validate against it, provenance records it,
 manifests carry it, the resolver version-checks it, and the CLI lists it.
 

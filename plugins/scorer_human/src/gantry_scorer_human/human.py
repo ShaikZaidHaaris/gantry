@@ -2,7 +2,7 @@
 
 This is the scorer that makes the other two mean anything. A simulator's
 predicate is free and a model's judgement is cheap, but neither can be checked
-against anything until somebody has looked — and the whole argument for writing
+against anything until somebody has looked -- and the whole argument for writing
 every criterion twice is that the sentence a person reads on a bench is the same
 sentence the predicate was standing in for.
 
@@ -15,7 +15,7 @@ Why the rubric appears verbatim and unabridged
 ----------------------------------------------
 Because the thing being measured is whether *that sentence* produces agreement.
 Summarising it, or showing the criterion name instead, would measure whether
-people agree about something else — and the agreement number would then be about
+people agree about something else -- and the agreement number would then be about
 a rubric nobody will ever use.
 
 Why "can't tell" is a button and not an omission
@@ -165,7 +165,7 @@ def write_page(
 #: needs a build step is a scoring tool nobody uses on a Friday afternoon.
 _PAGE = """<!doctype html>
 <meta charset="utf-8">
-<title>gantry — score trials</title>
+<title>gantry, score trials</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 16px/1.55 system-ui, sans-serif; max-width: 46rem; margin: 2rem auto;
@@ -189,7 +189,7 @@ _PAGE = """<!doctype html>
 <h1>Score trials</h1>
 <p class="meta" id="head"></p>
 <label class="meta">Your name or initials
-  <input type="text" id="rater" placeholder="required — agreement needs to know who judged">
+  <input type="text" id="rater" placeholder="required, agreement needs to know who judged">
 </label>
 <hr>
 <div id="trial"></div>
@@ -200,7 +200,7 @@ const answers = [];
 let at = 0;
 document.getElementById("rater").value = D.rater || "";
 document.getElementById("head").textContent =
-  D.task + " — " + D.instruction + " — " + D.trials.length + " trial(s)";
+  D.task + ", " + D.instruction + ", " + D.trials.length + " trial(s)";
 
 function render() {
   const host = document.getElementById("trial");
@@ -255,7 +255,7 @@ function render() {
     const rater = document.getElementById("rater").value.trim();
     if (!rater) { alert("Please put your name or initials at the top."); return; }
     if (Object.keys(picks).length < D.criteria.length) {
-      alert("Please answer every question — 'Can't tell' counts as an answer.");
+      alert("Please answer every question, 'Can't tell' counts as an answer.");
       return;
     }
     for (const c of D.criteria) {
@@ -274,7 +274,7 @@ function finish() {
   const box = document.getElementById("done");
   box.hidden = false;
   const lines = answers.map(a => JSON.stringify(a)).join("\\n") + "\\n";
-  box.innerHTML = "<p><strong>Done — " + D.trials.length +
+  box.innerHTML = "<p><strong>Done, " + D.trials.length +
     " trial(s) scored.</strong></p><p>Save this file next to the page as <code>" +
     D.lines + "</code>.</p>";
   const a = document.createElement("a");
@@ -292,7 +292,7 @@ class HumanScorer(Scorer):
     """Reads back what a person decided, watching video against the rubric.
 
     Deliberately not interactive. The scorer does not block waiting for
-    somebody — a person scores when they have twenty minutes, and this reads the
+    somebody, a person scores when they have twenty minutes, and this reads the
     file afterwards. That separation is what lets the same judgements be
     re-analysed later without asking anyone to watch anything twice.
     """

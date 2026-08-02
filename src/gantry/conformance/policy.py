@@ -134,7 +134,7 @@ def _reset_is_accepted(context: Context) -> Verdict:
 def _requirements_are_declared(context: Context) -> Verdict:
     """Whatever it declares must be well-formed. Declaring nothing is allowed.
 
-    An empty requirement is a *declaration* — "I read nothing" — and a constant
+    An empty requirement is a *declaration* -- "I read nothing" -- and a constant
     baseline is exactly that. Failing it would punish a correct answer. The
     thing worth catching is a policy that reads a channel it never declared,
     and no inspection of the declaration alone can see that.

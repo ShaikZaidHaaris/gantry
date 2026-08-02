@@ -6,7 +6,7 @@ interfaces have been shaped by use rather than by imagination. That is the point
 at which freezing means something.
 
 What this file does is make a break *loud*. Renaming a method, dropping a
-capability key, or changing a refusal code is not forbidden — it is a major
+capability key, or changing a refusal code is not forbidden -- it is a major
 version bump, and this test is what forces someone to say so out loud instead of
 discovering it in a plugin six weeks later.
 
@@ -77,7 +77,7 @@ def test_contract_versions_are_pinned(name, pinned):
 def test_the_core_planes_are_frozen():
     """The planes core itself declares.
 
-    Plugins may register more — that is the point of the plane registry — so
+    Plugins may register more -- that is the point of the plane registry -- so
     this pins what core ships, not what a running system contains.
     """
     from gantry.spine import CORE_PLANES
@@ -89,8 +89,8 @@ def test_the_core_planes_are_frozen():
         # hardware" both unsayable. It is a plane because it is a thing you
         # author once and stage many ways.
         "task",
-        # Added deliberately: judging used to be one privileged path — the
-        # simulator's predicate — which made "would a person agree" unaskable.
+        # Added deliberately: judging used to be one privileged path -- the
+        # simulator's predicate -- which made "would a person agree" unaskable.
         "scorer",
         # Added deliberately: the only plane whose output is an instruction
         # rather than a description. It is separate from feedback because a

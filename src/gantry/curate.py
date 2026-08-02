@@ -12,8 +12,7 @@ their connector ships.
 
 Whitelist, not suggestion
 -------------------------
-``keep`` means *only* these. That is the shape the strongest signals produce —
-rank every demonstration, keep the top third — and reading it as a hint would
+``keep`` means *only* these. That is the shape the strongest signals produce -- rank every demonstration, keep the top third -- and reading it as a hint would
 quietly train on everything while reporting that a third was selected.
 
 What it refuses
@@ -21,7 +20,7 @@ What it refuses
 A plan that names episodes the dataset does not contain is refused rather than
 applied to the ones it does. Identifiers drift during format conversions, and
 a drop-list that matches nothing applies perfectly cleanly and does nothing at
-all — the most expensive kind of silence, because the retrain still costs an
+all -- the most expensive kind of silence, because the retrain still costs an
 hour and the verdict still looks like a measurement.
 
 A plan that would empty the dataset is refused too. So is one that changes
@@ -47,8 +46,8 @@ def uid_of(episode: Any) -> str:
 def names_of(episode: Any) -> tuple[str, ...]:
     """Every name this episode answers to, including ones from earlier formats.
 
-    A plan is written against whichever format the evidence lived in — success
-    labels usually survive only in a collection's native one — and applied to
+    A plan is written against whichever format the evidence lived in -- success
+    labels usually survive only in a collection's native one -- and applied to
     whichever format the trainer reads. Matching on the current name alone
     means a plan can only ever be applied where it was made, which is not
     where it is needed.
@@ -72,8 +71,8 @@ class Applied:
 
     kept: tuple[str, ...] = ()
     dropped: tuple[str, ...] = ()
-    #: Cohort sampling weights. Not applied here — they are configuration for
-    #: a trainer, not a change to the files — but carried so the caller can
+    #: Cohort sampling weights. Not applied here -- they are configuration for
+    #: a trainer, not a change to the files -- but carried so the caller can
     #: hand them on without reading the plan again.
     weights: Mapping[str, float] = field(default_factory=dict)
     #: Collection orders pass through untouched. They describe data that does
@@ -81,7 +80,7 @@ class Applied:
     orders: tuple[CollectionOrder, ...] = ()
     #: Named by the plan, absent from the data.
     missing: tuple[str, ...] = ()
-    #: Present in the data, named by nothing — the plan simply had no opinion.
+    #: Present in the data, named by nothing -- the plan simply had no opinion.
     untouched: tuple[str, ...] = ()
 
     @property
@@ -192,8 +191,8 @@ def apply(
 def mix_config(plan: CurationPlan) -> dict[str, Any]:
     """Cohort weights, in the shape a training config wants.
 
-    Weighting is not a change to the files — the same episodes are on disk
-    either way — so it is emitted rather than applied. Kept next to
+    Weighting is not a change to the files -- the same episodes are on disk
+    either way -- so it is emitted rather than applied. Kept next to
     :func:`apply` because a caller acting on a plan has to handle both, and
     handling only the half that rewrites data is how a weighting plan silently
     becomes a no-op.

@@ -15,7 +15,7 @@ Resolution is not advisory
 Every module is resolved against every cohort before it is run: capabilities are
 checked, channels are bound, and transforms are *applied* to what the module
 reads. A module that does not fit is refused by name with the reason, and the
-modules that do fit still run — a plan that reported a conversion and then did
+modules that do fit still run -- a plan that reported a conversion and then did
 not perform it would be worse than having none, because the run would look
 converted.
 
@@ -25,7 +25,7 @@ cannot drive this machine" a refusal before the first step instead of a
 surprise during one.
 
 Isolation is honoured. A component whose descriptor says it needs its own
-environment gets one, or the run is refused — never quietly imported into this
+environment gets one, or the run is refused -- never quietly imported into this
 interpreter, which is the thing the declaration was asking to avoid.
 """
 
@@ -126,7 +126,7 @@ class Built:
     dataset: Any = None
     refs: list[Any] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
-    #: What building had to say — chiefly which optional chain stages were
+    #: What building had to say -- chiefly which optional chain stages were
     #: skipped. A skip that never reaches the caller is a different pipeline
     #: running under the manifest's name without saying so.
     verdict: Verdict = field(default_factory=Verdict.yes)
@@ -148,8 +148,8 @@ def build_component(
 
     A chained spec is built innermost first, each stage handed the one before
     it. Every stage's own refusals fire here, at plan time, which is the point:
-    a chain that cannot work — an estimator pointed at a dataset with no video,
-    a retargeting step given image coordinates — is refused before a single
+    a chain that cannot work -- an estimator pointed at a dataset with no video,
+    a retargeting step given image coordinates -- is refused before a single
     frame is decoded rather than an hour into a run.
     """
     if spec.chained:
@@ -233,7 +233,7 @@ def _build_one(
 def build_all(manifest: Manifest, registry: Registry) -> Built:
     """Build every plane, with the cohorts on whichever one varies."""
     built = Built()
-    # The cohorts are components of the varying plane — datasets by default,
+    # The cohorts are components of the varying plane -- datasets by default,
     # policies when comparing checkpoints, evaluators when comparing worlds.
     verdicts: list[Verdict] = []
     for name, spec in manifest.cohorts.items():
@@ -313,7 +313,7 @@ def fit_consumer(
 
     Takes the cohort's schema rather than its episodes because the schema is
     all this ever needed. Asking for the episodes made every caller materialise
-    a whole cohort to answer a question about its channel names — which for a
+    a whole cohort to answer a question about its channel names -- which for a
     chain that decodes video and estimates pose is minutes of work to read one
     tuple.
     """
@@ -415,8 +415,8 @@ def _execute(
                 blocked = fit.verdict
                 break
             # The run's provenance travels with the cohort. A module that needs
-            # to know what the run was *set up* to do — rather than only what
-            # happened — reads it from there.
+            # to know what the run was *set up* to do -- rather than only what
+            # happened -- reads it from there.
             cohorts.append(
                 Cohort(
                     source.name,
@@ -591,7 +591,7 @@ def _cohort_schema(connector: Any) -> tuple[ChannelSpec, ...]:
 
     A connector that computes its episodes cannot declare a schema without
     producing one of them, so a plan pays for exactly one and no more. The
-    alternative — reading every episode to look at the first — turns planning
+    alternative -- reading every episode to look at the first -- turns planning
     a chain that decodes video into a job rather than a check.
     """
     ids = connector.episode_ids()
@@ -602,7 +602,7 @@ def plan_manifest(manifest: Manifest, registry: Registry | None = None) -> Verdi
     """Resolve without running anything.
 
     Builds the cohorts, because a connector's schema and capabilities are only
-    knowable once it has opened its source — and refusing a run for a reason
+    knowable once it has opened its source -- and refusing a run for a reason
     that could have been found in a second is the whole point of planning.
 
     "Without running anything" is meant literally, and a plan that reads a whole

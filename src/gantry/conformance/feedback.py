@@ -4,7 +4,7 @@ One check per invariant sentence in :mod:`gantry.contracts.feedback`.
 
 Two of these matter more than the rest. **Purity**, because an analysis that
 returns something different the second time cannot be reviewed, argued with, or
-reproduced — and the drift is invisible unless someone runs it twice on purpose.
+reproduced -- and the drift is invisible unless someone runs it twice on purpose.
 And **refusing below the cohorts it needs**, because the failure mode there is
 not an error: it is a confident, well-formatted answer to a question nobody
 asked.

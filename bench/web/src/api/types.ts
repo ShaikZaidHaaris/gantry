@@ -20,7 +20,7 @@ export interface Finding {
   /** Which module said it. Shown, because a reader who disagrees needs to know
    *  what to go and read. */
   module?: string;
-  /** Whatever the finding named — usually the specific clips. */
+  /** Whatever the finding named, usually the specific clips. */
   evidence?: Record<string, unknown>;
 }
 
@@ -62,7 +62,7 @@ export interface Progress {
  *
  *  `measured: false` is not zero. An arm evaluated before the stage events
  *  existed reports nothing on every rung, and rendering that as 0/100 turns an
- *  absence of measurement into a total loss — which is exactly how a fabricated
+ *  absence of measurement into a total loss, which is exactly how a fabricated
  *  clean sweep gets published. */
 export type Cell =
   | { measured: true; wins: number; n: number; rate: number; ci: [number, number]; unmeasured: number }
@@ -109,7 +109,7 @@ export interface Gate {
    *  would be a control over nothing. */
   sized: boolean;
   /** Whether the product will offer to run this again. True only for our own
-   *  failures — never for a refusal, which is a judgement on the data and must
+   *  failures, never for a refusal, which is a judgement on the data and must
    *  not be re-rollable until the answer is liked. */
   retryable: boolean;
   status: GateStatus;
@@ -119,7 +119,7 @@ export interface Gate {
   abstained: Abstention[];
   /** Present only while running. A finished gate's last position is noise. */
   progress: Progress | Record<string, never>;
-  /** The gate's own working — per-scene pairs, p-values, which arms ran.
+  /** The gate's own working, per-scene pairs, p-values, which arms ran.
    *  What a lab asks for when it wants to check the arithmetic itself. */
   detail: RobotDetail & Record<string, unknown>;
   started_at: string;
@@ -174,7 +174,7 @@ export interface Benchmark {
 /** What a budget can and cannot see, computed by the pipeline's own sizing.
  *
  *  `detects` is the smallest effect this many trials can be relied on to
- *  separate. It is null when the answer is "none" — a budget too small to
+ *  separate. It is null when the answer is "none", a budget too small to
  *  detect anything at this baseline. Null is not zero and must not render as
  *  a reassuring number. */
 export interface Plan {
@@ -204,7 +204,7 @@ export interface Plan {
 /** One submission's place on a leaderboard.
  *
  *  `group` is the compact letter display: entries sharing a letter are not
- *  separated by the paired test. It is the column to read — at these sample
+ *  separated by the paired test. It is the column to read, at these sample
  *  sizes the ordering is mostly noise, and a rank without this reads as a
  *  total ordering that the evidence does not support. */
 export interface Entry {

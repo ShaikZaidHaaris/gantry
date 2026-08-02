@@ -1,7 +1,7 @@
 """Gantry: a frame that arbitrary payloads move over.
 
-Five independent planes — datasets, embodiments, policies, evaluation,
-feedback — each swappable without touching the other four. See ARCHITECTURE.md.
+Five independent planes -- datasets, embodiments, policies, evaluation,
+feedback -- each swappable without touching the other four. See ARCHITECTURE.md.
 """
 
 __version__ = "0.1.0.dev0"

@@ -1,4 +1,4 @@
-"""RoboTwin as an evaluator — the dual-arm world this project has been missing.
+"""RoboTwin as an evaluator -- the dual-arm world this project has been missing.
 
 Twelve evaluators were already here and not one of them could receive the policy
 this project actually trains. Everything installed is single-arm and tabletop;
@@ -14,11 +14,11 @@ The part that matters more than the task count
 ----------------------------------------------
 RoboTwin accepts actions in **end-effector space**, not only joint space:
 
-    qpos  left arm joints + left gripper, then right — 14 numbers
-    ee    left (xyz + wxyz quaternion) + gripper, then right — 16, absolute pose
+    qpos  left arm joints + left gripper, then right -- 14 numbers
+    ee    left (xyz + wxyz quaternion) + gripper, then right -- 16, absolute pose
 
 That second row is why this plugin is worth more than another benchmark.
-``retargeter_hands`` refuses to produce joint positions and says why — inverse
+``retargeter_hands`` refuses to produce joint positions and says why -- inverse
 kinematics needs link lengths, joint limits and a choice of elbow configuration,
 none of which a retargeter has. That refusal has blocked the ego path from every
 ALOHA-family config since it was written. RoboTwin's ``ee`` mode takes exactly
@@ -28,8 +28,7 @@ and no pretending.
 Two action spaces, one arm, and the widths differ
 -------------------------------------------------
 Fourteen numbers in ``qpos``, sixteen in ``ee``. Same robot, same task, same
-method name, and a policy trained for one cannot be evaluated under another —
-the numbers would be accepted and mean something else. So ``action_type`` is a
+method name, and a policy trained for one cannot be evaluated under another -- the numbers would be accepted and mean something else. So ``action_type`` is a
 constructor argument with no safe default, the width follows from it, and a
 mismatch is refused at plan time rather than discovered as poor performance.
 
@@ -90,7 +89,7 @@ KEY_OFFSET = "rotation_offset"
 VERSION = "0.1.0.dev0"
 
 #: The two action spaces RoboTwin accepts, and the width each implies *per
-#: arm*. Doubling happens in :func:`width_of` — a dual-arm command is the two
+#: arm*. Doubling happens in :func:`width_of` -- a dual-arm command is the two
 #: arms concatenated, left first.
 #:
 #: These are not interchangeable and the difference is invisible in the array:
@@ -106,7 +105,7 @@ ACTION_TYPES: dict[str, int] = {
 }
 
 #: Arms, in the order they are concatenated. The only written record of which
-#: half of the vector is which arm — the same discipline policy_pi0 and
+#: half of the vector is which arm -- the same discipline policy_pi0 and
 #: retargeter_hands already keep, for the same reason.
 ARMS = ("left", "right")
 
@@ -198,7 +197,7 @@ def width_of(action_type: str, arms: int = 2) -> int:
         raise ConfigError(
             f"unknown action type {action_type!r}; RoboTwin accepts "
             f"{sorted(ACTION_TYPES)}. These are different action spaces on the same "
-            "arm — a policy trained for one cannot be evaluated under another, and "
+            "arm, a policy trained for one cannot be evaluated under another, and "
             "the numbers would be accepted and mean something else"
         ) from None
 
@@ -226,7 +225,7 @@ def config_for(
 ) -> dict[str, Any]:
     """RoboTwin's own settings for a task, assembled the way RoboTwin assembles them.
 
-    ``setup_demo(**args)`` wants the whole thing — the task YAML, plus resolved
+    ``setup_demo(**args)`` wants the whole thing -- the task YAML, plus resolved
     embodiment file paths, per-robot configs and the head camera's resolution,
     all of which its eval script derives at start-up and none of which are
     optional. An abbreviated dict raises a KeyError somewhere inside scene
@@ -438,8 +437,7 @@ class DualArm:
             reward=1.0 if solved else 0.0,
             done=bool(solved),
             # Tri-state on purpose: RoboTwin answers every step, so a trial that
-            # ran out of horizon has genuinely been checked and found wanting —
-            # unlike a real bench, where nobody looked.
+            # ran out of horizon has genuinely been checked and found wanting --             # unlike a real bench, where nobody looked.
             success=bool(solved),
             reached=self._milestones(observation, solved),
         )
@@ -500,7 +498,7 @@ class DualArm:
         """The predicate, asked directly.
 
         For the scripted expert, which drives the arms through its own planner
-        and never calls ``take_action`` — so nothing latches ``eval_success``
+        and never calls ``take_action`` -- so nothing latches ``eval_success``
         and reading the flag would report every arrangement as unsolvable.
         RoboTwin's own screen asks the predicate for exactly this reason.
         """
@@ -600,8 +598,8 @@ def objects_spec(count: int, name: str = OBJECTS) -> ChannelSpec:
 def endpose_vector(flat: Mapping[str, np.ndarray]) -> np.ndarray | None:
     """The arms' current poses, laid out exactly like an ``ee`` action.
 
-    RoboTwin publishes ``joint_action.vector`` — the whole qpos state in the
-    order ``qpos`` actions are read — but nothing equivalent for poses. Its
+    RoboTwin publishes ``joint_action.vector`` -- the whole qpos state in the
+    order ``qpos`` actions are read -- but nothing equivalent for poses. Its
     endpose arrives as four separate pieces, so a policy controlling in ee space
     has no single channel describing where the arms currently are, in the space
     it is commanding.
@@ -630,7 +628,7 @@ def state_spec(name: str = "observation.state") -> ChannelSpec:
     """What :func:`endpose_vector` produces, described.
 
     Same encoding and same offsets as an ``ee`` action, because it is the same
-    layout — which is what lets one conversion serve both.
+    layout -- which is what lets one conversion serve both.
     """
     return ChannelSpec(
         name,
@@ -670,7 +668,7 @@ def flatten(observation: Any, *, keep: Sequence[str] = ()) -> dict[str, np.ndarr
         if array.dtype.kind in "OUSV":
             return
         if array.ndim == 0:
-            # A gripper opening arrives as a bare float — RoboTwin's endpose is
+            # A gripper opening arrives as a bare float -- RoboTwin's endpose is
             # {left_endpose: [7], left_gripper: 0.3, ...}. Dropping zero-rank
             # values would discard both grippers and leave a pose-only state
             # that still looks well formed.
@@ -765,8 +763,8 @@ class RoboTwinEvaluator(ClosedLoop):
         if self._action_type != "qpos":
             # A pose per arm, so a rotation per arm: at 3 in the left block and
             # at 11 in the right. Written down because the encoding is invisible
-            # in the shape — sixteen floats is sixteen floats whether the four in
-            # the middle are scalar-first, scalar-last, or a 6D tangent — and
+            # in the shape -- sixteen floats is sixteen floats whether the four in
+            # the middle are scalar-first, scalar-last, or a 6D tangent -- and
             # because a converter that assumed one block would leave the right
             # arm's rotation to be read as the start of the next one.
             metadata[KEY_ROTATION] = "quat_wxyz"
@@ -792,7 +790,7 @@ class RoboTwinEvaluator(ClosedLoop):
 
         Assembled here rather than by the caller because the caller would have
         to know that a camera arrives at ``observation.<name>.rgb``, that the
-        pose state is a derived channel, and what encoding it is in — three
+        pose state is a derived channel, and what encoding it is in -- three
         facts about this simulator that belong with this simulator.
         """
         cameras = tuple(
@@ -835,7 +833,7 @@ class RoboTwinEvaluator(ClosedLoop):
         seeds: Sequence[int] | None = None,
     ) -> TaskSpec:
         """One scene per seed. RoboTwin re-randomises object placement per seed,
-        so scene ``k`` is the same arrangement on any machine — which is what a
+        so scene ``k`` is the same arrangement on any machine -- which is what a
         paired comparison rests on.
 
         ``seeds`` takes the screened list from :meth:`screen`. Left unset, the
@@ -873,8 +871,7 @@ class RoboTwinEvaluator(ClosedLoop):
         two runs over different ranges are not comparable even on the same task.
         RoboTwin's own loop screens for exactly this reason.
 
-        Returns fewer than ``count`` if ``limit`` seeds are exhausted first —
-        the caller can then see the expert's own rate rather than being handed a
+        Returns fewer than ``count`` if ``limit`` seeds are exhausted first --         the caller can then see the expert's own rate rather than being handed a
         short list with no explanation.
         """
         world = self.world
@@ -933,7 +930,7 @@ class RoboTwinEvaluator(ClosedLoop):
                     f"; {len(refused)} of them raised, most commonly {common}"
                     if refused
                     else ", and none of them raised, so the expert ran and the success "
-                    "check disagreed — check that the check being asked is the one the "
+                    "check disagreed, check that the check being asked is the one the "
                     "expert satisfies"
                 )
             )

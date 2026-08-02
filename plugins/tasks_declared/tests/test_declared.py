@@ -62,7 +62,7 @@ def test_a_directory_of_files_is_a_task_source(tasks):
 def test_it_names_no_particular_machine(tasks):
     """The property that lets the same task reach hardware later.
 
-    Generic words are fine and often necessary — a rubric saying "held in the
+    Generic words are fine and often necessary -- a rubric saying "held in the
     gripper" describes what a person watching would see, and is true of a
     parallel jaw, a three-finger hand or a suction cup alike. What must never
     appear is a *particular* machine or simulator, because that is what would

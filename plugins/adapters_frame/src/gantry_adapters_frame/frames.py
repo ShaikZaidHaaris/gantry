@@ -2,13 +2,12 @@
 
 A pose is three numbers and a rotation *relative to something*, and the
 something is not in the array. Two channels can agree on width, on encoding, on
-units and on which arm is which, and still disagree about where the origin is —
-at which point every command is well formed, smooth, and aimed half a metre from
+units and on which arm is which, and still disagree about where the origin is -- at which point every command is well formed, smooth, and aimed half a metre from
 where it was meant.
 
 That is not hypothetical here. The ego pipeline recovers hand poses by solving
 against the camera's own intrinsics, so its poses are in the **camera** frame,
-and ``Mount.aligned()`` — the identity mount — passes them through unchanged.
+and ``Mount.aligned()`` -- the identity mount -- passes them through unchanged.
 A simulator executes end-effector poses in its **world** frame. Running one as
 the other put the commanded positions 0.30 m (left) and 0.65 m (right) from
 where the arms actually work.
@@ -63,7 +62,7 @@ def rigid(matrix: Any, *, tidy: bool = True) -> np.ndarray:
 
     Rotations arrive slightly bent. RoboTwin stores its camera extrinsics as
     float32, so the rotation it publishes is orthonormal only to about 5e-8 and
-    its determinant is 1.0000000477 — near enough that a there-and-back trip
+    its determinant is 1.0000000477 -- near enough that a there-and-back trip
     drifts by ~2e-8, which is fifty nanometres and irrelevant, but far enough
     that "its inverse is the transpose" stops being exactly true.
 
@@ -124,7 +123,7 @@ def blocks_of(spec: ChannelSpec) -> tuple[tuple[int, int, str], ...]:
 
     Read from what the channel declares rather than inferred from its width. The
     convention is ``[xyz][rotation][gripper?]`` per arm, so the position is the
-    three numbers immediately before each rotation block — which is exactly what
+    three numbers immediately before each rotation block -- which is exactly what
     ``rotation_offset`` already names, and why this needs no vocabulary of its own.
     """
     encoding = spec.metadata.get(KEY)
@@ -183,7 +182,7 @@ class PoseInFrame:
 
     Wraps a policy that thinks in one frame and is being run in another. The
     observation is brought *into* the policy's frame on the way in, and its
-    commands are taken back *out* to the world's frame on the way out — one
+    commands are taken back *out* to the world's frame on the way out -- one
     transform and its exact inverse, so nothing is applied twice and nothing is
     left half-converted.
 

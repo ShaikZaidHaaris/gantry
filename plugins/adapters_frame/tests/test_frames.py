@@ -3,7 +3,7 @@
 Every failure here produces a well-formed array. A pose shifted by the wrong
 transform is still a pose; an orientation translated along with its position is
 still a valid rotation. None of it raises, and none of it is visible in a shape
-check — which is the whole reason this is a declared component rather than three
+check -- which is the whole reason this is a declared component rather than three
 lines in a run script.
 """
 
@@ -18,7 +18,7 @@ from gantry.errors import ConfigError
 from gantry.resolve import requires_channels
 from gantry.spine import ChannelSpec
 
-# Two arms, [xyz, wxyz, gripper] each — the layout RoboTwin reads.
+# Two arms, [xyz, wxyz, gripper] each -- the layout RoboTwin reads.
 POSE = ChannelSpec(
     "action",
     "vector",

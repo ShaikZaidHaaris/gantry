@@ -10,7 +10,7 @@ Layout, as the format actually ships it::
       videos/chunk-000/<video key>/episode_000000.mp4
 
 The parquet holds the numeric channels. Features whose dtype is ``video`` are
-*not* in it — they are mp4 side-cars, decoded on demand by :mod:`.video` and
+*not* in it -- they are mp4 side-cars, decoded on demand by :mod:`.video` and
 only when a decoder is installed and the files are actually there.
 
 A camera is therefore in the schema when its frames can be read and out of it
@@ -27,7 +27,7 @@ carried through exactly: ``names`` becomes ``dim_labels``, ``fps`` becomes
 
 It does not declare units, reference frames, or what the numbers mean. This
 connector therefore declares none of those either. That is not a gap to be
-filled with a plausible guess — ``observation.state`` being eight wide with a
+filled with a plausible guess -- ``observation.state`` being eight wide with a
 gripper at the end is a strong hint and still a hint, and a connector that
 promotes hints to declarations is how a millimetre reads as a metre. Pass
 ``schema_overrides`` to say what you actually know; :data:`SUGGESTED_SEMANTICS`
@@ -60,7 +60,7 @@ from .video import MultiSource, VideoSource, available
 
 VERSION = "0.1.0.dev0"
 
-#: Default ``video=`` — read the cameras when they can be read, say so when they
+#: Default ``video=`` -- read the cameras when they can be read, say so when they
 #: cannot. The two other settings are ``True`` (insist, and refuse at
 #: construction if anything is missing) and ``False`` (parquet only).
 AUTO = "auto"
@@ -80,7 +80,7 @@ SUPPORTED_VERSIONS = ("v2.0", "v2.1")
 MEDIA_DTYPES = frozenset({"video", "image"})
 
 #: Columns LeRobot adds for its own bookkeeping. Real channels, but not the
-#: recording — kept out of the default schema so a screen does not treat a row
+#: recording -- kept out of the default schema so a screen does not treat a row
 #: counter as a behaviour.
 BOOKKEEPING = ("index", "episode_index", "frame_index", "task_index")
 
@@ -241,7 +241,7 @@ class LeRobotConnector(Connector):
     def _modality_labels(self) -> dict[str, tuple[str, ...]]:
         """Per-element names from ``meta/modality.json``, where a dataset ships one.
 
-        ``info.json`` gives a ``names`` list that is often unusable — the lift
+        ``info.json`` gives a ``names`` list that is often unusable -- the lift
         conversion here writes ``gripper`` twice, and a label that does not
         address exactly one dimension addresses nothing. ``modality.json`` gives
         the same information as non-overlapping ``start``/``end`` spans, which
@@ -369,7 +369,7 @@ class LeRobotConnector(Connector):
             frame=override.pop("frame", None),
             rate_hz=override.pop("rate_hz", float(info.get("video.fps", 0)) or None),
             semantics=override.pop("semantics", None),
-            # ``names`` here is ["height", "width", "rgb"] — the axes, not one
+            # ``names`` here is ["height", "width", "rgb"] -- the axes, not one
             # label per element, so it is not a dimension label and is not used
             # as one.
             optional=override.pop("optional", False),

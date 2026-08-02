@@ -4,7 +4,7 @@ Every other feedback module reads records that already exist. This one runs
 before anything does, and it is the only module whose most valuable output is a
 refusal. The reason is arithmetic: at twenty trials a five-point difference is
 invisible, so a twenty-trial comparison of two things that differ by five points
-returns noise — and the noise gets read as a verdict, because it arrives in the
+returns noise -- and the noise gets read as a verdict, because it arrives in the
 same shape a real answer would.
 
 That happened in this project. A downstream comparison was run at twenty trials,
@@ -18,14 +18,13 @@ Sizing needs a baseline rate, and a caller who is asked for one will invent one.
 An invented rate produces an invented trial count and the invented count is
 always comfortably below the budget already planned, which is how an
 underpowered experiment gets approved by its own author. So the rate comes from
-:class:`~gantry.history.History` — what this task has actually produced before —
-and when there is no history the module says so instead of guessing.
+:class:`~gantry.history.History` -- what this task has actually produced before -- and when there is no history the module says so instead of guessing.
 
 What it refuses, and what it merely notes
 -----------------------------------------
 It refuses when the arithmetic is decisive: the effect asked about cannot be
 separated from the noise at the planned budget, full stop. It notes when the
-situation is judgement — no history to size from, or a budget large enough to
+situation is judgement -- no history to size from, or a budget large enough to
 detect something much smaller than anybody claimed, which usually means the
 claim was hedged rather than the budget generous.
 """
@@ -50,7 +49,7 @@ from gantry.spine.inference import trials_needed
 VERSION = "0.1.0.dev0"
 
 #: Below this many trials nothing is worth calling an experiment. Not a
-#: statistical threshold — a floor below which the arithmetic stops being the
+#: statistical threshold -- a floor below which the arithmetic stops being the
 #: interesting problem.
 FLOOR = 4
 
@@ -155,7 +154,7 @@ def plan_for(
     if budget.trials < needed:
         detectable = _smallest_detectable(baseline, budget.trials, alpha)
         hint = (
-            f"run {needed}, or ask about an effect this budget can see — at "
+            f"run {needed}, or ask about an effect this budget can see, at "
             f"{budget.trials} trials that is roughly {detectable:+.3f}"
             if detectable is not None
             else f"run {needed}. There is no effect size {budget.trials} trials can "
@@ -212,7 +211,7 @@ class PowerCheck(FeedbackModule):
 
     The retrospective half. :func:`plan_for` refuses before the money is spent;
     this reads runs that already happened and says which of their comparisons
-    were ever capable of separating anything — which is the check that turns "we
+    were ever capable of separating anything -- which is the check that turns "we
     measured 0/20 and 0/20" from a finding into a note about the budget.
     """
 

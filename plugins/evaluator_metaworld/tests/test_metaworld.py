@@ -1,7 +1,7 @@
 """Meta-World's shape, and the flickering success flag.
 
 The flag is the reason this file exists. A fake that reports success once and then
-stops is not a contrived case — it is what the real thing does, because success is
+stops is not a contrived case -- it is what the real thing does, because success is
 a distance threshold and a policy that reaches the goal drifts off it.
 """
 
@@ -90,7 +90,7 @@ def evaluator(**fake):
 def test_a_flickering_success_flag_still_counts_as_a_success():
     """The bug this adapter is written around. Meta-World thresholds a distance,
     so a policy that reaches the goal and drifts a centimetre reports True then
-    False — and reading the final flag scores it as a failure, penalising exactly
+    False -- and reading the final flag scores it as a failure, penalising exactly
     the near-miss policies a benchmark is meant to separate."""
     made = evaluator(succeed_at=3, flicker=True)
     record = made.run(Chunker(), made.task_for(scenes=2), Protocol())
@@ -118,7 +118,7 @@ def test_both_step_dialects_are_accepted():
 
 
 def test_scenes_are_stored_goal_placements_not_random_draws():
-    """A list, so scene k is the same arrangement on any machine — which is what
+    """A list, so scene k is the same arrangement on any machine -- which is what
     a paired comparison rests on."""
     made = evaluator(succeed_at=2)
     made.run(Chunker(), made.task_for(scenes=6), Protocol())
@@ -134,8 +134,7 @@ def test_scenes_are_stored_goal_placements_not_random_draws():
 
 
 def test_a_mistyped_task_id_is_refused_with_a_suggestion():
-    """The ids are easy to get wrong — the -v2 suffix, the side/wall variants —
-    and the alternative to refusing is running an environment nobody meant."""
+    """The ids are easy to get wrong -- the -v2 suffix, the side/wall variants --     and the alternative to refusing is running an environment nobody meant."""
     with pytest.raises(ConfigError, match="did you mean"):
         MetaworldEvaluator("door-open")
     with pytest.raises(ConfigError, match="did you mean"):
@@ -157,7 +156,7 @@ def test_the_fifty_are_listed_so_a_run_can_be_planned_with_nothing_installed():
 
 def test_the_suite_is_one_evaluator_per_task():
     """Not one evaluator with a task list. A hidden loop makes 'vary the task'
-    invisible to the framework — the axis ends up inside a component instead of
+    invisible to the framework -- the axis ends up inside a component instead of
     between components, and that is a comparison nobody can check."""
     made = suite(MT10, factory=lambda *a, **k: FakeSawyer())
     assert set(made) == set(MT10)
@@ -166,7 +165,7 @@ def test_the_suite_is_one_evaluator_per_task():
 
 
 def test_it_does_not_claim_to_host_other_bodies():
-    """One Sawyer, welded in — which is why this is a breadth backend and not a
+    """One Sawyer, welded in -- which is why this is a breadth backend and not a
     transfer one, and the descriptor should not let anyone read it otherwise."""
     assert evaluator().descriptor().provides["hosts_embodiment"] is False
 

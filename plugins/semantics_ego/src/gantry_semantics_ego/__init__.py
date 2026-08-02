@@ -1,6 +1,6 @@
 """Channel semantics for egocentric human video.
 
-Install it and ego channels get full checking — including the two failures that
+Install it and ego channels get full checking -- including the two failures that
 are invisible in the array: a monocular hand pose used as though it were metres,
 and MANO joint indices read as MediaPipe ones. Don't install it, and nothing in
 Gantry notices or cares.

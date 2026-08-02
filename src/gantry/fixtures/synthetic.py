@@ -1,7 +1,7 @@
 """Generated episodes with known flaws, for testing everything above the spine.
 
 The trajectories are abstract on purpose. An agent moves through space, engages
-with something, transports it, and lets go — a shape shared by a gripper, a
+with something, transports it, and lets go -- a shape shared by a gripper, a
 winch, a suction tool, or a surgical instrument. Stage names default to
 ``approach / engage / transport / release`` and are overridable, because core
 must not decide that any particular robot's vocabulary is the canonical one.
@@ -10,7 +10,7 @@ Everything is seeded and reproducible: the same seed yields byte-identical
 arrays, so a fixture failure is always a real regression and never noise.
 
 Costs nothing to run, needs no GPU, no simulator, no checkpoint. That is the
-whole point — the feedback stack stays testable in CI on a laptop.
+whole point -- the feedback stack stays testable in CI on a laptop.
 """
 
 from __future__ import annotations
@@ -79,7 +79,7 @@ def _draft(
 
     Steps and reach are stretched together by the caller, so per-step speed
     stays constant. A longer episode is one that travels further, not one that
-    dawdles — otherwise "duration" would silently mean "worse signal-to-noise"
+    dawdles -- otherwise "duration" would silently mean "worse signal-to-noise"
     and the decoy would be a defect after all.
     """
     start = rng.uniform([-0.30, -0.30, 0.20], [0.30, 0.30, 0.40]) * reach

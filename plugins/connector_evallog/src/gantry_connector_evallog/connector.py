@@ -4,7 +4,7 @@
 immutable, schema-versioned JSON log for every run: the resolved task, policy
 and embodiment, the git revision, the seed and horizon, and per-scene scores
 across epochs. This reads one and hands back records the feedback plane can
-analyse — which means diagnosing runs from any of their benchmarks and any of
+analyse -- which means diagnosing runs from any of their benchmarks and any of
 their supported rigs, without a robot, a simulator, or a GPU.
 
 What a log does and does not contain
@@ -18,8 +18,8 @@ So every episode this connector produces is **label-only**: real outcomes, real
 milestones where a scorer bothered to record them, and no channels. That is not
 a limitation being worked around, it is the shape of the source, and declaring
 it honestly is what lets the resolver tell a caller that a trajectory-based
-analysis cannot run here. The alternative — inventing a channel so the types fit
-— produces an analysis of numbers nobody measured.
+analysis cannot run here. The alternative -- inventing a channel so the types fit
+ -- produces an analysis of numbers nobody measured.
 
 Stage events
 ------------
@@ -244,7 +244,7 @@ class EvalLogConnector(Connector):
 
         Their ``EvalSpec`` and Gantry's provenance were designed for the same
         job, so this is close to a rename: task, policy and embodiment become
-        component refs, and the horizon and seed become the protocol — which is
+        component refs, and the horizon and seed become the protocol -- which is
         where they belong, since changing either changes the result.
         """
         spec, stats = self._spec, self._log.get("stats", {})

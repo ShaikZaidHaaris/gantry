@@ -198,7 +198,7 @@ class Screen(FeedbackModule):
                         code="screen.outside_reference",
                         summary=(
                             f"{cohort.name}: {name} is {centre:.4g}, outside the "
-                            f"{threshold.low:.4g}–{threshold.high:.4g} band fitted from "
+                            f"{threshold.low:.4g}-{threshold.high:.4g} band fitted from "
                             f"{threshold.fitted_from}"
                         ),
                         severity="weak",

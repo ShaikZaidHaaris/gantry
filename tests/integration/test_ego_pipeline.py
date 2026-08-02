@@ -2,7 +2,7 @@
 
 Six plugins, none of which imports another except through a declared dependency,
 wired the way the product wires them. This lives in ``tests/integration`` because
-a plugin's own suite may not import a sibling — and the thing worth testing here
+a plugin's own suite may not import a sibling -- and the thing worth testing here
 is precisely that they compose, which no single plugin's tests can show.
 
 The path:
@@ -138,7 +138,7 @@ def test_bare_video_yields_shape_and_orientation_and_refuses_position(tmp_path):
     This test was originally written asserting that an upload comes out the other
     side as arm commands. The first real ego video proved that false: MediaPipe's
     image landmarks are pixel fractions, and multiplying them by a hand span
-    produced a smooth trajectory inside a box the size of a hand — 54% to 79% of
+    produced a smooth trajectory inside a box the size of a hand -- 54% to 79% of
     it flagged as too close to the robot's own base.
 
     The truth is a split. Hand shape and orientation survive a single camera
@@ -160,7 +160,7 @@ def test_bare_video_yields_shape_and_orientation_and_refuses_position(tmp_path):
     assert RGB in episode.channel_names
 
     # The half that survives: hand shape in metres, and an aperture that is a
-    # real distance — which is what makes the gripper command trustworthy.
+    # real distance -- which is what makes the gripper command trustworthy.
     assert episode.channel("right_shape").metadata["scale"] == "metric"
     assert episode.channel("right_aperture").metadata["scale"] == "metric"
 
@@ -188,7 +188,7 @@ def test_bare_video_yields_shape_and_orientation_and_refuses_position(tmp_path):
 def test_a_calibrated_capture_retargets_all_the_way_through(tmp_path):
     """The Tier-2 path, which is the one that produces arm commands.
 
-    Same pipeline, same code — the only difference is that the wrist positions
+    Same pipeline, same code -- the only difference is that the wrist positions
     arrive already metric, from a rig that measured them rather than an estimator
     that guessed them.
     """
@@ -370,7 +370,7 @@ def test_a_good_upload_and_a_poor_one_get_visibly_different_reports(tmp_path):
     good_report = Capture().analyse([cohort_of(good, "careful")])
     bad_report = Capture().analyse([cohort_of(bad, "careless")])
 
-    # Nothing fixable. Not "capture.clean" — three checks had nothing to read on
+    # Nothing fixable. Not "capture.clean" -- three checks had nothing to read on
     # this path (no workspace measured, no stabilisation flag, no outcomes), and
     # a clean bill of health is only issued when every check actually ran.
     assert [f.code for f in good_report.findings] == []

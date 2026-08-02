@@ -223,7 +223,7 @@ def test_what_lerobot_cannot_hold_is_kept_beside_it_and_read_back():
     """v2.1 records no outcome, no milestones and no annotations, and
     accept_loss=True says drop them. That is right for a dataset somebody else
     will read, and it silently destroyed the entire input to the feedback layer
-    the first time a report was generated from a written dataset — it correctly
+    the first time a report was generated from a written dataset -- it correctly
     announced that no component had declared a licence and that the footage came
     from zero locations.
 

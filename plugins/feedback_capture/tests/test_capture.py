@@ -102,7 +102,7 @@ def test_findings_come_out_ordered_by_measured_cost_not_by_how_bad_they_sound():
 
     Hands at 0.7 are 22% short of their bar; outcomes at 0.0 are 100% short of
     theirs. Dropped frames still win, because they weigh three times what missing
-    metadata does — one costs training data, the other costs a column.
+    metadata does -- one costs training data, the other costs a column.
     """
     report = Capture().analyse(
         [cohort([varied(index, hands_visible=0.7, labelled=0.0) for index in range(6)])]
@@ -112,8 +112,8 @@ def test_findings_come_out_ordered_by_measured_cost_not_by_how_bad_they_sound():
 
 
 def test_cost_is_a_fraction_of_the_bar_not_a_raw_distance():
-    """The thresholds are not on one scale — 0.9 for hand visibility and 0.05 for
-    instruction variety are both "the bar" — so a raw gap would make whichever
+    """The thresholds are not on one scale -- 0.9 for hand visibility and 0.05 for
+    instruction variety are both "the bar" -- so a raw gap would make whichever
     check has the highest threshold always look worst."""
     strict = Check(key="a", code="a", threshold=0.9, weight=1.0)
     lenient = Check(key="b", code="b", threshold=0.1, weight=1.0)
@@ -191,7 +191,7 @@ def test_hands_off_frame_is_the_heaviest_check():
 
 
 def test_out_of_workspace_reaching_is_reported_from_the_retargeters_number():
-    """Read off the record rather than recomputed — this module never opens a
+    """Read off the record rather than recomputed -- this module never opens a
     video, which is what keeps it cheap enough to run on every upload."""
     report = Capture().analyse([cohort([clean(in_reach=0.55)] * 5)])
     finding = next(f for f in report.findings if f.code == "capture.out_of_workspace")
@@ -201,7 +201,7 @@ def test_out_of_workspace_reaching_is_reported_from_the_retargeters_number():
 
 def test_one_location_fires_whether_the_upload_is_large_or_small():
     """Usually the largest single difference between the uploads that transfer
-    and the ones that do not — and the advice is the same at six clips as at
+    and the ones that do not -- and the advice is the same at six clips as at
     forty, which a per-clip ratio got wrong."""
     for size in (6, 40):
         report = Capture().analyse([cohort([clean()] * size)])

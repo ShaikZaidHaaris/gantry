@@ -4,8 +4,7 @@ Until now one thing decided: the simulator. Every success rate this project has
 produced came from a physics engine checking a pose, and that was treated as the
 definition of success rather than as one judge's opinion about it.
 
-That is fine until it isn't. On a real bench there is no ``_check_success()`` —
-a person watches and says. If the sentence a person is given differs from what
+That is fine until it isn't. On a real bench there is no ``_check_success()`` -- a person watches and says. If the sentence a person is given differs from what
 the predicate measured, then a policy validated in simulation was validated
 against a different criterion than the one it will be held to, and nobody finds
 out until the hardware disagrees.
@@ -17,14 +16,14 @@ one; a person watching a video is another; a vision-language model reading the
 same rubric is a third. Making them values of one plane rather than one
 privileged path and two special cases buys three things:
 
-They can be **compared** — ``varies: scorer`` is a legitimate experiment, and
+They can be **compared** -- ``varies: scorer`` is a legitimate experiment, and
 chance-corrected agreement between two of them is a measurable quantity rather
 than a hope.
 
-They can be **swapped** — an evaluation scored by a person and one scored by a
+They can be **swapped** -- an evaluation scored by a person and one scored by a
 model differ in a recorded field, so a claim can state which produced it.
 
-They can be **refused** — a scorer whose agreement with people has not been
+They can be **refused** -- a scorer whose agreement with people has not been
 measured, or has been measured and is poor, can be blocked from contributing
 findings. That is the check that makes cheap judgement safe to scale.
 
@@ -56,14 +55,13 @@ from ..errors import ConfigError
 from ..spine import Descriptor, Verdict
 
 #: 1.1 added ``annotate`` and ``recorded_labels``. Producing a surface for a
-#: judge to work on, and reading its answers back, are scorer responsibilities —
-#: and until they were on the contract, anything that wanted to drive a scoring
+#: judge to work on, and reading its answers back, are scorer responsibilities -- #: and until they were on the contract, anything that wanted to drive a scoring
 #: workflow had to import a particular scorer by name, which gave core a
 #: favourite judge. Both default to refusing, so a scorer that only judges
 #: in-process is unaffected and says so.
 SCORER_CONTRACT = "scorer@1.1"
 
-#: Kinds of evidence a scorer may ask for. Open vocabulary — a scorer naming
+#: Kinds of evidence a scorer may ask for. Open vocabulary -- a scorer naming
 #: something not listed here is asking for evidence nobody produces yet, which
 #: is a refusal rather than an error.
 VIDEO = "video"
@@ -179,7 +177,7 @@ class Scorer(ABC):
         """One judgement per criterion the task declares, in the task's order.
 
         ``task`` is a :class:`~gantry.contracts.task.TaskDefinition`. The scorer
-        reads its criteria — and, if it is a human or a model, the rubric text
+        reads its criteria -- and, if it is a human or a model, the rubric text
         attached to each one, which is the sentence the criterion was written
         twice for.
         """
@@ -228,8 +226,7 @@ class Scorer(ABC):
 
         A person needs a page with videos and the rubric on it; a model needs a
         prompt; a predicate needs nothing at all. A classmethod because the
-        surface is a property of the kind of judge rather than of any instance —
-        the thing being built is what a judge will later be constructed *from*.
+        surface is a property of the kind of judge rather than of any instance --         the thing being built is what a judge will later be constructed *from*.
 
         Refuses by default. A scorer that judges in-process has no surface to
         produce, and silently returning nothing would leave a caller believing a
@@ -244,7 +241,7 @@ class Scorer(ABC):
     def recorded_labels(cls, path: str) -> tuple[str, Mapping[str, Mapping[str, Any]]]:
         """A judge's name and its recorded verdicts, read off disk.
 
-        ``(judge, {trial: {criterion: passed}})`` — the shape agreement is
+        ``(judge, {trial: {criterion: passed}})`` -- the shape agreement is
         computed from. Here rather than in whatever module wrote the file so
         that comparing two judges never requires importing either of them.
         """
@@ -257,7 +254,7 @@ class Scorer(ABC):
         """Did the trial succeed, given every criterion?
 
         All criteria must pass. One abstention makes the whole trial an
-        abstention rather than a failure — a scorer that could not tell whether
+        abstention rather than a failure -- a scorer that could not tell whether
         the cube was held has not established that the trial failed, and
         recording it as a failure would quietly convert uncertainty into
         evidence.

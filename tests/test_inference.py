@@ -3,7 +3,7 @@
 Not checked against hand-computed constants, mostly. A test asserting that some
 function returns 0.0296 tells you the number did not change; it does not tell
 you the number is right. What these check instead is the behaviour that makes
-each function the correct choice — that a time-uniform interval really does hold
+each function the correct choice -- that a time-uniform interval really does hold
 at every sample size, that an aggregate really is robust to one wild task, that
 a chance-corrected agreement really does punish a judge who is guessing.
 
@@ -138,7 +138,7 @@ def test_correcting_for_a_fixed_number_of_looks_is_expressible():
 def test_barnard_separates_this_projects_real_comparisons():
     """The measured numbers, and what they actually support.
 
-    mh vs ph on the training region is 33/50 against 28/50 — a ten point gap
+    mh vs ph on the training region is 33/50 against 28/50 -- a ten point gap
     that does not survive a test. On the wider region it is 29/50 against 9/50,
     which does. Reporting the first as a finding would have been the error.
     """

@@ -2,14 +2,14 @@
 
 Shipped with the plugin rather than kept beside its tests. It began as a test
 helper imported by filename, which quietly required the tests directory to be
-on ``sys.path`` — true under one of pytest's import modes and not the others,
+on ``sys.path`` -- true under one of pytest's import modes and not the others,
 so two plugins naming a test file the same thing broke collection repo-wide.
 Living in the package removes the requirement instead of working around it, and
 it is useful on its own: anyone writing against this wire can exercise it
 without a checkpoint or a GPU.
 
 Dispatch, envelope and error shape are copied from ``PolicyServer.run`` in the
-GR00T package — deliberately re-implemented rather than imported, because a test
+GR00T package -- deliberately re-implemented rather than imported, because a test
 that imported the real server would be testing that GR00T is installed, which is
 the one thing this plugin promises is unnecessary.
 

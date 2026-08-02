@@ -2,8 +2,7 @@
 
 Adapters and retargeters look similar and are not. An adapter closes a gap that
 has one correct answer: millimetres to metres is a multiplication, and reordering
-labelled dimensions is a permutation. A retargeter closes a gap that does not —
-mapping seven joints onto six, or a full pose onto a position, throws information
+labelled dimensions is a permutation. A retargeter closes a gap that does not -- mapping seven joints onto six, or a full pose onto a position, throws information
 away, and *which* information depends on the pair and on somebody's judgement.
 
 So they are searched differently. Adapters are looked up by refusal code, because

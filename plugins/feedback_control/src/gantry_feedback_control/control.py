@@ -15,14 +15,13 @@ including the ones whose data is worthless.
 
 So a third arm is needed
 ------------------------
-``shuffled`` — the same frames, the same action distribution, the same number of
+``shuffled`` -- the same frames, the same action distribution, the same number of
 gradient steps, and no relationship between what the model saw and what it was
 told to do. Whatever fine-tuning-in-general buys, this arm buys it too.
 
 The comparison that matters is therefore **ego against shuffled**, not ego
 against base. Ego beating base says the model changed. Ego beating *shuffled*
-says the change came from the correspondence between the images and the actions —
-which is the only thing a contributor's data can actually be selling.
+says the change came from the correspondence between the images and the actions -- which is the only thing a contributor's data can actually be selling.
 
 What each outcome licenses you to say
 -------------------------------------
@@ -32,7 +31,7 @@ Neither beats base                          nothing measurable happened
 Shuffled beats ego                          something is wrong with the pipeline
 
 That last row is worth keeping. A control that outperforms the real thing is not
-a result about data quality — it is a signal that labels are misaligned, or that
+a result about data quality -- it is a signal that labels are misaligned, or that
 the split leaked, and it should stop the report rather than appear in it.
 
 On abstaining
@@ -80,7 +79,7 @@ def errors_of(cohort: Cohort, key: str = "action_error") -> np.ndarray:
     """Per-episode prediction error, where an offline evaluation recorded one.
 
     The fallback when there are no closed-loop outcomes. It measures fit rather
-    than capability, and the report is required to say so — but a number that
+    than capability, and the report is required to say so -- but a number that
     admits what it is beats no number.
     """
     out: list[float] = []
@@ -148,7 +147,7 @@ class Control(FeedbackModule):
                             "Train a control: the same frames, the same action "
                             "distribution, the same number of steps, and the actions "
                             "detached from the frames they belong to. Whatever "
-                            "fine-tuning in general buys, that arm buys too — so the "
+                            "fine-tuning in general buys, that arm buys too, so the "
                             "difference between them is the only part attributable to "
                             "the data. Without it, a result reproduces for every "
                             "contributor including the ones whose data is worthless."
@@ -261,7 +260,7 @@ class Control(FeedbackModule):
                     measurements={k: v for k, v in measurements.items()},
                     prescription=(
                         "Either the data carries little, or there are too few trials to "
-                        "tell. The power module says which — and reporting the larger "
+                        "tell. The power module says which, and reporting the larger "
                         "number here would be reporting noise with a decimal point on it."
                     ),
                     cohorts=tuple(arms),
@@ -296,7 +295,7 @@ class Control(FeedbackModule):
             summary=(
                 f"base {base:.0%}, shuffled {shuffled:.0%}, ego {ego:.0%}"
                 + (
-                    " — both arms moved off base, which is what fine-tuning does to a "
+                    ". Both arms moved off base, which is what fine-tuning does to a "
                     "pretrained model regardless of what it is shown"
                     if both_moved
                     else ""
@@ -335,7 +334,7 @@ class Control(FeedbackModule):
                         prescription=(
                             "Run the arms through an evaluator. Until then the training "
                             "loss is the only number available, and a falling loss says "
-                            "the model fitted the data — which is true of the shuffled "
+                            "the model fitted the data, which is true of the shuffled "
                             "control as well."
                         ),
                     ),

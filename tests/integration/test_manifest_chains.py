@@ -1,7 +1,7 @@
 """Connectors composed in a manifest, which is what makes a pipeline declarative.
 
 The ego pipeline is three connectors stacked, and until a manifest could say so
-the whole thing lived in hand-written scripts — declarative in principle and
+the whole thing lived in hand-written scripts -- declarative in principle and
 bespoke in practice. These check that a chain resolves, that each stage's own
 refusals fire at plan time rather than an hour into a run, and that the record
 says what was actually built.
@@ -31,7 +31,7 @@ SPEC = ChannelSpec("frames", "vector", (2,), "float32")
 
 
 class Root(Connector):
-    """A connector that reads from disk — the first link in any chain."""
+    """A connector that reads from disk -- the first link in any chain."""
 
     def __init__(self, *, path: str = "somewhere", episodes: int = 2):
         self.path = path
@@ -218,7 +218,7 @@ def test_an_unknown_stage_is_refused_by_name():
 
 
 def test_an_optional_stage_that_cannot_build_is_skipped_and_recorded():
-    """For stages that genuinely may not apply — lifting to a world frame needs
+    """For stages that genuinely may not apply -- lifting to a world frame needs
     a camera trajectory and half of real uploads have none. A silently shorter
     chain is a different pipeline wearing the same name."""
     spec = chain(
@@ -376,7 +376,7 @@ def test_planning_costs_one_episode_per_cohort_not_one_per_module():
 
     `fit_consumer` only ever wanted the first episode's schema, so reading the
     whole cohort to get it made planning a chain that decodes video cost the
-    same as running it — and cost that again for every feedback module."""
+    same as running it -- and cost that again for every feedback module."""
     from gantry.runner import _cohort_schema
 
     class Computing(Root):

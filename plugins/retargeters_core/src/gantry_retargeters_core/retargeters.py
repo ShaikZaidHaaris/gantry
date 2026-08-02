@@ -4,7 +4,7 @@ A retargeter maps one machine's channel onto another's, and most such maps need
 kinematics, a calibration, or someone's opinion. These two do not:
 
 **Dropping named dimensions.** A seven-jointed arm feeding a six-jointed
-consumer has to lose a joint, and *which* joint is a decision — so it is an
+consumer has to lose a joint, and *which* joint is a decision -- so it is an
 argument, not a guess. Once named, the transform is a selection and the loss is
 exactly the named columns.
 
@@ -12,8 +12,8 @@ exactly the named columns.
 in a stated encoding. Keeping the leading three numbers is unambiguous, and what
 is discarded is the whole orientation.
 
-Everything harder — joint angles to an end-effector pose, one gripper's opening
-onto another's — needs a model of the machine and belongs with whoever owns that
+Everything harder -- joint angles to an end-effector pose, one gripper's opening
+onto another's -- needs a model of the machine and belongs with whoever owns that
 machine. This package deliberately stops here rather than shipping a plausible
 approximation, because a retargeter that is *nearly* right produces motion that
 looks reasonable and is wrong.

@@ -323,8 +323,8 @@ def _sign_test(left: int, right: int) -> float:
 def letters(order: list[str], indistinct: set[frozenset[str]]) -> dict[str, str]:
     """Compact letter display: two entries share a letter when nothing separates them.
 
-    The point of a leaderboard is not the order — at these sample sizes the
-    order is mostly noise — it is which gaps are real. A ranked table without
+    The point of a leaderboard is not the order -- at these sample sizes the
+    order is mostly noise -- it is which gaps are real. A ranked table without
     this reads as a total ordering and invites "we came third", when third and
     second may be the same result twice. Sharing a letter is the table saying so
     without a paragraph.
@@ -456,7 +456,7 @@ def compare(benchmark: str, rung: str = "solved", who=Depends(viewer), session: 
         detail = json.loads(gate.detail_json or "{}")
         reached = detail.get("reached") or {}
         # Every rung this submission measured, in the order its own ladder had
-        # them — which is the order they are climbed, not alphabetical.
+        # them -- which is the order they are climbed, not alphabetical.
         for name in detail.get("order") or []:
             if name not in available:
                 available.append(name)
@@ -796,7 +796,7 @@ def retry_gate(sub_id: str, key: str, who=Depends(viewer), session: Session = De
 
     ``refused`` means the data was judged and did not pass. Offering a retry
     there would be offering to re-roll until the answer is liked, which is the
-    one thing a benchmark cannot let you do — and it would be worse here than
+    one thing a benchmark cannot let you do -- and it would be worse here than
     in most places, because the gates that refuse are the cheap ones a person
     could afford to spin all afternoon.
 
@@ -818,7 +818,7 @@ def retry_gate(sub_id: str, key: str, who=Depends(viewer), session: Session = De
             409,
             f"only a gate that failed on our side can be run again; this one is {gate.status!r}"
             + (
-                " — a refusal is a judgement on the data, and re-rolling it until the answer "
+                ". A refusal is a judgement on the data, and re-rolling it until the answer "
                 "changes is not something a benchmark can offer"
                 if gate.status == "refused"
                 else ""

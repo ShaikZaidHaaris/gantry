@@ -216,7 +216,7 @@ def test_the_funnel_works_on_a_vocabulary_it_has_never_seen():
 
 
 # ==========================================================================
-# attribution — including what it must NOT say
+# attribution -- including what it must NOT say
 # ==========================================================================
 
 
@@ -441,7 +441,7 @@ def test_a_milestone_nothing_reached_is_invisible_to_inference():
 
     Every episode stops at the first milestone, so the later ones never appear
     as events. Inferring the vocabulary from what happened gives a one-rung
-    funnel at 100% and an uplift of zero — a clean bill of health for a policy
+    funnel at 100% and an uplift of zero -- a clean bill of health for a policy
     that never does anything.
     """
     episodes, _ = _run_that_always_stops_at_stage_two()

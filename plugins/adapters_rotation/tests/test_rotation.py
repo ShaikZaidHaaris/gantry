@@ -259,7 +259,7 @@ def test_a_declared_offset_makes_any_layout_workable():
 # A two-armed command holds two rotation blocks and they do not sit at the same
 # offset on both sides: replacing three Euler numbers with four quaternion ones
 # shifts everything after the first block. Converting only the first would leave
-# the second arm's three numbers to be read as the start of a quaternion — a
+# the second arm's three numbers to be read as the start of a quaternion -- a
 # well-formed vector, a smooth trajectory, and the wrong arm pointing somewhere
 # arbitrary. Nothing downstream can detect that, which is why it is checked here.
 

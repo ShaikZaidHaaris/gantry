@@ -1,7 +1,7 @@
 """Did the curation actually help? The half that makes a plan more than an opinion.
 
 Every published data-curation method reports its own wins. That is not dishonesty
-— it is the only thing available when evaluation is expensive enough that you
+ -- it is the only thing available when evaluation is expensive enough that you
 run it once, at the end, on the configuration you were hoping for. It does mean
 the field's claims are, structurally, unaudited.
 
@@ -19,7 +19,7 @@ intersection. No published method guards this mechanically, and it is a set
 intersection.
 
 **Power.** A plan predicting a three-point improvement, verified with twenty
-trials, cannot come back with anything but noise — and the noise will be read as
+trials, cannot come back with anything but noise -- and the noise will be read as
 a verdict. Refusing before the retrain costs nothing; discovering it afterward
 costs the retrain. The magnitude the plan predicted is exactly the effect size
 this powers for, which is the other reason predictions must carry a number.
@@ -34,7 +34,7 @@ What comes out
 --------------
 A ``CurationOutcome``: both run references, the paired delta with its interval,
 the exact test, and whether the prediction held. Written whether it held or not
-— a refuted plan is a result, and a ledger that only records successes is a
+ -- a refuted plan is a result, and a ledger that only records successes is a
 brochure.
 """
 
@@ -67,7 +67,7 @@ def trials_needed(
     """Paired trials needed to see a change of ``magnitude``, by exact search.
 
     Exact rather than the normal approximation because robot evaluations run at
-    n where the approximation is wrong in the unsafe direction — it says twenty
+    n where the approximation is wrong in the unsafe direction -- it says twenty
     trials suffice when they do not, which is precisely the error this exists
     to prevent.
 
@@ -75,7 +75,7 @@ def trials_needed(
     the rate of disagreeing trials, not the marginal rates.
     """
     target = min(max(baseline + magnitude, 0.0), 1.0)
-    # Trials where the two arms disagree — the only ones McNemar counts. The
+    # Trials where the two arms disagree -- the only ones McNemar counts. The
     # conservative assumption is that improvement is the only source of
     # disagreement, which understates n; discordance from noise is added back
     # by assuming an equal amount of it in the other direction.
@@ -190,7 +190,7 @@ class CurationVerifier(FeedbackModule):
             name="verify",
             version=VERSION,
             min_cohorts=2,
-            # The comparison is over datasets — one curated, one not — so
+            # The comparison is over datasets -- one curated, one not -- so
             # everything else has to be held. Declared, and cross-checked
             # against the run's provenance like any other module's claim.
             holds=("policy", "evaluation", "task", "embodiment"),
@@ -199,8 +199,8 @@ class CurationVerifier(FeedbackModule):
         )
 
     def requirement(self) -> Requirement:
-        # A bare Requirement() is not constructible — it needs a name and a
-        # plane — and this went unnoticed because the tests call analyse()
+        # A bare Requirement() is not constructible -- it needs a name and a
+        # plane -- and this went unnoticed because the tests call analyse()
         # directly while only run() consults it. Anything driven from a
         # manifest would have hit it.
         return requires_channels(

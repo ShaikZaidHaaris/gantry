@@ -91,7 +91,7 @@ def test_a_wrong_focal_length_scales_every_distance_by_the_same_factor():
     assert float(np.linalg.norm(pose.position)) == pytest.approx(1.0, abs=0.05)
     # And the solve is *accepted*: the geometry is self-consistent at the wrong
     # scale, so nothing internal to the solve can object. Only a check on the
-    # answer catches it — and 1.0 m is still a plausible place for a hand, so
+    # answer catches it -- and 1.0 m is still a plausible place for a hand, so
     # even the reachability bound lets this one through.
     assert pose.ok
     assert pose.reprojection < MIN_REPROJECTION_PX
@@ -142,7 +142,7 @@ def test_the_budget_scales_with_the_hand_rather_than_being_a_fixed_pixel_count()
     """An absolute budget is a different standard at every distance: ten pixels
     is loose on a hand filling the frame and impossible on one across the room.
     Two good detectors disagree with each other by about 8% of a hand's span, so
-    a tighter bar than that demands better than the inputs support — measured, a
+    a tighter bar than that demands better than the inputs support -- measured, a
     fixed 10 px rejected 109 of 120 perfectly plausible frames."""
     model = hand_model()
     near_pixels = project(model, (0.0, 0.0, 0.30))
@@ -264,7 +264,7 @@ def test_a_template_is_per_person_because_size_is_the_ruler():
 
 
 def test_a_degenerate_hand_falls_back_instead_of_crashing_the_clip():
-    """SQPNP asserts outright on a near-planar point set — a hand seen edge-on,
+    """SQPNP asserts outright on a near-planar point set -- a hand seen edge-on,
     or an averaged template that came out flat. That is one frame's problem, not
     the episode's."""
     flat = hand_model().copy()

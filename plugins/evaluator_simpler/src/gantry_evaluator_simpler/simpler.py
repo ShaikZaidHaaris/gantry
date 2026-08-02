@@ -3,7 +3,7 @@
 Every other evaluator in this project answers "how well does this policy do in
 simulation". None of them answers the question anybody actually cares about,
 which is whether that number predicts anything on a real robot. A benchmark can
-be internally immaculate — seeded, powered, paired, letter-displayed — and still
+be internally immaculate -- seeded, powered, paired, letter-displayed -- and still
 rank policies in an order that reverses the moment they touch hardware, and
 nothing inside the benchmark would show it.
 
@@ -12,7 +12,7 @@ specific real setups whose real success rates were measured and published, for
 policies that are publicly available. So there are two numbers per (policy,
 task): what the simulator said, and what the real robot did. The relationship
 between those two columns is the measurement, and this project already has the
-statistic for it — ``gantry.spine.inference.mmrv`` — sitting in core with nothing
+statistic for it -- ``gantry.spine.inference.mmrv`` -- sitting in core with nothing
 to feed it. This plugin is the feed.
 
 Real ranking violation, not correlation
@@ -107,7 +107,7 @@ class RealResult:
         if not str(self.source).strip():
             raise ConfigError(
                 f"a real rate for {self.policy!r} on {self.task!r} needs its source "
-                "named — a paper, a table, a run id. The paired column exists so a "
+                "named, a paper, a table, a run id. The paired column exists so a "
                 "sim number can be checked against something checkable, and an "
                 "unsourced rate is indistinguishable in every table from a sourced one"
             )
@@ -163,7 +163,7 @@ class Approximation:
         """The language goal the environment itself chose for this episode.
 
         Asked rather than assumed, because SimplerEnv resamples the instruction
-        for some tasks per reset — and a policy given the task's *nominal*
+        for some tasks per reset -- and a policy given the task's *nominal*
         instruction while the environment scores a different one is being tested
         on a mismatch that shows up only as poor performance.
         """
@@ -231,8 +231,8 @@ class SimplerEvaluator(ClosedLoop):
         if variant not in VARIANTS:
             raise ConfigError(
                 f"unknown SimplerEnv condition {variant!r}; it ships {list(VARIANTS)}. "
-                "These measure different things — one matches the real photographs, "
-                "the other perturbs lighting and texture on purpose — so a rate from "
+                "These measure different things, one matches the real photographs, "
+                "the other perturbs lighting and texture on purpose, so a rate from "
                 "each is not two measurements of one quantity"
             )
         self._task = task
@@ -258,7 +258,7 @@ class SimplerEvaluator(ClosedLoop):
             seedable=True,
             closed_loop=True,
             # The scene approximates one specific real platform. It cannot be
-            # rebuilt around a different arm — that is the whole design.
+            # rebuilt around a different arm -- that is the whole design.
             hosts_embodiment=False,
             task=self._task,
             variant=self._variant,

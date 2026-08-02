@@ -1,12 +1,12 @@
 """The loop, end to end: propose, refuse to test it badly, judge, remember.
 
-Core-only. No plugin is imported here — the curator is defined in the test,
+Core-only. No plugin is imported here -- the curator is defined in the test,
 which is the point: the loop is a property of the contracts, not of any signal
 that happens to ship with them.
 
 What this demonstrates, in order, is the thing the design exists for. A signal
 proposes a change and says what it expects. The change is refused if testing it
-could not have meant anything — too few trials, or scored on the scenes that
+could not have meant anything -- too few trials, or scored on the scenes that
 produced it. Otherwise it is retrained, paired, and judged by machinery that
 never heard of the signal. And the verdict is kept whether or not it flattered
 anybody.

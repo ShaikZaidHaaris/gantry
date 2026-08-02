@@ -113,7 +113,7 @@ def evaluator(solve_at=None, terminate_at=None, descriptions=None, **kwargs):
 
 def test_perturbing_several_factors_at_once_is_refused():
     """A drop measured with three things moved attributes the loss to nothing in
-    particular — the same error as varying two planes in one comparison, which
+    particular -- the same error as varying two planes in one comparison, which
     this framework already refuses on the other side."""
     with pytest.raises(ConfigError, match="attributes the loss to nothing"):
         evaluator(factors=("light_color", "object_texture"))
@@ -236,7 +236,7 @@ def test_the_observation_object_becomes_named_arrays_without_its_metadata():
     names = set(record.episodes[0].channel_names)
     assert {"front_rgb", "wrist_rgb", "joint_positions"} <= names
     # misc is a dict of camera intrinsics, gripper_open is rank zero, and
-    # task_low_dim_state is None — none of the three is a channel.
+    # task_low_dim_state is None -- none of the three is a channel.
     assert not {"misc", "gripper_open", "task_low_dim_state"} & names
 
 

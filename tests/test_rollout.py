@@ -137,7 +137,7 @@ def test_the_observation_is_recorded_before_the_action_taken_from_it():
     """The invariant the module exists for.
 
     Offset these by one and every exported episode teaches a policy to predict
-    the action it has already taken — a corruption with no error message.
+    the action it has already taken -- a corruption with no error message.
     """
     suite = Suite()
     policy = Steady(chunk=1, shape=(1, 2))
@@ -170,7 +170,7 @@ def test_a_policy_that_raises_loses_one_trial_and_not_the_run():
     for episode in record.episodes:
         assert episode.labels.success is None
         assert "RuntimeError" in episode.labels.annotations["error"]
-    # No successes established, so no rate — rather than a rate of zero, which
+    # No successes established, so no rate -- rather than a rate of zero, which
     # would report a harness bug as a policy result.
     assert record.metrics == {}
     assert record.provenance.notes
@@ -191,7 +191,7 @@ def test_a_world_that_raises_halts_the_run():
 
 
 def test_a_wrong_chunk_shape_is_refused_by_name():
-    """Not a failed trial — a refusal. A policy emitting the wrong width is
+    """Not a failed trial -- a refusal. A policy emitting the wrong width is
     misconfigured for this world, and every trial after it would be too."""
 
     class WrongWidth(Steady):
@@ -354,7 +354,7 @@ def test_imported_refuses_clearly_rather_than_raising_from_inside_a_package():
         (np.zeros((16, 16, 1), dtype="uint8"), "image"),
         (np.zeros(7, dtype="float32"), "vector"),
         (np.asarray(1.0, dtype="float32"), "scalar"),
-        # Rank three but not an image shape — a stack, not a picture.
+        # Rank three but not an image shape -- a stack, not a picture.
         (np.zeros((4, 4, 7), dtype="float32"), "vector"),
     ],
 )

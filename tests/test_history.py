@@ -1,6 +1,6 @@
 """What history remembers, and what it refuses to invent.
 
-The fixtures are this session's real measurements — ph 28/50 and mh 33/50 on the
+The fixtures are this session's real measurements -- ph 28/50 and mh 33/50 on the
 training region, 9/50 and 29/50 on the wider one, mg at zero. Using them rather
 than round numbers keeps the tests honest about the regime the code runs in: at
 these sample sizes the difference between remembering and guessing is the
@@ -308,7 +308,7 @@ def test_a_run_records_which_judge_decided_its_labels(tmp_path):
 
 def test_a_run_with_no_scorer_is_distinguishable_from_one_judged_by_the_sim(tmp_path):
     """A null here means nobody said, which is not the same as the simulator
-    saying — and the report says so rather than assuming."""
+    saying -- and the report says so rather than assuming."""
     h = History(tmp_path / "history")
     h.put(run("lift_cube", "old_run", [True], scorer=None), keep_record=False)
     row = next(iter(h))

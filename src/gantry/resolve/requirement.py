@@ -11,7 +11,7 @@ Two kinds of need, deliberately separate:
     provider's schema, by name first and by meaning second.
 
 ``capabilities``
-    Facts about the provider that no channel expresses — whether it can emit
+    Facts about the provider that no channel expresses -- whether it can emit
     stage events, whether reads are selective. This is how a funnel diagnosis
     says out loud that it cannot run on outcome-only data, instead of
     producing an empty table and letting someone read meaning into it.

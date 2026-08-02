@@ -120,7 +120,7 @@ def test_state_and_action_come_out_at_the_declared_width():
 
 def test_the_action_is_the_next_state_and_the_last_step_is_dropped():
     """Repeating the final state teaches a policy that the right move in the last
-    state is to stay there — a lesson about the end of a recording, not the task."""
+    state is to stay there -- a lesson about the end of a recording, not the task."""
     e = made().open("egoactions/handpose/ego/0")
     state, action = e.array(STATE), e.array(ACTION)
     assert np.allclose(action[:-1], state[1:])
@@ -298,7 +298,7 @@ def test_frames_before_any_hand_was_seen_cannot_be_held_and_are_dropped():
 def test_stored_frames_can_be_shrunk_to_what_a_policy_actually_sees():
     """Estimation wants every pixel; a policy does not. openpi resizes to 224
     internally regardless, so keeping 1080p in the training set costs disk,
-    encode time and — the way this was found — 44 GB of RAM across a two-dozen
+    encode time and -- the way this was found -- 44 GB of RAM across a two-dozen
     clip build, which wedged the machine."""
     c = made(size=(64, 64))
     e = c.open("egoactions/handpose/ego/0")

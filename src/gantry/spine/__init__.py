@@ -1,7 +1,7 @@
 """The Gantry spine: the only vocabulary all five planes share.
 
 Nothing here knows about a specific dataset format, robot, policy, simulator,
-or metric. That is not an accident of the current implementation — it is the
+or metric. That is not an accident of the current implementation -- it is the
 invariant the whole design rests on, and ``tests/test_neutrality.py`` fails the
 build if it is ever broken.
 

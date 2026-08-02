@@ -4,12 +4,12 @@ Forwards: a converter records where each episode came from, so a plan written
 about one format applies in the other.
 
 Backwards: for datasets converted before anyone recorded it, the connection is
-recovered from content — the actions are the same numbers whatever the copy
+recovered from content -- the actions are the same numbers whatever the copy
 calls them.
 
 The thing being defended is narrow and expensive. Without it, a drop-list built
-from success labels — which usually survive only in a collection's native
-format — can never be applied to the converted copy a trainer actually reads.
+from success labels -- which usually survive only in a collection's native
+format -- can never be applied to the converted copy a trainer actually reads.
 The two datasets contain the same demonstrations and share no names.
 """
 

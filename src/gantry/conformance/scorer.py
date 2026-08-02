@@ -9,7 +9,7 @@ did not get will produce labels indistinguishable from real ones. That is worse
 than crashing, because a crash gets fixed and a plausible label gets averaged.
 
 **Determinism where claimed.** A predicate that says it is deterministic and is
-not makes every agreement number computed against it meaningless — you cannot
+not makes every agreement number computed against it meaningless -- you cannot
 measure whether a person agrees with something that changes its mind.
 
 **Abstention where claimed.** A scorer that declares it may abstain and then

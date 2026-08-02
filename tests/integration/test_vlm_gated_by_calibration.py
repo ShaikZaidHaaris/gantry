@@ -2,7 +2,7 @@
 
 Lives here rather than in the plugin's own suite because it spans two plugins,
 and a plugin test that leans on a sibling it never declared is exactly what the
-isolation check exists to catch — it caught this one.
+isolation check exists to catch -- it caught this one.
 """
 
 from __future__ import annotations

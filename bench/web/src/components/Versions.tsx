@@ -1,6 +1,6 @@
 /** What changed between two uploads.
  *
- *  The product loop is submit, fix, resubmit, see the change — and the last step
+ *  The product loop is submit, fix, resubmit, see the change, and the last step
  *  is the one that makes the first three worth doing. Without it a contributor
  *  who refilms has two reports and no way to tell whether refilming worked.
  *
@@ -12,7 +12,7 @@
  *
  *  A finding that is *gone* is the headline, because that is the thing the
  *  contributor did. A finding that is still there is second, because it is what
- *  to do next. New findings come last and are not styled as failure — a
+ *  to do next. New findings come last and are not styled as failure, a
  *  refilmed corpus that surfaces something previously hidden behind a bigger
  *  problem is progress, not regression.
  */
@@ -26,7 +26,7 @@ import { Skeleton, sentence } from "./ui";
 /** Upload a new version of the same dataset.
  *
  *  On the submission rather than behind "new submission", because a refilm is
- *  the same question asked again — putting it in the wizard would produce two
+ *  the same question asked again, putting it in the wizard would produce two
  *  unrelated rows and lose the only thing that makes resubmitting worth doing,
  *  which is the comparison with what came before. */
 export function Resubmit({ id }: { id: string }) {

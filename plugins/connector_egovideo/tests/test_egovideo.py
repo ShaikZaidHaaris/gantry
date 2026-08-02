@@ -1,7 +1,7 @@
 """The ego front door, checked without decoding a single frame.
 
-The prober and decoder are injected, so the manifest discipline — which is the
-part that actually protects a user — is tested at full speed. One test at the
+The prober and decoder are injected, so the manifest discipline -- which is the
+part that actually protects a user -- is tested at full speed. One test at the
 bottom uses a real encoded file to prove the header path works.
 """
 
@@ -116,7 +116,7 @@ def test_an_empty_manifest_is_refused(tmp_path):
 
 
 def test_both_manifest_shapes_are_accepted(tmp_path):
-    """A bare list, or an object with a 'clips' key — GUIs emit both."""
+    """A bare list, or an object with a 'clips' key -- GUIs emit both."""
     entry = {"path": "a.mp4", "instruction": "x", "scene": "y"}
     (tmp_path / "a.mp4").write_bytes(b"x")
     (tmp_path / "clips.json").write_text(json.dumps({"clips": [entry], "uploaded_by": "z"}))
@@ -128,7 +128,7 @@ def test_both_manifest_shapes_are_accepted(tmp_path):
 
 
 def test_an_unlabelled_outcome_is_not_a_failure(tmp_path):
-    """A dataset that is secretly all failures trains nothing — that happened
+    """A dataset that is secretly all failures trains nothing -- that happened
     here once, with a checkpoint fine-tuned on a split that was 0-for-52. The
     only defence is that 'unlabelled' and 'failed' stay different values."""
     made = connector(tmp_path)

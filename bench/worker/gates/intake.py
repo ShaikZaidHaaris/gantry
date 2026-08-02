@@ -1,4 +1,4 @@
-"""Gate 0 — Intake. Can we read this at all?
+"""Gate 0 -- Intake. Can we read this at all?
 
 Seconds, free, and it refuses rather than guesses. Everything it reports is
 something it read; anything it could not read is reported as unread, never as

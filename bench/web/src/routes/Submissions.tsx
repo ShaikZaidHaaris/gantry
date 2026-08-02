@@ -49,7 +49,7 @@ export function Submissions() {
             }
           >
             Upload a LeRobot dataset and we will tell you whether it is readable, what the
-            footage is like, and — if you choose to go further — whether it actually makes a
+            footage is like, and, if you choose to go further, whether it actually makes a
             robot better.
           </Empty>
         )}

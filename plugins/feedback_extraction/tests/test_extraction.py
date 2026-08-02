@@ -90,7 +90,7 @@ def test_a_defect_losing_almost_nothing_is_noted_not_prescribed():
 
     Note what "losing" means: the absolute share of data gone, not the distance
     below the floor. Detection at 0.84 against a 0.85 floor only just fires, and
-    is still losing 16% of every frame — which is worth fixing. The weak case
+    is still losing 16% of every frame -- which is worth fixing. The weak case
     needs a stage whose floor sits near one.
     """
     fussy = Stage(

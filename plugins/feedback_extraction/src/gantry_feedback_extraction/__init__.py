@@ -1,4 +1,4 @@
-"""Whether the pipeline read the footage well — not whether the footage was good."""
+"""Whether the pipeline read the footage well -- not whether the footage was good."""
 
 from .extraction import (
     ASSUMPTIONS,

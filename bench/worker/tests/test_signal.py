@@ -35,8 +35,8 @@ def test_the_floor_is_derived_rather_than_chosen():
 
 
 def test_the_test_is_two_sided():
-    """A control that beats the data is a real and different finding — labels
-    misaligned, or a split that leaked — and a one-sided test would report it
+    """A control that beats the data is a real and different finding -- labels
+    misaligned, or a split that leaked -- and a one-sided test would report it
     as "no signal" and let it through."""
     assert _sign_test(8, 0) == _sign_test(0, 8)
 

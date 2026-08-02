@@ -26,7 +26,7 @@ Whether a trial succeeded, and which milestones it passed. The step API has no
 place for either, so different suites bury them in different corners of ``info``
 and some do not record them at all. Reading one convention by default would mean
 silently reporting zero successes for every environment that uses a different
-one — a complete, well-formatted, wrong result. So a caller states how to read
+one -- a complete, well-formatted, wrong result. So a caller states how to read
 them, in one argument, using a named helper; and until they do, the descriptor
 says out loud that this evaluator reports no outcomes.
 """
@@ -95,7 +95,7 @@ class Transition:
 
 
 # --------------------------------------------------------------------------
-# how to read an outcome — named, so the assumption is visible at the call site
+# how to read an outcome -- named, so the assumption is visible at the call site
 # --------------------------------------------------------------------------
 
 
@@ -224,7 +224,7 @@ def imported(target: str) -> Any:
     """Resolve ``"package.module:attribute"`` to the thing it names.
 
     How an environment gets named in a file. The import happens here, in the
-    plugin, at build time — core still imports nothing it was not installed
+    plugin, at build time -- core still imports nothing it was not installed
     with, and a typo is a refusal with the name in it rather than a traceback
     from inside importlib.
     """
@@ -252,7 +252,7 @@ def accepts_seed(reset: Callable[..., Any]) -> bool:
     """Whether ``reset`` takes a ``seed`` keyword.
 
     Asked of the signature rather than discovered by calling and catching
-    ``TypeError`` — an environment whose reset raises ``TypeError`` for its own
+    ``TypeError`` -- an environment whose reset raises ``TypeError`` for its own
     reasons would otherwise be silently reset unseeded, and every seeded
     comparison built on it would be comparing noise.
     """

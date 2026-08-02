@@ -251,7 +251,7 @@ def _channels_described(context: Context) -> Verdict:
     A channel with neither units nor semantics can only be matched by name and
     width. That is matching by coincidence, and it is precisely how data ends
     up feeding a consumer that expected something else. A reader cannot invent
-    the missing description — but it can be honest that it is missing, which is
+    the missing description -- but it can be honest that it is missing, which is
     what this reports.
     """
     checks = []

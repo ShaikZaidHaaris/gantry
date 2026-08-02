@@ -5,7 +5,7 @@ Arrays are the exception: they go through a temporary ``.npz`` whose path is
 named in the reply, because base64 in a JSON line is both slower and a good way
 to exhaust memory on a large window.
 
-Nothing here imports the host's plugins — that is the entire point. This process
+Nothing here imports the host's plugins -- that is the entire point. This process
 discovers what *it* has installed, in *its* environment, and the host never
 imports the dependency stack it was avoiding.
 

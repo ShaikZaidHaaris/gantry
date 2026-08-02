@@ -2,7 +2,7 @@
 
 From now on a converter records where each episode came from, and the problem
 does not arise. But the datasets that already exist were written before that,
-and they are the ones with the training runs attached — so there has to be a
+and they are the ones with the training runs attached -- so there has to be a
 way to reconnect a converted copy to the collection it came from without
 re-doing the conversion.
 
@@ -13,7 +13,7 @@ subsetting and reordering.
 
 Why actions rather than observations
 ------------------------------------
-A conversion commonly rebuilds observations — assembling a state vector from
+A conversion commonly rebuilds observations -- assembling a state vector from
 several channels, resampling, dropping what the trainer will not read. Actions
 are the part that usually crosses unchanged, because they are what was
 commanded and there is nothing to reassemble.
@@ -37,7 +37,7 @@ import numpy as np
 from .spine import Verdict
 
 #: What the compared channel means. Found by meaning rather than by name,
-#: because the name is exactly the thing a conversion changes — the same column
+#: because the name is exactly the thing a conversion changes -- the same column
 #: is ``actions`` in one format and ``action`` in another, and matching on the
 #: string reconnects nothing while looking like it tried.
 ACTUATION = "actuation"
@@ -90,8 +90,7 @@ class Relinked:
     links: Mapping[str, str] = field(default_factory=dict)
     #: Converted episodes no source episode matched.
     unmatched: tuple[str, ...] = ()
-    #: Fingerprints appearing more than once on one side, and so unusable —
-    #: two identical demonstrations cannot be told apart by their content.
+    #: Fingerprints appearing more than once on one side, and so unusable --     #: two identical demonstrations cannot be told apart by their content.
     ambiguous: tuple[str, ...] = ()
 
     def validate(self, *, target_size: int) -> Verdict:
@@ -130,7 +129,7 @@ def relink(source: Sequence[Any], target: Sequence[Any], *, channel: str | None 
     """Match converted episodes back to the ones they came from, by content.
 
     ``source`` is the collection the evidence lives in; ``target`` is the copy
-    a trainer reads. Neither is modified — the result is a mapping the caller
+    a trainer reads. Neither is modified -- the result is a mapping the caller
     applies, because rewriting somebody's dataset as a side effect of asking a
     question is not this function's business.
     """

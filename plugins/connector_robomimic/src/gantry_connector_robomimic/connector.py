@@ -22,7 +22,7 @@ about somebody else's naming. RoboMimic observation keys are a *fixed
 vocabulary* defined by robosuite: ``robot0_eef_pos`` is the end-effector
 position in metres in every file that uses the name, because the simulator wrote
 it. Carrying that through is reporting the format's own declaration, not
-inventing one — and :data:`CONVENTIONS` is the whole of what is claimed, so it
+inventing one -- and :data:`CONVENTIONS` is the whole of what is claimed, so it
 can be read, argued with, and overridden.
 
 Anything not in that table is left undescribed rather than guessed at.
@@ -286,7 +286,7 @@ class RoboMimicConnector(Connector):
     def initial_states(self, episode_ids: Sequence[str] | None = None) -> tuple[np.ndarray, ...]:
         """The simulator state each demonstration started from, in order.
 
-        Kept out of the schema on purpose — a simulator's internal state vector
+        Kept out of the schema on purpose -- a simulator's internal state vector
         is not a behaviour anyone should screen, and :data:`NOT_BEHAVIOUR` says
         so. It is exposed here because it is the one thing needed to *re-enter*
         the world these demonstrations were recorded in: reconstruct the

@@ -207,7 +207,7 @@ def test_success_comes_out_of_info_as_a_bool_and_ends_the_trial():
 def test_a_timeout_here_really_is_a_failure_because_the_suite_says_so():
     """Not the same call as on a real bench, and the difference is the suite's to
     make. ManiSkill evaluates its success predicate every step, so an attempt
-    that ran out of horizon has been checked and found wanting — a genuine
+    that ran out of horizon has been checked and found wanting -- a genuine
     False. A world with no predicate returns None instead and the trial is an
     abstention. The loop records whichever the suite actually reports."""
     made = evaluator(win_at=999)

@@ -5,8 +5,8 @@ task-file rectangle could also be a printed mat; criteria were written twice so
 a predicate and a sentence could be the same standard; scorers became a plane so
 a person watching could be compared against a simulator checking a pose. All of
 that only pays off if a run on hardware is the *same kind of object* as a run in
-simulation — one ``RunRecord``, one provenance block, comparable by the same
-feedback modules — and that is what this plugin is.
+simulation -- one ``RunRecord``, one provenance block, comparable by the same
+feedback modules -- and that is what this plugin is.
 
 What is genuinely different about hardware
 -----------------------------------------
@@ -25,14 +25,14 @@ task, and the only way anybody can ever check that is if the arrangement was
 written down per scene rather than remembered.
 
 **Success arrives at the end, from a person.** There is no ``check_success()``.
-So the world implements ``verdict`` — core's hook for worlds that only know once
-it is over — and the answer may be "I could not tell", which is recorded as an
+So the world implements ``verdict`` -- core's hook for worlds that only know once
+it is over -- and the answer may be "I could not tell", which is recorded as an
 abstention rather than a failure.
 
 Two ways to get an outcome, and the second is usually right
 ----------------------------------------------------------
 :class:`Attending` asks the operator after each attempt. Fine for twenty trials,
-and it puts the judgement at the moment of best information — the person was
+and it puts the judgement at the moment of best information -- the person was
 standing there.
 
 :class:`Recording` never asks. Every trial comes back ``success=None`` and the
@@ -47,7 +47,7 @@ Safety is the operator's, and this does not pretend otherwise
 ------------------------------------------------------------
 ``Machine`` is a protocol with two methods, satisfied by whatever driver already
 works on that arm. This plugin does not implement kinematics, limits, collision
-checks or an estimop — a framework that appeared to provide those while actually
+checks or an estimop -- a framework that appeared to provide those while actually
 just forwarding arrays would be worse than one that clearly does not. What it
 does provide is the halt path: an operator can stop a trial, and ``halt`` on the
 machine is called when they do.
@@ -69,7 +69,7 @@ from gantry.spine import ChannelSpec, Descriptor
 
 VERSION = "0.1.0.dev0"
 
-#: What the operator may answer. ``skip`` is not a verdict — it means the
+#: What the operator may answer. ``skip`` is not a verdict -- it means the
 #: attempt did not happen (the arm faulted, somebody walked through the cell) and
 #: is recorded as an abstention with a note, not as a failure.
 ANSWERS = {
@@ -152,7 +152,7 @@ class Attending:
 
     prompt: Callable[[str], str] = input
     #: The rubric sentence, shown verbatim at the moment of judging. Not a
-    #: paraphrase and not a reminder — the same text a scorer would be given, so
+    #: paraphrase and not a reminder -- the same text a scorer would be given, so
     #: that an operator's answers and a scorer's are answers to one question.
     rubric: str = ""
 
@@ -245,7 +245,7 @@ class BenchEvaluator(ClosedLoop):
         self._scenes = tuple(_scene(raw) for raw in scenes)
         if not self._scenes:
             raise ConfigError(
-                f"{name}: a bench run needs its scenes declared — each one the "
+                f"{name}: a bench run needs its scenes declared, each one the "
                 "physical arrangement an operator will set up, in words. Without "
                 "them a run is a number of attempts at an unrecorded situation, "
                 "which nothing downstream can compare against anything"
@@ -318,7 +318,7 @@ class BenchEvaluator(ClosedLoop):
         """
         target = Path(path)
         lines = [
-            f"run sheet — {task.name}",
+            f"run sheet, {task.name}",
             f"machine: {type(self._machine).__name__}    body: {self.embodiment}",
             f"horizon: {task.horizon} steps" + (f" at {self.rate_hz:g} Hz" if self.rate_hz else ""),
             "",

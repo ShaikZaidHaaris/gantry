@@ -4,8 +4,8 @@ Every other module in the feedback plane asks whether a number is true. This one
 asks whether the dataset is *yours*, and it is here because that question has a
 specific and expensive way of going unanswered.
 
-The best monocular hand reconstructions available — HaWoR, WiLoR, anything built
-on MANO — are CC-BY-NC-ND and registration-gated. The best monocular depth models
+The best monocular hand reconstructions available -- HaWoR, WiLoR, anything built
+on MANO -- are CC-BY-NC-ND and registration-gated. The best monocular depth models
 are split: one checkpoint Apache, the next CC-BY-NC, same repository, same
 filename pattern. Nothing about the arrays they return records which one produced
 them. So a training set built through a research-only model is indistinguishable
@@ -23,7 +23,7 @@ looking at.
 
 Unknown is worse than restricted
 --------------------------------
-A component that declares CC-BY-NC is a known cost — it can be swapped, or the
+A component that declares CC-BY-NC is a known cost -- it can be swapped, or the
 dataset can be marked research-only and used honestly. A component that declares
 nothing cannot be planned around at all: it might be fine, and nobody can act on
 "might". So ``unknown`` is reported at a *higher* severity than
@@ -57,7 +57,7 @@ VERSION = "0.1.0.dev0"
 #: How restrictive a licence is. Higher dominates; the chain takes the maximum.
 #:
 #: ``unknown`` sits above ``non_commercial`` on purpose. A declared restriction
-#: is a cost you can plan around — swap the component, or ship the dataset as
+#: is a cost you can plan around -- swap the component, or ship the dataset as
 #: research-only and say so. A missing declaration cannot be planned around at
 #: all, and "probably fine" is not a position anybody can defend later.
 PERMISSIVE, ATTRIBUTION, NON_COMMERCIAL, UNKNOWN = 0, 1, 2, 3
@@ -89,7 +89,7 @@ PATTERNS: tuple[tuple[str, int], ...] = (
 )
 
 #: Keys anywhere in an episode's metadata that name something with a licence.
-#: Open-ended by design — a new component that records its licence under a new
+#: Open-ended by design -- a new component that records its licence under a new
 #: key should be picked up without editing this module.
 LICENCE_KEYS = ("licence", "license", "_licence", "_license")
 

@@ -271,7 +271,7 @@ def sweep_stale(session: Session, *, after: float = STALE_AFTER) -> int:
             gate.status = "failed"
             gate.finished_at = now()
             gate.verdict_json = json.dumps(
-                {"summary": "the machine running this check stopped responding — this is our fault, not your data's"}
+                {"summary": "the machine running this check stopped responding. This is our fault, not your data's"}
             )
         submission = session.get(Submission, job.submission_id)
         if submission is not None:

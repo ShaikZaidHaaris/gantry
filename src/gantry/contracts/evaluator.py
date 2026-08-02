@@ -50,7 +50,7 @@ from ..spine import Descriptor, RunRecord, Verdict
 
 #: 1.1 made ``task_for`` a required method. It had been a duck-typed hook the
 #: runner probed for, which meant an evaluator could pass every conformance
-#: check and still be unusable from a manifest — the kit said yes and the runner
+#: check and still be unusable from a manifest -- the kit said yes and the runner
 #: refused. A minor bump is the right shape: an evaluator predating it is
 #: refused by name with ``contract.minor`` rather than failing later.
 EVALUATOR_CONTRACT = "evaluator@1.1"
@@ -62,13 +62,13 @@ EVALUATOR_CONTRACT = "evaluator@1.1"
 #: scenes and is the same world whichever dataset you point at it. An offline
 #: replay's world *is* the recording, and a sim rebuilt from a dataset's own
 #: ``env_args`` is the world that dataset came from. Without somewhere to say
-#: which kind it is, a manifest cannot build the second kind at all — every
+#: which kind it is, a manifest cannot build the second kind at all -- every
 #: plane is constructed independently, so an evaluator that needs the dataset
 #: would have to reach for it, and reaching across planes is the thing this
 #: design exists to prevent.
 CAP_NEEDS_DATASET = "needs_dataset"
 
-#: This evaluator can host different bodies — the same task, run on a different
+#: This evaluator can host different bodies -- the same task, run on a different
 #: robot, without a different evaluator.
 #:
 #: Distinct from merely naming an embodiment. Most evaluators have one body
@@ -231,7 +231,7 @@ class Evaluator(ABC):
         Required rather than optional because a runner has no other way to start
         a run. When this was a hook the runner probed for, an evaluator could
         satisfy every check in the conformance kit and still be unusable from a
-        manifest — which is the exact gap between "conforms" and "works" that
+        manifest -- which is the exact gap between "conforms" and "works" that
         contracts exist to close.
         """
 

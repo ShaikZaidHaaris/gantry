@@ -1,7 +1,7 @@
 """Turn a dataset into rollouts, with openpi and RoboTwin. One job spec in.
 
-This is the *how* behind Gate 3. The gate says what it needs — these arms, this
-many scenes — and knows nothing about trainers, checkpoints, policy servers or
+This is the *how* behind Gate 3. The gate says what it needs -- these arms, this
+many scenes -- and knows nothing about trainers, checkpoints, policy servers or
 simulators. This file makes all four of those choices, which is exactly why it
 lives here on the machine that has them and not in the gate.
 
@@ -12,7 +12,7 @@ The stages, and why each is its own step
 2. register both arms in openpi's own config list, because what makes a run
    reproducible is that it goes through their trainer and their norm stats
    unchanged rather than a fork
-3. train, serve, evaluate — one arm at a time
+3. train, serve, evaluate -- one arm at a time
 4. write run records the gate can read
 
 One arm at a time, and the checkpoint is deleted after its evaluation. Not
@@ -102,7 +102,7 @@ def derangement(count: int, seed: int = 20250801) -> list[int]:
     """A permutation with no fixed point. Every clip gets somebody else's actions.
 
     A plain shuffle leaves some clips matched with themselves, and those are not
-    controls at all — they are training data sitting inside the control arm,
+    controls at all -- they are training data sitting inside the control arm,
     quietly making it look better and the contributor's data look worse by
     comparison.
     """
@@ -152,14 +152,14 @@ def build_arms(source: Path, real: Path, control: Path, progress: Path) -> None:
 
     Both arms are truncated identically, and that is the part worth being
     careful about. Donating clip B's actions to clip A means cutting the pair to
-    the shorter of the two — and doing that to the control alone left it with
+    the shorter of the two -- and doing that to the control alone left it with
     17% fewer frames than the treatment on this dataset. The control would then
     have been worse for two reasons, one of them the thing being measured and
     one of them a shorter training set, and nothing downstream could separate
     them. So the treatment keeps its own actions and takes the same cut.
 
     The videos keep their extra tail frames. Those are never indexed, because
-    the episode length says they are not there — cheaper than a re-encode and
+    the episode length says they are not there -- cheaper than a re-encode and
     exactly as correct.
     """
     import pandas as pd
@@ -257,7 +257,7 @@ def norm_stats(arm: str, progress: Path) -> None:
 
     Its own stage because it is its own failure. The trainer refuses without
     them and says so clearly, but three layers up that arrives as "training
-    failed (exit 1)" — a message about the wrong thing, pointing at the
+    failed (exit 1)", a message about the wrong thing, pointing at the
     expensive step rather than the cheap one that was skipped.
 
     Per dataset, not per model: the statistics describe the contributor's
@@ -314,7 +314,7 @@ def serve(arm: str, checkpoint: Path, progress: Path) -> subprocess.Popen:
     # Same environment as every other command here. This built its own Popen and
     # so missed the PATH that `run` sets, which meant `uv` was not found, the
     # server never came up, and the failure arrived twenty minutes later as
-    # "the policy server never came up" — a timeout standing in for a typo.
+    # "the policy server never came up" -- a timeout standing in for a typo.
     process = subprocess.Popen(
         f"XLA_PYTHON_CLIENT_MEM_FRACTION=0.35 uv run scripts/serve_policy.py --port {PORT} "
         f"policy:checkpoint --policy.config=pi05_{arm} --policy.dir={checkpoint} "

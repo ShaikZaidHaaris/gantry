@@ -1,4 +1,4 @@
-"""Whether the pipeline read the footage well — a different question from whether
+"""Whether the pipeline read the footage well -- a different question from whether
 the footage was good.
 
 ``feedback_capture`` tells a contributor what to change about their filming.
@@ -23,7 +23,7 @@ those off the record and says which of them is currently limiting the dataset.
 
 Ranked by what is actually costing you
 --------------------------------------
-The useful output is not a list of everything imperfect — it is *which one thing
+The useful output is not a list of everything imperfect -- it is *which one thing
 to fix next*. So findings are ordered by how much data each defect is losing, and
 the module is explicit that a defect losing 2% of frames is not worth engineering
 time while one losing 40% is.
@@ -31,7 +31,7 @@ time while one losing 40% is.
 Assumptions are findings too
 ----------------------------
 An intrinsics source of ``fov`` rather than ``calibrated`` is not an error and
-does not lose a single frame — it puts a systematic few-percent error on every
+does not lose a single frame -- it puts a systematic few-percent error on every
 distance in the dataset, invisibly and forever. That is worth surfacing precisely
 because nothing else will ever complain about it.
 """
@@ -113,8 +113,8 @@ STAGES: tuple[Stage, ...] = (
         fix="Check the camera intrinsics first. Every distance scales with the "
         "focal length, so a wrong one moves the whole trajectory somewhere "
         "impossible while every internal check still passes.",
-        why="A pose can reproject perfectly from an impossible place — at a large "
-        "enough distance the projection barely changes — so only a statement "
+        why="A pose can reproject perfectly from an impossible place, at a large "
+        "enough distance the projection barely changes, so only a statement "
         "about where hands physically are catches this.",
         floor=0.9,
     ),
@@ -146,7 +146,7 @@ STAGES: tuple[Stage, ...] = (
     ),
 )
 
-#: Signals that are not a rate — they describe an assumption rather than a loss.
+#: Signals that are not a rate -- they describe an assumption rather than a loss.
 ASSUMPTIONS = ("intrinsics_source", "scale", "trajectory_source", "estimator", "keypoints")
 
 
@@ -175,7 +175,7 @@ def signals(cohort: Cohort) -> dict[str, float]:
 
 
 def stated(cohort: Cohort) -> dict[str, set[str]]:
-    """Non-numeric declarations — what was assumed rather than measured."""
+    """Non-numeric declarations -- what was assumed rather than measured."""
     out: dict[str, set[str]] = {}
     for episode in cohort.episodes:
         for mapping in _readable(episode):

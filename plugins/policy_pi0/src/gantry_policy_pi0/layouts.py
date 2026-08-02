@@ -58,7 +58,7 @@ class Layout:
 
     ``images`` maps a Gantry channel name to the key openpi expects. ``state``
     and ``action`` are widths. ``prompt_key`` is the field the language
-    instruction goes in — separate because a server that takes no prompt is a
+    instruction goes in -- separate because a server that takes no prompt is a
     different kind of policy and should not be handed one silently.
     """
 
@@ -79,7 +79,7 @@ class Layout:
     #: Whether the cameras go on the wire channel-first, ``(3, H, W)``.
     #:
     #: The Aloha-family transform does ``rearrange(img, "c h w -> h w c")``, so
-    #: it wants channel-first and silently mangles anything else — a (224,224,3)
+    #: it wants channel-first and silently mangles anything else -- a (224,224,3)
     #: frame arrives as a 3-pixel-tall image of 224 channels and dies inside PIL,
     #: several layers below anything that names the cause. Nothing in the config
     #: name says which way round it is.
@@ -170,7 +170,7 @@ class Layout:
         }
 
 
-#: Bimanual ALOHA — two 6-DoF arms with grippers, three cameras. The
+#: Bimanual ALOHA -- two 6-DoF arms with grippers, three cameras. The
 #: configuration this project is aimed at.
 ALOHA = Layout(
     name="aloha",
@@ -216,7 +216,7 @@ LIBERO = Layout(
     metadata={"rig": "LIBERO / Panda", "control": "OSC pose deltas"},
 )
 
-#: By name, for a manifest. Not a registry the policy consults — a lookup table
+#: By name, for a manifest. Not a registry the policy consults -- a lookup table
 #: a caller may use, so that an unlisted rig is a dict rather than a fork.
 LAYOUTS: dict[str, Layout] = {layout.name: layout for layout in (ALOHA, DROID, LIBERO)}
 

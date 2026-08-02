@@ -3,7 +3,7 @@
 Every implementation on every plane ships a Descriptor: identity, the contract
 version it implements, what it needs, what it provides, and how it wants to be
 isolated. The resolver reads descriptors and nothing else, which is why it can
-plan a run without importing a single plugin — and why an unresolvable
+plan a run without importing a single plugin -- and why an unresolvable
 combination fails in milliseconds instead of after a model finishes loading.
 
 ``requires`` and ``provides`` are free-form maps. Core defines no well-known

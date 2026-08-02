@@ -2,7 +2,7 @@
  *
  *  Printed by the browser rather than rendered again on the server. A server-side
  *  PDF means a second renderer with its own layout, its own fonts and its own
- *  idea of what a finding looks like, and the two drift — usually in the
+ *  idea of what a finding looks like, and the two drift, usually in the
  *  direction of the PDF quietly losing whatever was added last. Since the thing
  *  most likely to be added last is a caveat, that drift is not cosmetic. One
  *  renderer, one layout, and the print stylesheet decides what a page break may
@@ -17,8 +17,8 @@
  *  rules refuse to break a finding across a page or orphan the section heading
  *  from what follows it.
  *
- *  The header carries provenance — which dataset, which benchmark, how many
- *  scenes, which arms ran, when it was generated — because a page that ends up
+ *  The header carries provenance, which dataset, which benchmark, how many
+ *  scenes, which arms ran, when it was generated, because a page that ends up
  *  in somebody's slide deck six weeks from now has to be able to say what it is
  *  without the person who made it standing next to it.
  */

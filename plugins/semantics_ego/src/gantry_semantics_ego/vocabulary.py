@@ -1,8 +1,8 @@
 """Channel semantics for egocentric human video.
 
-Ego data is the cheapest robot training data in existence — a person with a
+Ego data is the cheapest robot training data in existence -- a person with a
 camera on their head produces demonstrations at roughly the cost of doing their
-own chores — and it is the most dangerous to read carelessly, because two of its
+own chores -- and it is the most dangerous to read carelessly, because two of its
 properties are invisible in the array and change what every downstream number
 means.
 
@@ -11,8 +11,8 @@ The two that bite
 **Scale.** A hand pose estimated from a single camera has no metric scale. The
 estimator returns a plausible hand in plausible proportions and cannot know
 whether it is a child's hand thirty centimetres away or an adult's at fifty. Every
-number is right up to an unknown multiplier. A calibrated rig — a device with a
-known baseline and a SLAM trajectory — returns metres.
+number is right up to an unknown multiplier. A calibrated rig -- a device with a
+known baseline and a SLAM trajectory -- returns metres.
 
 Both arrive as float32 arrays of identical shape. Retarget the first onto a robot
 as though it were the second and the arm reaches for a point that does not exist,
@@ -21,7 +21,7 @@ consistently, in a way that looks like a policy that has not learned to reach. S
 consumer that needs metres is entitled to refuse.
 
 **Keypoint convention.** MANO gives 21 joints per hand. MediaPipe gives 21. They
-are not the same 21 — the orderings differ and MANO's root is the wrist while
+are not the same 21 -- the orderings differ and MANO's root is the wrist while
 MediaPipe's index 0 is the palm base. ARKit gives 26. Feed a MANO-trained
 retargeter MediaPipe indices and every finger is attached to the wrong knuckle;
 the shapes agree, the dtypes agree, nothing complains, and the resulting robot
@@ -52,20 +52,20 @@ from typing import Sequence
 
 from gantry.spine import ChannelSpec, register_semantics, units
 
-#: Metres, as the units module spells it. Attached only to metric channels — a
+#: Metres, as the units module spells it. Attached only to metric channels -- a
 #: unit on an unscaled one would be a lie with a dimension on it.
 METRE = "m"
 
 #: How the hand was measured, and whether its numbers are in metres.
 #:
-#: ``metric`` — a calibrated rig: stereo baseline, depth sensor, or a SLAM
+#: ``metric`` -- a calibrated rig: stereo baseline, depth sensor, or a SLAM
 #: trajectory with known scale. Positions are metres and mean it.
 #:
-#: ``unscaled`` — a monocular estimate. Internally consistent, correct up to one
+#: ``unscaled`` -- a monocular estimate. Internally consistent, correct up to one
 #: unknown multiplier, and unusable for anything that has to touch a real object
 #: at a real distance.
 #:
-#: ``normalized`` — deliberately unit-free, e.g. keypoints in image coordinates
+#: ``normalized`` -- deliberately unit-free, e.g. keypoints in image coordinates
 #: or a hand normalised to unit bone length. Distinguished from ``unscaled``
 #: because it is a *choice* rather than a limitation, and the recovery is
 #: different: a normalised hand needs a bone length, an unscaled one needs a
@@ -84,7 +84,7 @@ KEYPOINTS = {
     "mediapipe": 21,
     "arkit": 26,
     "openpose": 21,
-    #: Wrist only — no finger joints at all. Common from rigs that track the
+    #: Wrist only -- no finger joints at all. Common from rigs that track the
     #: controller or the device rather than the hand.
     "wrist_only": 1,
 }
@@ -96,13 +96,13 @@ HANDS = ("left", "right", "either")
 
 #: The frame ego measurements live in.
 #:
-#: ``camera`` — relative to the head-mounted camera, which is moving. Fine for
+#: ``camera`` -- relative to the head-mounted camera, which is moving. Fine for
 #: what the person saw; wrong for anything that has to be consistent across a
 #: clip, because the reference itself is in motion.
 #:
-#: ``head`` — relative to the device, gravity-aligned where the rig reports it.
+#: ``head`` -- relative to the device, gravity-aligned where the rig reports it.
 #:
-#: ``world`` — a fixed frame recovered by SLAM. The only one in which a
+#: ``world`` -- a fixed frame recovered by SLAM. The only one in which a
 #: trajectory means the same thing at the start and the end of a clip.
 FRAMES = ("camera", "head", "world", "image")
 
@@ -113,7 +113,7 @@ MEANINGS: dict[str, tuple[str, object]] = {
     "ego.hand_keypoints": ("hand joint positions, one row per joint", units.LENGTH),
     "ego.wrist_pose": ("wrist position and orientation", None),
     "ego.wrist_position": ("wrist position", units.LENGTH),
-    "ego.aperture": ("how open the hand is — thumb-to-finger distance", units.LENGTH),
+    "ego.aperture": ("how open the hand is, thumb-to-finger distance", units.LENGTH),
     "ego.grasp": ("whether the hand is holding something, 0 to 1", None),
     "ego.head_pose": ("device position and orientation, from SLAM", None),
     "ego.gaze": ("where the person was looking, as a direction", None),
@@ -190,12 +190,12 @@ def wrist_channel(
     rate_hz: float | None = None,
     dtype: str = "float32",
 ) -> ChannelSpec:
-    """A 6-DoF wrist pose channel — the thing a retargeter actually consumes.
+    """A 6-DoF wrist pose channel -- the thing a retargeter actually consumes.
 
     ``rotation_repr`` is borrowed from the manipulation vocabulary deliberately,
     rather than given its own ego-flavoured spelling. A wrist pose and a robot
     end-effector pose are the same kind of object, and the whole point of the
-    retargeter is to relate them — which it cannot do if the two planes disagree
+    retargeter is to relate them -- which it cannot do if the two planes disagree
     about what a quaternion is called.
     """
     _check(hand=hand, scale=scale, frame=frame)
@@ -226,7 +226,7 @@ def aperture_channel(
     rate_hz: float | None = None,
     dtype: str = "float32",
 ) -> ChannelSpec:
-    """Thumb-to-fingertip distance — what becomes a gripper command.
+    """Thumb-to-fingertip distance -- what becomes a gripper command.
 
     Carries its scale like everything else here, because the retargeting from
     aperture to gripper needs a hand-sized reference to be anything but a guess:
@@ -347,7 +347,7 @@ def describe(spec: ChannelSpec) -> str:
     """A one-line human summary of an ego channel, for a report.
 
     Exists because "hand_keypoints (21, 3) float32" tells a user nothing and
-    "right hand, MANO joints, monocular estimate — no real-world scale" tells
+    "right hand, MANO joints, monocular estimate -- no real-world scale" tells
     them the thing that will limit what their data can be used for.
     """
     parts: list[str] = []
@@ -369,8 +369,8 @@ def sequence_of(specs: Sequence[ChannelSpec]) -> dict[str, list[str]]:
     """Group a schema's ego channels by what they say about scale.
 
     The shape a report wants: a dataset whose hands are unscaled and whose head
-    pose is metric is a real and common situation — the rig tracked itself and an
-    estimator filled in the hands — and it is worth showing as two rows rather
+    pose is metric is a real and common situation -- the rig tracked itself and an
+    estimator filled in the hands -- and it is worth showing as two rows rather
     than one verdict.
     """
     out: dict[str, list[str]] = {}

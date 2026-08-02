@@ -2,7 +2,7 @@
 
 Shipped with the plugin rather than kept beside its tests. It was a function one
 test file imported from another by filename, which required the tests directory
-to be on ``sys.path`` — an implicit dependency on how pytest happens to import,
+to be on ``sys.path`` -- an implicit dependency on how pytest happens to import,
 and one that broke the moment two plugins named a test file the same thing.
 
 Useful outside the tests too: this reader describes what a dataset declares and

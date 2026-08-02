@@ -8,7 +8,7 @@ is always a specific missing capability rather than a shrug.
 
 An adapter is for gaps with one correct answer: millimetres to metres is a
 multiplication, reordering labelled dimensions is a permutation. A gap needing a
-judgement about what to discard is a *retargeter* — a different thing, searched
+judgement about what to discard is a *retargeter* -- a different thing, searched
 differently, in :mod:`gantry.resolve.retarget`.
 
 Cost is mandatory, not decorative. A lossy adapter states its loss in words,
@@ -112,7 +112,7 @@ class AdapterRegistry:
         """Register an adapter. Refuses one that cannot actually be applied.
 
         A transform-less adapter would plan cleanly and then fail on the first
-        read — after the run has started, and only for whichever channel touched
+        read -- after the run has started, and only for whichever channel touched
         it first. Catching it here makes the failure immediate and total, which
         is the right shape for a configuration error.
         """

@@ -1,7 +1,7 @@
 """The hand-to-arm transform, and every way it is allowed to say no.
 
 Weighted towards the refusals on purpose. A retargeting that is nearly right
-produces smooth, confident, wrong motion — and "the policy did not learn much"
+produces smooth, confident, wrong motion -- and "the policy did not learn much"
 is exactly the conclusion the surrounding product exists to measure, so the
 failure that most resembles the answer has to be the hardest one to reach by
 accident.
@@ -52,8 +52,7 @@ def retargeter(**kwargs):
 
 def test_unscaled_hands_with_no_measured_span_are_refused():
     """A monocular hand pose is right up to one unknown multiplier. Retargeting
-    it as metres sends the arm to a point that does not exist, consistently —
-    which looks exactly like a policy that never learned to reach."""
+    it as metres sends the arm to a point that does not exist, consistently --     which looks exactly like a policy that never learned to reach."""
     unscaled = hand_command("hand", scale="unscaled")
     made = retargeter(hand=Hand(closed=0.02, open=0.10))  # no span
 
@@ -192,7 +191,7 @@ def test_every_encoding_round_trips_through_the_transform(encoding):
 
 
 def test_identity_is_a_named_constructor_rather_than_a_default():
-    """Identity is a claim — right when a rig was set up so the frames agree, and
+    """Identity is a claim -- right when a rig was set up so the frames agree, and
     silently wrong otherwise. It should be something somebody typed."""
     assert Mount.aligned().is_identity is True
     assert Mount.aligned().established_by == "declared aligned"
@@ -438,7 +437,7 @@ def test_an_undeclared_mount_says_so_in_the_record():
 
 def test_the_contracts_own_check_catches_an_undeclared_width_change():
     """The base class refuses a retargeter that changes width and declares no
-    loss. This one always declares, so it passes — but the check runs."""
+    loss. This one always declares, so it passes -- but the check runs."""
     assert retargeter().check(SOURCE, TARGET).ok
 
 
@@ -453,7 +452,7 @@ def test_applying_the_wrong_shape_is_refused():
 def test_a_camera_frame_trajectory_is_refused():
     """A hand position measured relative to a head-mounted camera changes when
     the head turns and the hand does not. Retargeted as though it were fixed, the
-    arm's target swings every time the person looks around — smooth, plausible
+    arm's target swings every time the person looks around -- smooth, plausible
     motion toward the wrong place."""
     for frame in ("camera", "head", "image"):
         source = hand_command("hand", scale="metric", frame=frame)
@@ -479,8 +478,8 @@ def test_image_coordinates_are_refused_separately_from_unscaled():
     """The distinction the first real ego video taught.
 
     An unscaled metric hand is right up to one multiplier, and a measured span
-    recovers it. An image coordinate is a pixel fraction — x and y are fractions
-    of the frame, z is a relative offset near zero — and no span rescues it.
+    recovers it. An image coordinate is a pixel fraction -- x and y are fractions
+    of the frame, z is a relative offset near zero -- and no span rescues it.
     Treating the second as the first produced a smooth, confident trajectory
     inside a 19 cm box, which reads as an arm that never reaches anything.
     """
@@ -499,7 +498,7 @@ def test_image_coordinates_are_refused_separately_from_unscaled():
 def test_unsolved_frames_are_not_counted_as_out_of_reach():
     """A frame the estimator could not solve sits at the origin, inside the arm's
     inner limit. Counting it as unreachable reports a detection failure as a
-    workspace problem — and the two have opposite fixes: film differently, versus
+    workspace problem -- and the two have opposite fixes: film differently, versus
     stand closer to the work."""
     made = retargeter(reach=VIPERX_300)
     values = np.concatenate([trajectory(6, x=0.4), np.zeros((4, 8))])

@@ -4,16 +4,15 @@ The limitation the whole ego pipeline has carried until now: poses are measured
 relative to a camera bolted to a moving head. That is genuinely fine when the
 robot's camera sits where the person's eyes were, because then both sides are
 learning hand-relative-to-viewpoint. It is wrong for everything else, and it is
-wrong in a way that looks like noise rather than like an error — the target
+wrong in a way that looks like noise rather than like an error -- the target
 swings whenever the person glances away, so a policy sees the same physical
 reach labelled a dozen different ways.
 
 Fixing it needs one thing this pipeline never had: where the camera was. Given
-that, the composition is trivial —
-
+that, the composition is trivial -- 
     world_pose = camera_to_world[t] @ camera_frame_pose[t]
 
-— and the whole difficulty is getting the trajectory honestly.
+ -- and the whole difficulty is getting the trajectory honestly.
 
 Three ways to get one, in descending order of how much you should trust it
 --------------------------------------------------------------------------
@@ -22,7 +21,7 @@ throw the result away when you export an MP4. If the capture app kept it, it is
 metric, drift-corrected, and free. Nothing reconstructed will beat it.
 
 **Structure from motion.** COLMAP (BSD, commercially usable) recovers camera
-poses from the frames themselves. Good, slow, and **scaleless** — monocular SfM
+poses from the frames themselves. Good, slow, and **scaleless** -- monocular SfM
 determines the trajectory up to an unknown factor. Recovering that factor needs a
 metric observation of something, and the only one available here is the hand.
 
@@ -30,21 +29,20 @@ The obvious version of that is wrong, and worth saying so plainly because it is
 the version anybody would write first: a hand's *distance from the camera* is a
 camera-frame quantity, so it is unchanged by how big the trajectory is and
 constrains nothing. What does constrain it is a point that is stationary in the
-world — its camera-frame position then moves only because the camera moved, and
+world -- its camera-frame position then moves only because the camera moved, and
 the ratio recovers the factor. :func:`scale_to` does that, it rests on the hand
 being still while the person moves, and it is off by default because that is true
 some of the time and false the rest.
 
 **Nothing.** Then this connector refuses, and the camera-frame data stays what it
-is. That is a supported outcome — it is what the pipeline did before — rather
+is. That is a supported outcome -- it is what the pipeline did before -- rather
 than a failure.
 
 Drift is reported, never hidden
 -------------------------------
 Every trajectory drifts. A ten-second clip barely does; a ten-minute one can be
 metres out by the end, which silently stretches every trajectory near the end of
-the recording. There is no fixing that here, so it is measured where it can be —
-against loop closures where the trajectory returns near a previous pose — and
+the recording. There is no fixing that here, so it is measured where it can be -- against loop closures where the trajectory returns near a previous pose -- and
 reported per episode, so a downstream user can weight or drop the tail.
 """
 
@@ -178,7 +176,7 @@ def scale_to(
 
     The physics, because the obvious version is wrong. A hand's *distance from the
     camera* is measured in the camera frame and is therefore invariant to how big
-    the trajectory is — it constrains nothing. What does constrain it is a point
+    the trajectory is -- it constrains nothing. What does constrain it is a point
     that is stationary in the world: for such a point, the camera-frame position
     changes only because the camera moved, so
 
@@ -266,7 +264,7 @@ def from_colmap(path: str | Path, *, frames: int | None = None) -> Trajectory:
     """A trajectory from COLMAP's text output. Scaleless, and says so.
 
     Reads ``images.txt``. COLMAP stores world-to-camera, so both the rotation and
-    the translation are inverted here — getting that backwards produces a
+    the translation are inverted here -- getting that backwards produces a
     trajectory that is a plausible-looking mirror of the truth, which is the
     classic way to lose a day.
     """
@@ -379,7 +377,7 @@ class WorldFrameConnector(Connector):
             f"{self._name}: no camera trajectory for any of the {len(upstream)} episodes "
             f"upstream, so there is no episode this stage could place in a world. Record "
             f"the trajectory at capture (ARKit/ARCore/Quest) or reconstruct it with COLMAP "
-            f"— or drop the stage and keep the poses in camera frame, which is what they are"
+            f"- or drop the stage and keep the poses in camera frame, which is what they are"
         )
 
     def descriptor(self) -> Descriptor:
@@ -418,7 +416,7 @@ class WorldFrameConnector(Connector):
         if trajectory is None:
             raise ConfigError(
                 f"{episode_id}: no camera trajectory. Camera-frame poses cannot be "
-                "placed in a world without knowing where the camera was — and a "
+                "placed in a world without knowing where the camera was, and a "
                 "trajectory guessed from nothing would produce a hand that moves "
                 "correctly through a room that does not exist. Record it at capture "
                 "(ARKit/ARCore/Quest), or reconstruct it with COLMAP"

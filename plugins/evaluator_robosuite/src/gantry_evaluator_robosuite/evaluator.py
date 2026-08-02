@@ -3,13 +3,13 @@
 This is the piece that turns "how close were the predicted actions" into "did
 the arm actually pick up the cube". Open-loop action error is cheap and honest
 about what it measures, and it cannot tell you whether a policy recovers from
-its own mistakes — the moment its error puts the arm somewhere the recording
+its own mistakes -- the moment its error puts the arm somewhere the recording
 never went, the recording stops being an answer key.
 
 Where the scenes come from
 --------------------------
 A robomimic file carries two things this needs. ``env_args`` is the exact recipe
-for the world it was recorded in — task, robot, controller, control rate. And
+for the world it was recorded in -- task, robot, controller, control rate. And
 each demonstration stores the simulator's state at step zero. Reconstruct the
 one, reset to the other, and a policy faces precisely the scene a human faced.
 
@@ -29,7 +29,7 @@ Success is the simulator's own answer
 -------------------------------------
 robomimic's environment wrapper exposes ``is_success()``, which asks the task
 whether it is solved. That is used rather than the reward or the ``done`` flag,
-both of which also fire for reasons that are not success — a shaped reward is
+both of which also fire for reasons that are not success -- a shaped reward is
 positive for being close, and ``done`` fires at the horizon.
 """
 
@@ -95,8 +95,8 @@ PROPRIO = (
 def _with_body(env_meta: Mapping[str, Any], embodiment: Any) -> dict[str, Any]:
     """The same world, built around a different machine.
 
-    Reads the embodiment's ``robosuite`` metadata block — robot name, controller,
-    gripper — and falls back to the embodiment's own name, which is what most
+    Reads the embodiment's ``robosuite`` metadata block -- robot name, controller,
+    gripper -- and falls back to the embodiment's own name, which is what most
     descriptions of a robosuite-supported arm will say anyway.
     """
     block = dict((getattr(embodiment, "metadata", {}) or {}).get(REALISATION, {}))
@@ -115,8 +115,7 @@ def _with_body(env_meta: Mapping[str, Any], embodiment: Any) -> dict[str, Any]:
     kwargs.update(block)
     if arms > 1:
         # A multi-armed body is configured per arm here: one controller each,
-        # one gripper each. Handed a single arm's settings it does not say so —
-        # it fails inside its gripper factory with an error mentioning neither
+        # one gripper each. Handed a single arm's settings it does not say so --         # it fails inside its gripper factory with an error mentioning neither
         # the arms nor the controller, which is how a body that simply cannot
         # do a one-armed task ends up looking like a bug in the harness.
         # Shaped correctly, the simulator gives its own clear answer instead.
@@ -142,7 +141,7 @@ OSC_POSE = ChannelSpec(
 def success_from_is_success(env: Any, observation: Mapping[str, Any], done: bool) -> bool:
     """Ask the task whether it is solved.
 
-    robomimic returns a mapping — ``{"task": True}`` — because some
+    robomimic returns a mapping -- ``{"task": True}`` -- because some
     environments report sub-goals too. Only the overall answer is read here;
     a sub-goal is a milestone and this evaluator does not claim to emit those.
     """
@@ -157,7 +156,7 @@ def build_env(env_meta: Mapping[str, Any], *, use_image_obs: bool = False, **kwa
 
     Goes through robomimic's own factory rather than calling robosuite
     directly, because ``env_args`` is robomimic's format and its factory is what
-    knows how to read it — including the ``type`` field that distinguishes a
+    knows how to read it -- including the ``type`` field that distinguishes a
     robosuite environment from a gym or MOMART one.
     """
     if env_meta.get("placement"):
@@ -193,7 +192,7 @@ class _Native:
     already have.
 
     So this speaks to robosuite directly. It is not a reimplementation of
-    robomimic — it is four methods, each one line, wrapping what robosuite
+    robomimic -- it is four methods, each one line, wrapping what robosuite
     already exposes: restore a flattened MuJoCo state, step, ask the task
     whether it is solved.
     """
@@ -239,7 +238,7 @@ def build_native_env(
 
     settings = dict(env_meta.get("env_kwargs") or {})
     # A machine description names a controller; robosuite wants the whole
-    # config — gains, limits, interpolation. Expanded here, through robosuite's
+    # config -- gains, limits, interpolation. Expanded here, through robosuite's
     # own loader, rather than transcribed into every embodiment file: a gain
     # copied by hand drifts from the arm it was tuned for. Done at build time
     # rather than at merge time so that describing a machine never needs a
@@ -267,7 +266,7 @@ def build_native_env(
         """Build, turning this world's own objections into named refusals.
 
         An environment here rejects a configuration it cannot host by asserting
-        — a body with the wrong number of arms, a task that insists on its own
+ -- a body with the wrong number of arms, a task that insists on its own
         gripper. That is the environment answering the question correctly, and
         it should read as a refusal beside the cells that ran rather than as a
         crash that stops the sweep. The original words are kept, because they
@@ -322,7 +321,7 @@ def build_native_env(
             raise ConfigError(
                 f"{name} could not lay out "
                 + ", ".join(f"{p.task_id!r} in x={list(p.x)} y={list(p.y)}" for p in placements)
-                + " — the declared start regions are too small for the objects, or "
+                + ", the declared start regions are too small for the objects, or "
                 "two of them overlap"
             ) from error
         verify_honoured(env, sampler, name)
@@ -411,7 +410,7 @@ class RobosuiteEvaluator(Evaluator):
         The other constructor takes its world from a recording: the scenes are
         that dataset's, and nobody without the file can reproduce them. This one
         takes it from a task file, which is a few hundred bytes of text that
-        says where things start and what counts as done — so the same scenes can
+        says where things start and what counts as done -- so the same scenes can
         be built by anyone, on any of the arms this world hosts, and marked out
         on a real table by hand.
 
@@ -420,7 +419,7 @@ class RobosuiteEvaluator(Evaluator):
         be given to a different body, which would make the embodiment axis
         unusable exactly where it matters most.
 
-        ``world`` is settings for the simulator itself — which cameras to
+        ``world`` is settings for the simulator itself -- which cameras to
         render, at what size, at what rate. They are kept separate from the
         evaluator's own arguments rather than mixed into ``**options``, because
         a typo in one silently becomes a keyword the environment ignores while
@@ -484,8 +483,8 @@ class RobosuiteEvaluator(Evaluator):
 
         Refused when the scenes are restored states. Those are one machine's
         joint configuration written down; handing them to another body either
-        errors on a shape mismatch or — worse, where the widths happen to
-        agree — silently puts the arm somewhere meaningless. Seeded scenes have
+        errors on a shape mismatch or -- worse, where the widths happen to
+        agree -- silently puts the arm somewhere meaningless. Seeded scenes have
         no such problem: the simulator draws the same layout and each robot
         starts at its own home.
         """
@@ -513,7 +512,7 @@ class RobosuiteEvaluator(Evaluator):
 
     @property
     def restores(self) -> str:
-        """``states`` or ``seeds`` — how a scene here is defined."""
+        """``states`` or ``seeds`` -- how a scene here is defined."""
         return "states" if self.initial_states else "seeds"
 
     def task_for(
@@ -573,7 +572,7 @@ class RobosuiteEvaluator(Evaluator):
         simulator's, raised on every scene, and produced twenty identical
         errors that looked like twenty failures. A world and a recording of a
         world do not name things the same way, and there is no reason they
-        should — but somebody has to say so out loud before the run.
+        should -- but somebody has to say so out loud before the run.
         """
         wanted = getattr(policy, "observes", None)
         if wanted is None:
@@ -590,7 +589,7 @@ class RobosuiteEvaluator(Evaluator):
             f"{getattr(policy, 'name', 'the policy')} reads {missing}, which this world "
             f"does not emit; it emits {sorted(observation)}",
             hint="pass observe= to assemble what the policy wants from what the world "
-            "gives — which channel of a simulator corresponds to which column of a "
+            "gives, which channel of a simulator corresponds to which column of a "
             "recording is knowledge that lives with the caller, not with either of them",
             missing=missing,
         )

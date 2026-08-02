@@ -8,7 +8,7 @@ is the one this project's own checkpoints were fine-tuned against.
 Why this is not the gym bridge
 ------------------------------
 The gym bridge already speaks ``reset``/``step``, and LIBERO's environment does
-too — but LIBERO's ``reset()`` takes no seed. A trial is pinned by calling
+too -- but LIBERO's ``reset()`` takes no seed. A trial is pinned by calling
 ``set_init_state`` with one of the task's stored initial states, and the list of
 those states *is* the scene list. Passing a seed would do nothing, and a run that
 believes it is seeded and is not produces paired comparisons over unrelated
@@ -21,15 +21,13 @@ Nothing is imported until it is used
 ------------------------------------
 ``libero`` brings robosuite, MuJoCo and a rendering context. None of it is
 imported at module load, and none of it is a hard dependency, so this plugin can
-be installed and inspected — its descriptor read, its task list planned against —
-on a laptop with no simulator. Install ``gantry-evaluator-libero[sim]`` to
+be installed and inspected -- its descriptor read, its task list planned against -- on a laptop with no simulator. Install ``gantry-evaluator-libero[sim]`` to
 actually run one.
 
 What is declared rather than assumed
 ------------------------------------
 Whether a trial succeeded. LIBERO's wrapper exposes ``check_success()`` and its
-``step`` also returns a ``done`` flag, and those are not always the same thing —
-``done`` fires on the horizon too. The default asks ``check_success()`` because
+``step`` also returns a ``done`` flag, and those are not always the same thing -- ``done`` fires on the horizon too. The default asks ``check_success()`` because
 that is the question being asked, but the reader is a named argument, so a suite
 that reports success differently is one argument away rather than a fork.
 """
@@ -187,7 +185,7 @@ class LiberoEvaluator(Evaluator):
             # A funnel over it would have one rung, so the honest answer is no.
             stage_events=False,
             outcomes=True,
-            # Not by seed — by initial state, which is stronger: the same scene
+            # Not by seed -- by initial state, which is stronger: the same scene
             # index is the same scene, not merely the same random draw.
             seedable=True,
             closed_loop=True,
@@ -216,7 +214,7 @@ class LiberoEvaluator(Evaluator):
         """One scene per (task, initial state).
 
         ``inits`` is how many of each task's stored initial states to use. They
-        are a list, not a seed, so asking for two gives the first two — the same
+        are a list, not a seed, so asking for two gives the first two -- the same
         two on any machine, which is what makes a rerun comparable.
         """
         suite = self.suite

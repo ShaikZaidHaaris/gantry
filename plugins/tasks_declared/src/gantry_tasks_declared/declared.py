@@ -6,7 +6,7 @@ robot spends a day on it, which is the only cheap moment to disagree.
 
 What the validator is actually for
 ----------------------------------
-Not schema checking — that is the easy half. The expensive failures in real
+Not schema checking -- that is the easy half. The expensive failures in real
 evaluation are tasks that are *scorable in principle and ambiguous in practice*:
 a rubric two people read differently, a start region so tight the task measures
 memorisation, a criterion no world has been taught to check. Each of those
@@ -35,7 +35,7 @@ from gantry.spine import Descriptor, Verdict
 VERSION = "0.1.0.dev0"
 
 #: A start region narrower than this in both axes is a fixed placement wearing a
-#: rectangle's clothes. Not wrong — sometimes you mean it — but worth saying.
+#: rectangle's clothes. Not wrong -- sometimes you mean it -- but worth saying.
 TIGHT = 0.01
 
 
@@ -54,7 +54,7 @@ def _region(payload: Mapping[str, Any] | None, where: str) -> Region | None:
 
 
 def definition_from(payload: Mapping[str, Any], where: str = "<task>") -> TaskDefinition:
-    """One task, parsed. Structure only — judgement is :meth:`validate`."""
+    """One task, parsed. Structure only -- judgement is :meth:`validate`."""
     for required in ("name", "instruction"):
         if not payload.get(required):
             raise ConfigError(f"{where}: a task needs a {required!r}")

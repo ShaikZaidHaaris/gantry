@@ -16,7 +16,7 @@ A rotation offset that is ninety degrees out produces a trajectory that is
 perfectly smooth, stays in the workspace, and reaches for the wrong side of
 every object. It does not look like a bug. It looks like a policy that has not
 learned the task, which is exactly the conclusion the whole product is trying to
-measure — so the one failure that most resembles the answer is the one that must
+measure -- so the one failure that most resembles the answer is the one that must
 be hardest to introduce by accident.
 """
 
@@ -34,7 +34,7 @@ from gantry.errors import ConfigError
 MIN_TRAVEL = 1e-4
 
 #: A human hand span, wrist to fingertip, for an adult. Used only as a sanity
-#: bound on a supplied measurement — never as a substitute for one.
+#: bound on a supplied measurement -- never as a substitute for one.
 PLAUSIBLE_SPAN = (0.12, 0.28)
 
 
@@ -49,7 +49,7 @@ class Hand:
     the gripper signal.
 
     ``span`` is wrist-to-middle-fingertip, and it is the escape hatch for
-    unscaled data — a monocular estimate is correct up to one multiplier, and a
+    unscaled data -- a monocular estimate is correct up to one multiplier, and a
     known real length is exactly what recovers it.
     """
 
@@ -71,9 +71,9 @@ class Hand:
             low, high = PLAUSIBLE_SPAN
             if not low <= float(self.span) <= high:
                 raise ConfigError(
-                    f"a hand span of {self.span} m is outside {low}–{high} m. This is "
+                    f"a hand span of {self.span} m is outside {low}-{high} m. This is "
                     "wrist to middle fingertip in metres, and it is the number that "
-                    "recovers scale for monocular data — an error here multiplies "
+                    "recovers scale for monocular data, an error here multiplies "
                     "through every position in the dataset"
                 )
 
@@ -103,7 +103,7 @@ class Hand:
 class Reach:
     """The robot's workspace, measured.
 
-    Not to clip trajectories into — though it can — but to *report*. What
+    Not to clip trajectories into -- though it can -- but to *report*. What
     fraction of a person's reaching happens somewhere this arm cannot go is one
     of the most useful numbers the whole ego pipeline produces, because it is
     both a real limit on the data and a thing the person can fix by standing
@@ -115,7 +115,7 @@ class Reach:
     #: Lowest and highest the end-effector goes, in base coordinates.
     floor: float = -0.2
     ceiling: float = 0.8
-    #: Nearest approach — most arms cannot fold back onto their own base.
+    #: Nearest approach -- most arms cannot fold back onto their own base.
     inner: float = 0.1
     name: str = ""
 
@@ -144,7 +144,7 @@ class Reach:
 
         A blunt instrument and it is meant to look like one. Clipping turns a
         reach the arm cannot make into a reach it can, which changes the
-        demonstration into a different demonstration — so this is off by default
+        demonstration into a different demonstration -- so this is off by default
         and the retargeter declares it as a loss whenever it is on.
         """
         points = np.array(positions, dtype=float).reshape(-1, 3)
@@ -178,7 +178,7 @@ class Mount:
     the same object.
 
     ``workspace_ratio`` scales human distances into robot distances. Deliberately
-    *not* called scale — the ego vocabulary already uses that word for whether
+    *not* called scale -- the ego vocabulary already uses that word for whether
     numbers are metres at all, and conflating the two would be the same class of
     error this file is about.
     """
@@ -205,7 +205,7 @@ class Mount:
 
         A named constructor rather than a default, because identity is a claim.
         It is the right claim when a rig was set up so that the two frames agree,
-        and it is silently wrong the rest of the time — so it should be something
+        and it is silently wrong the rest of the time -- so it should be something
         somebody typed, and it appears in the record as such.
         """
         return cls(established_by="declared aligned", **kwargs)
@@ -245,7 +245,7 @@ def _rotation(value: Any) -> np.ndarray:
     """A 3x3 from a matrix, a wxyz quaternion, or nothing.
 
     ``None`` becomes identity, which is a legitimate value and a dangerous
-    default — hence :meth:`Mount.aligned`, which makes choosing it deliberate.
+    default -- hence :meth:`Mount.aligned`, which makes choosing it deliberate.
     """
     if value is None:
         return np.eye(3)
@@ -271,7 +271,7 @@ def _rotation(value: Any) -> np.ndarray:
 
 
 #: A ViperX 300 6-DoF, the arm an ALOHA station is built from. Published reach,
-#: recorded here so a first run has something to report against — and named, so
+#: recorded here so a first run has something to report against -- and named, so
 #: that a report says which arm it was measured against rather than implying
 #: every arm.
 VIPERX_300 = Reach(radius=0.75, inner=0.10, floor=-0.05, ceiling=0.70, name="viperx_300")

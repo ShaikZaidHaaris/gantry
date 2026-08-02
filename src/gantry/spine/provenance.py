@@ -40,7 +40,7 @@ def seed_from(*parts: Any) -> int:
     Here because the obvious way to do this is wrong in a way that hides. The
     builtin ``hash()`` is salted per process for strings, so
     ``default_rng(abs(hash((seed, episode_id, step))))`` gives a different
-    stream in every interpreter — while the object still reports itself as
+    stream in every interpreter -- while the object still reports itself as
     deterministic, and still *is* deterministic within one process, which is
     the only place a conformance check can look.
 
@@ -89,8 +89,7 @@ def mcnemar(only_left: int, only_right: int) -> float:
     """Exact two-sided p-value over the trials where two arms disagreed.
 
     Paired, and that is the whole point. Two policies run on the same scenes
-    agree on most of them — the easy ones both solve, the hard ones both fail —
-    and those trials carry no information about which is better. Comparing
+    agree on most of them -- the easy ones both solve, the hard ones both fail --     and those trials carry no information about which is better. Comparing
     marginal rates throws that pairing away and needs far more trials to see the
     same difference. Only the disagreements count here.
 
@@ -214,7 +213,7 @@ class Provenance:
         responses. Two runs that both name the same policy agree. Two that name
         different ones are a confound and the comparison is void. One that names
         a policy against one that does not is *unverifiable*, which is a
-        different problem — somebody may have changed it and not written it
+        different problem -- somebody may have changed it and not written it
         down. And two that both name nothing had no policy at all, which is the
         ordinary state of a screen over raw recordings and not a defect.
 

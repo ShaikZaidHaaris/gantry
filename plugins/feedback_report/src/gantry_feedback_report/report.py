@@ -2,28 +2,28 @@
 
 Every module in the feedback plane produces ``Finding`` objects with codes,
 severities and prescriptions. Nothing turned them into something a person could
-read, so this does — and the ordering it imposes is the whole design, because a
+read, so this does -- and the ordering it imposes is the whole design, because a
 report that puts the numbers first is a report that gets misread.
 
 The order is a claim about what invalidates what
 ------------------------------------------------
-1. **Can this be used at all** — licence. A dataset built through non-commercial
+1. **Can this be used at all** -- licence. A dataset built through non-commercial
    weights is not a data-quality question, it is a stop. Putting it after the
    results means somebody reads the results first and remembers those.
 
-2. **Is the question well posed** — coverage. Kitchen footage measured on
+2. **Is the question well posed** -- coverage. Kitchen footage measured on
    tabletop tasks produces a real number about nothing. The delta below is
    meaningless until this passes, so it comes before the delta.
 
-3. **Did the data carry information** — the control. Not "did the number move",
+3. **Did the data carry information** -- the control. Not "did the number move",
    which fine-tuning does regardless.
 
-4. **How much, and is it real** — the delta, with its interval and its power.
+4. **How much, and is it real** -- the delta, with its interval and its power.
 
-5. **What to change** — filming advice for the contributor, extraction findings
+5. **What to change** -- filming advice for the contributor, extraction findings
    for us, kept apart because they have different owners.
 
-6. **What we could not tell you** — every abstention, named. This section is not
+6. **What we could not tell you** -- every abstention, named. This section is not
    an appendix. A report whose refusals are buried reads as more confident than
    it is, and the refusals are the reason to trust the rest of it.
 
@@ -31,7 +31,7 @@ Two rules the assembler enforces
 --------------------------------
 A blocking finding suppresses the sections it invalidates. If the licence is
 encumbered or the coverage is a mismatch, the delta is still *computed* and is
-still in the record — it is not presented as an answer, because it is not one.
+still in the record -- it is not presented as an answer, because it is not one.
 
 And nothing is upgraded in transit. The assembler cannot turn a ``weak`` finding
 into a headline; it can only order, group and quote. Every sentence in the output
@@ -87,7 +87,7 @@ SECTIONS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 #: Deliberately short: a blocker is a claim that everything downstream is
 #: uninterpretable, and that is a strong thing to say.
 #:
-#: A code appearing here is necessary and not sufficient — the module must also
+#: A code appearing here is necessary and not sufficient -- the module must also
 #: have marked the finding ``strong``. Severity is the module's own judgement of
 #: how much its finding matters, and the assembler is not entitled to overrule
 #: it. The case that forced this: provenance emits ``non_commercial`` for a
@@ -251,7 +251,7 @@ def _abstentions(
     out: list[str] = []
     for section, code in blocked.items():
         title = next((t for k, t, _ in SECTIONS if k == section), section)
-        out.append(f"{title.lower()} — not answerable because {BLOCKING.get(code, code)}")
+        out.append(f"{title.lower()}, not answerable because {BLOCKING.get(code, code)}")
     for finding in findings:
         code = getattr(finding, "code", "")
         if code.endswith(("not_separated", "nothing_measured", "no_task_list")):
@@ -266,7 +266,7 @@ def _abstentions(
 
 
 def as_markdown(assembled: Assembled) -> str:
-    """The report as text. No judgement here — ordering and wording came from
+    """The report as text. No judgement here -- ordering and wording came from
     the modules, and this only lays them out."""
     lines = [f"# {assembled.dataset}", "", f"**{assembled.verdict}**", ""]
     if assembled.blockers:

@@ -1,7 +1,7 @@
 """The output of resolution: an executable plan, or a refusal you can act on.
 
 A refusal is not an error string. It names the seam that failed, the code that
-failed there, and what would close it — and when several consumers were asked
+failed there, and what would close it -- and when several consumers were asked
 for, it names the ones that *would* have run. "Incompatible" ends a
 conversation; "funnel needs stage events, which this evaluator does not emit;
 screen and attribution would run" continues it.

@@ -1,4 +1,4 @@
-"""Gate 3 — Robot test. Does the robot actually get better?
+"""Gate 3 -- Robot test. Does the robot actually get better?
 
 The gate has two halves and they are separable on purpose.
 

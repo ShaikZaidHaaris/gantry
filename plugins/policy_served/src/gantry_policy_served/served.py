@@ -3,7 +3,7 @@
 The model runs in its own process, its own container, usually its own machine
 with the accelerator in it, and answers over a socket. That is how most real
 inference is served, and it is the one plugin that lets Gantry evaluate a system
-it cannot import — a model whose dependencies conflict with everything here, a
+it cannot import -- a model whose dependencies conflict with everything here, a
 proprietary endpoint, a colleague's checkpoint behind a URL.
 
 The caller declares the contract
@@ -18,8 +18,7 @@ puts a scalar-last quaternion into a scalar-first slot.
 Transport is a seam
 -------------------
 The default speaks JSON over HTTP with the standard library and no dependency at
-all. Anything else — gRPC, a unix socket, a message queue, an in-process stub —
-is a ``transport`` callable. Likewise ``encode`` and ``decode``, because every
+all. Anything else -- gRPC, a unix socket, a message queue, an in-process stub -- is a ``transport`` callable. Likewise ``encode`` and ``decode``, because every
 serving stack has invented its own envelope and none of them is the right one to
 privilege.
 
@@ -125,7 +124,7 @@ class Endpoint:
     """Where the server is and how to address it.
 
     Separate from the policy so the same endpoint can be pointed at by more than
-    one declared contract — the same served model driving two embodiments with
+    one declared contract -- the same served model driving two embodiments with
     different action specs is an ordinary thing to want.
     """
 
@@ -149,7 +148,7 @@ class ServedPolicy(Policy):
     ``chunk`` is the largest chunk the server will ever return. It is declared
     rather than discovered because a runner sizes its buffers from the
     declaration, and a chunk longer than declared is refused rather than
-    truncated — silently executing part of a prediction is how a protocol
+    truncated -- silently executing part of a prediction is how a protocol
     difference becomes an unexplained regression.
     """
 
@@ -260,7 +259,7 @@ class ServedPolicy(Policy):
                 raw = self._transport(url, body, self.endpoint.headers, self.endpoint.timeout)
             except urllib.error.HTTPError as error:
                 # A rejection is still an answer, so the endpoint is not in
-                # question — only this request is.
+                # question -- only this request is.
                 self._answered = True
                 if 400 <= error.code < 500:
                     raise ConfigError(

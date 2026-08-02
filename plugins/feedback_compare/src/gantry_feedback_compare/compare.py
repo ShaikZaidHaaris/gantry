@@ -3,7 +3,7 @@
 Every other comparative module in this project holds the policy fixed and asks
 what the *data* was like. This one does the opposite: it holds the world fixed
 and asks which *policy* won. That is the question a training run is for, and
-until now nothing could read it — a run where three checkpoints faced the same
+until now nothing could read it -- a run where three checkpoints faced the same
 scenes was correctly refused by every module, because they all declare the
 policy as something they hold constant.
 
@@ -20,7 +20,7 @@ What it refuses
 ---------------
 A comparison where the *world* also changed. Two policies measured in different
 simulators, at different protocols, or against different scene sets are not
-being compared — they are being described separately in one table. That reads
+being compared -- they are being described separately in one table. That reads
 identically to a real result, which is why it is refused rather than noted.
 
 What it will not conclude
@@ -28,7 +28,7 @@ What it will not conclude
 That the training data caused the difference. This module sees policies and
 outcomes; it does not see what anything was trained on. Where the run records
 each policy's training set it is reported alongside the ranking as context, and
-the prescription says "this checkpoint won", never "this data is better" — one
+the prescription says "this checkpoint won", never "this data is better" -- one
 run of three checkpoints cannot separate the data from the seed.
 """
 
@@ -80,7 +80,7 @@ def scene_of(episode: Any) -> str:
     """The scene attempted, so two arms can be paired on it.
 
     The recorded annotation first. The fallback is the whole episode id, not
-    the part before a ``#`` — that prefix is the *task*, which is identical for
+    the part before a ``#`` -- that prefix is the *task*, which is identical for
     every scene in a run, so pairing on it silently collapsed ten scenes into
     one and threw nine away.
     """
@@ -252,7 +252,7 @@ class PolicyComparison(FeedbackModule):
                     "compare.no_outcomes",
                     "at least two cohorts must carry outcomes; a run with no results "
                     "cannot be ranked",
-                    hint="an open-loop evaluator reports error, not success — this needs a world",
+                    hint="an open-loop evaluator reports error, not success, and this needs a world",
                 )
             )
             return Verdict.all(checks)
@@ -296,7 +296,7 @@ class PolicyComparison(FeedbackModule):
                         code="compare.below_floor",
                         summary=(
                             f"the best arm ({best.name}, {best.rate:.4f}) does not beat "
-                            f"{name} ({value:.4f}), which required no learning at all — "
+                            f"{name} ({value:.4f}), which required no learning at all, so "
                             "so the ranking between these arms is a comparison of things "
                             "that all lost to a one-line heuristic"
                         ),
@@ -312,7 +312,7 @@ class PolicyComparison(FeedbackModule):
                             "result. The honest statement is that none of them cleared "
                             f"{name}. A gap between two arms below the floor is still a "
                             "real gap and still means nothing about whether either is "
-                            "useful — the two readings are the same number told from "
+                            "useful, because the two readings are the same number told from "
                             "opposite ends, and only one of them is the headline."
                         ),
                         cohorts=tuple(arm.name for arm in ranked),

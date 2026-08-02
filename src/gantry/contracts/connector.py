@@ -45,7 +45,7 @@ from ..spine import ChannelSpec, Descriptor, EpisodeRecord
 #: Version of this contract. Plugins pin it; the host checks it.
 #: 1.1 added ``write``. A connector that can read a format can usually write
 #: it, and until now that ability existed only as a module-level function some
-#: connectors happened to expose — so anything wanting to *produce* a dataset
+#: connectors happened to expose -- so anything wanting to *produce* a dataset
 #: had to import a specific one by name, which is exactly the coupling this
 #: plane exists to prevent. A minor bump: the default refuses, so a connector
 #: predating it is read-only and says so rather than failing later.
@@ -155,7 +155,7 @@ class Connector(ABC):
 
         Here rather than as a module-level function each connector happens to
         expose, because otherwise anything that wants to *make* a dataset has
-        to import a particular format by name — and a framework that imports
+        to import a particular format by name -- and a framework that imports
         one format by name has a favourite, which is the thing this plane is
         for not having.
 

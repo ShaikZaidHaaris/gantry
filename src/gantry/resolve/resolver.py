@@ -9,7 +9,7 @@ loading, and why the answer is always specific.
 Finding a candidate happens in two passes, in this order:
 
 1. **By name**, including any alias the consumer declared.
-2. **By meaning** — same modality and same semantics — but only when the
+2. **By meaning** -- same modality and same semantics -- but only when the
    consumer stated a semantics to match on.
 
 There is no third pass. Matching on shape alone would pair a wrist pose with a
@@ -19,9 +19,9 @@ guesses is the thing this design exists to replace.
 Once a candidate is found, three strategies are tried in a fixed order, and the
 order is the whole design:
 
-1. **Direct** — the specs already agree.
-2. **Adapt** — every gap has a single correct answer, so close them all.
-3. **Retarget** — the gap is structural and needs a declared judgement about
+1. **Direct** -- the specs already agree.
+2. **Adapt** -- every gap has a single correct answer, so close them all.
+3. **Retarget** -- the gap is structural and needs a declared judgement about
    what to discard.
 
 Cheapest and most faithful first. Reaching for a lossy retargeter when a unit
@@ -47,7 +47,7 @@ from .transform import Chain
 IMMUTABLE = frozenset({"kind.mismatch"})
 
 #: Gaps in the shape of a channel rather than its description. Most need a
-#: retargeter, which states what it discards — but not all: re-encoding a
+#: retargeter, which states what it discards -- but not all: re-encoding a
 #: quaternion as an axis-angle is exact *and* three numbers narrower. So an
 #: adapter that explicitly declares ``shape.mismatch`` gets first refusal,
 #: because a lossless answer should always beat a lossy one. Assuming lossless

@@ -2,7 +2,7 @@
 
 An agent moves through space and must touch a sequence of waypoints in order.
 Each waypoint reached is a milestone; reaching the last one is success. That is
-the entire simulation, and it is enough — a funnel diagnosis needs conditional
+the entire simulation, and it is enough -- a funnel diagnosis needs conditional
 stage rates, not physics.
 
 Why this exists
@@ -17,8 +17,8 @@ It is deliberately abstract. Waypoints in order describe a pick-and-place, a
 suture, an inspection route, or a drone survey equally badly and equally
 usefully, which is the right amount of commitment for a reference world.
 
-Both halves ship together — the world and a policy that speaks its action
-contract — because a rig that arrives without something that can drive it is a
+Both halves ship together -- the world and a policy that speaks its action
+contract -- because a rig that arrives without something that can drive it is a
 rig nobody can check.
 """
 
@@ -101,14 +101,14 @@ class GreedyPolicy(Policy):
 
     ``skill`` in [0, 1] is *aim accuracy*, not speed. Below 1 the policy aims at
     a point offset from the true waypoint and converges there, stalling just
-    short — the realistic failure of getting close and never closing the gap. A
+    short -- the realistic failure of getting close and never closing the gap. A
     policy that were merely slow would still succeed given a generous horizon,
     which makes speed useless as a dial.
 
     The offset is seeded per waypoint, so it is stable within an episode and a
     rerun lands in the same place. Combined with a world whose stages differ in
     how tight they are, dropping skill makes failures concentrate at the tightest
-    stage rather than spreading evenly — which is exactly the shape a funnel
+    stage rather than spreading evenly -- which is exactly the shape a funnel
     exists to find.
     """
 
@@ -137,7 +137,7 @@ class GreedyPolicy(Policy):
         """Where this policy thinks the waypoint is.
 
         Keyed on the waypoint itself, so the same target always draws the same
-        offset — a policy that mis-aims differently every step would wander into
+        offset -- a policy that mis-aims differently every step would wander into
         the goal by luck, which measures nothing.
         """
         if self.skill >= 1.0:

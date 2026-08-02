@@ -1,8 +1,8 @@
 """Plane: what is being attempted, described so anything can stage it.
 
 A task here names no robot and no simulator. It says which objects are involved,
-where they start, what a person is being asked to do, and how anyone — a physics
-engine or a human watching a video — decides whether it was done.
+where they start, what a person is being asked to do, and how anyone -- a physics
+engine or a human watching a video -- decides whether it was done.
 
 Why it is its own plane
 -----------------------
@@ -15,14 +15,14 @@ can exist.
 Why the success criterion is written twice
 ------------------------------------------
 This is the part that decides whether an evaluation survives contact with real
-hardware. In simulation success is a pose check — free, exact, unlimited. On a
+hardware. In simulation success is a pose check -- free, exact, unlimited. On a
 real bench it is a person watching, and people disagree with each other about
 ambiguous criteria far more than they disagree with a physics engine.
 
 So a criterion carries both: a machine-checkable form and a **rubric** written
 for a human. They are the same claim in two languages, and holding them side by
 side is what lets a task defined today be scored on a robot nobody has bought
-yet — and what lets the two be calibrated against each other on video, which is
+yet -- and what lets the two be calibrated against each other on video, which is
 work that needs no hardware at all.
 
 A criterion with no rubric is refused. A sim-only success criterion produces
@@ -46,7 +46,7 @@ TASK_CONTRACT = "task@1.0"
 #: and "put each nut on its peg" are the same kind of claim and should not need
 #: two vocabularies. A world staging a criterion needs this answer to map the
 #: task's object ids onto its own, and an auditor needs it to catch a criterion
-#: that refers to something the task never places — so it belongs to the
+#: that refers to something the task never places -- so it belongs to the
 #: criterion rather than to either of them separately.
 OBJECT_ARGS = frozenset({"object", "objects", "target", "targets", "into", "onto"})
 
@@ -93,7 +93,7 @@ class Thing:
     """One object the task involves.
 
     ``kind`` is a name from whatever asset vocabulary you are using, and this
-    plane deliberately does not adjudicate it — a simulator resolves it to a
+    plane deliberately does not adjudicate it -- a simulator resolves it to a
     mesh, a shopping list resolves it to something you can buy. What matters
     here is that the same name means the same object in both.
     """
@@ -108,7 +108,7 @@ class Thing:
 class Criterion:
     """When the task counts as done, said twice.
 
-    ``check`` is the machine-readable claim — a predicate name and its
+    ``check`` is the machine-readable claim -- a predicate name and its
     arguments, which a world implements however it can. ``rubric`` is the same
     claim in a sentence, precise enough that two people watching the same video
     agree. Both are required.
@@ -124,7 +124,7 @@ class Criterion:
         A value may be one name or several: ``{"object": "cube"}`` and
         ``{"objects": ["milk", "bread"]}`` both name objects, and a caller
         should not have to know which form a given check used. Anything that
-        is not a string is not a name — ``{"height": 0.04}`` says nothing about
+        is not a string is not a name -- ``{"height": 0.04}`` says nothing about
         which object is involved.
         """
         found: list[str] = []
@@ -164,7 +164,7 @@ class Criterion:
 
 @dataclass(frozen=True)
 class TaskDefinition:
-    """One task, named, staged and judged — with no robot in sight."""
+    """One task, named, staged and judged -- with no robot in sight."""
 
     name: str
     instruction: str

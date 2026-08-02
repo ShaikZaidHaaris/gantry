@@ -2,7 +2,7 @@
 
 Not a mock. A LeRobot dataset is written to a temporary directory, curated
 through the same command line a person would use, and re-opened with the same
-connector — because the failure this step exists to prevent only happens at the
+connector -- because the failure this step exists to prevent only happens at the
 boundary between the plan's identifiers and the format's, and a test that keeps
 episodes in memory never crosses it.
 """

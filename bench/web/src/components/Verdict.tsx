@@ -1,14 +1,14 @@
-/** The verdict — what the robot test concluded, and what it refused to.
+/** The verdict, what the robot test concluded, and what it refused to.
  *
  *  This is the screen a lab lead screenshots into Slack, so it is built as a
  *  document rather than a dashboard: one statement, the evidence under it, and
  *  the limits under that. Three sections, read top to bottom, and nothing on
- *  the page is computed here — every rate, interval and p-value was produced by
+ *  the page is computed here, every rate, interval and p-value was produced by
  *  the gate.
  *
  *  The third section is not a disclaimer. "What this does not say" carries the
- *  refusals the gate made — no control arm, rungs nobody measured, a comparison
- *  the sample size cannot support — and those are the difference between a
+ *  refusals the gate made, no control arm, rungs nobody measured, a comparison
+ *  the sample size cannot support, and those are the difference between a
  *  result and a number. A verdict page that shows only the first two sections
  *  is the thing this product exists not to be.
  */

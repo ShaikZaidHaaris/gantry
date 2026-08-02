@@ -1,8 +1,7 @@
 """A pi0 server, checked without a pi0 server.
 
 The fake client is the openpi wire and nothing more: a dict in, ``{"actions":
-(H, D)}`` out. Everything worth testing here is on this side of that socket —
-the prompt discipline, the bimanual widths, and what happens when the server
+(H, D)}`` out. Everything worth testing here is on this side of that socket -- the prompt discipline, the bimanual widths, and what happens when the server
 changes its mind.
 """
 
@@ -76,7 +75,7 @@ def policy(server=None, **kwargs):
 
 
 def test_an_episode_with_no_instruction_is_refused():
-    """A language-conditioned model handed no prompt does not fail — it becomes
+    """A language-conditioned model handed no prompt does not fail -- it becomes
     unconditioned, scores badly, and is indistinguishable in every log from a
     checkpoint that did not train."""
     made = policy()
@@ -442,7 +441,7 @@ def test_cameras_nest_or_stay_flat_as_the_config_requires():
 
 def test_channel_order_follows_the_config_and_not_a_guess():
     """The aloha transform rearranges "c h w -> h w c", so it wants channel
-    first and mangles anything else — a (224,224,3) frame arrives as a
+    first and mangles anything else -- a (224,224,3) frame arrives as a
     3-pixel-tall image of 224 channels and dies inside PIL, several layers below
     anything that names the cause."""
     aloha = policy()

@@ -1,7 +1,7 @@
 """A model grading against a written rubric, and everything that keeps it honest.
 
 The wire is replaced by a recorded tape throughout. That is not a convenience for
-testing — it is the same mechanism a re-analysis six months from now uses, so
+testing -- it is the same mechanism a re-analysis six months from now uses, so
 exercising it here is exercising the real path rather than a stub of it.
 """
 
@@ -278,7 +278,7 @@ def test_frames_are_real_png_spread_across_the_attempt(tmp_path):
 
     Frames that are not really PNG reach a model as garbage, it dutifully
     abstains, and the result is indistinguishable from an honest judge looking
-    at unclear footage — a failure with no symptom.
+    at unclear footage -- a failure with no symptom.
     """
     av = pytest.importorskip("av")
     pytest.importorskip("PIL")

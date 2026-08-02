@@ -1,7 +1,6 @@
 """Closed-loop robosuite, checked without MuJoCo.
 
-The environment is injected and copies robomimic's ``EnvBase`` surface exactly —
-``reset``, ``reset_to({"states": ...})``, ``step`` returning four values, and
+The environment is injected and copies robomimic's ``EnvBase`` surface exactly -- ``reset``, ``reset_to({"states": ...})``, ``step`` returning four values, and
 ``is_success()`` returning a mapping. What is tested is this plugin's use of
 that API, not a paraphrase of it.
 
@@ -307,8 +306,7 @@ def test_closing_reaches_the_world():
 def test_the_simulator_is_not_imported_by_installing_this():
     """A laptop should be able to read the descriptor and plan a run.
 
-    Only the simulator is asserted here. ``h5py`` cannot be checked this way —
-    ``sys.modules`` is process-global, so a sibling plugin's tests importing it
+    Only the simulator is asserted here. ``h5py`` cannot be checked this way --     ``sys.modules`` is process-global, so a sibling plugin's tests importing it
     would fail an assertion about *this* one. That claim is instead carried by
     tools/isolation_check.py, which installs only what this plugin declares and
     runs the suite with h5py genuinely absent.
@@ -348,7 +346,7 @@ def test_a_policy_that_cannot_read_this_world_stops_the_run_once():
     """The failure this check exists for.
 
     A GR00T policy expecting a recording's column names met a simulator's and
-    raised on every scene — twenty identical errors that read like twenty
+    raised on every scene -- twenty identical errors that read like twenty
     failures. A world and a recording of a world do not name things the same
     way, and that is not a fault in either; somebody has to say so before the
     run rather than after it.
@@ -412,8 +410,7 @@ def test_restored_states_cannot_be_given_to_another_body():
     """The check that stops the worst silent failure in cross-embodiment work.
 
     A restored state is one machine's joint configuration. Handed to another it
-    either errors on a shape mismatch or — where the widths happen to agree —
-    puts the arm somewhere meaningless and reports it as a scene.
+    either errors on a shape mismatch or -- where the widths happen to agree --     puts the arm somewhere meaningless and reports it as a scene.
     """
     ev = evaluator()  # built from STATES
     assert ev.restores == "states"

@@ -9,8 +9,7 @@ torch, its CUDA build and its pinned numpy, and Gantry keeps a socket.
 
 What is discovered and what is declared
 ---------------------------------------
-The server is asked what it reads — which keys, and how many timesteps of each —
-because it knows and it will answer. The dataset's ``modality.json`` supplies the
+The server is asked what it reads -- which keys, and how many timesteps of each -- because it knows and it will answer. The dataset's ``modality.json`` supplies the
 widths, because the server does not know them. The two are checked against each
 other before an episode is opened, so a checkpoint pointed at the wrong dataset
 refuses in a second instead of producing a night of plausible numbers.
@@ -24,7 +23,7 @@ History
 Some embodiments read a frame from fifteen steps ago as well as the current one.
 Gantry hands a policy one timestep at a time, so the frames are buffered here and
 indexed by the deltas the server declared. Before enough steps have happened the
-earliest available frame is repeated — the same padding GR00T's own loader
+earliest available frame is repeated -- the same padding GR00T's own loader
 applies at an episode boundary. It is stated in the descriptor rather than done
 quietly, because a repeated frame is not a real observation and a reader is
 entitled to know which steps have one.
@@ -74,9 +73,9 @@ class Gr00tPolicy(Policy):
         :class:`~gantry_policy_gr00t.modality.Layout`.
 
         ``video_channels`` overrides where each of the model's video keys is
-        read from. The default is what ``modality.json`` already says — the
+        read from. The default is what ``modality.json`` already says -- the
         model's ``image`` comes from the dataset's ``observation.images.image``
-        — so the usual case needs no mapping at all.
+ -- so the usual case needs no mapping at all.
         """
         self.layout = layout if isinstance(layout, Layout) else Layout.from_json(layout)
         if not self.layout.action:
@@ -103,8 +102,8 @@ class Gr00tPolicy(Policy):
         check(self.layout, self.wants).raise_if_refused(
             f"{self._name} cannot be wired to this dataset"
         )
-        # Asked once. A descriptor is read constantly — for provenance, by the
-        # conformance kit, by anything planning a run — and a descriptor that
+        # Asked once. A descriptor is read constantly -- for provenance, by the
+        # conformance kit, by anything planning a run -- and a descriptor that
         # goes to the network each time would make identity depend on whether
         # the server happened to be up when somebody printed it.
         self.identity = self.client.identity()

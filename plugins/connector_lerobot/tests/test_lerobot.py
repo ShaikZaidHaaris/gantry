@@ -199,7 +199,7 @@ def test_duplicate_names_in_info_json_are_rescued_by_the_modality_sidecar():
     A repeated label cannot address a dimension, so ``info.json``'s list is
     unusable. The same dataset's ``modality.json`` says the gripper spans
     columns 6 to 8, which is unambiguous, so the columns end up addressable
-    after all — numbered, because two columns are two dimensions.
+    after all -- numbered, because two columns are two dimensions.
     """
     connector = LeRobotConnector(REAL)
     schema = {spec.name: spec for spec in connector.schema(connector.episode_ids()[0])}

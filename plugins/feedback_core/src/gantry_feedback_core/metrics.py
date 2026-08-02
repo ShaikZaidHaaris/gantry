@@ -17,12 +17,12 @@ Why roles rather than a search
 These statistics used to find their channels themselves, by looking up a
 hardcoded semantics tag. That quietly broke the framework's central promise: a
 dataset described with a *richer* vocabulary than the one hardcoded here got
-*less* analysis than one described with the generic tags — six statistics went
+*less* analysis than one described with the generic tags -- six statistics went
 unavailable on real data described exactly correctly. Describing your data
 better made the answer worse.
 
-So the module declares a requirement, the resolver binds it — by name, by alias,
-by meaning, through a retargeter where the shapes need reconciling — and the
+So the module declares a requirement, the resolver binds it -- by name, by alias,
+by meaning, through a retargeter where the shapes need reconciling -- and the
 episode arrives with its channels already renamed to these roles. The module
 never looks anything up, which means it cannot fail to find something it should
 have.

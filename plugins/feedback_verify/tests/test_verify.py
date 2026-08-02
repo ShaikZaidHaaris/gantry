@@ -96,7 +96,7 @@ def test_held_out_scenes_are_not_leakage():
 
 
 def test_a_rollout_reading_plan_that_names_no_scenes_is_refused():
-    # Without the list, leakage cannot be checked at all — so the plan is
+    # Without the list, leakage cannot be checked at all -- so the plan is
     # refused for being unauditable rather than assumed clean.
     bare = CurationPlan(
         actions=(CurationAction("drop", episodes=("a",)),),
@@ -114,7 +114,7 @@ def test_a_rollout_reading_plan_that_names_no_scenes_is_refused():
 
 def test_the_tenth_plan_from_one_signal_faces_a_stricter_threshold():
     verdict = preflight(plan(), list(range(200)), baseline_rate=0.35, plans_already_tested=9)
-    assert verdict.ok  # a note, not a refusal — it tightens rather than forbids
+    assert verdict.ok  # a note, not a refusal, it tightens rather than forbids
     reason = verdict.because("curation.selection")[0]
     assert "0.005" in reason.message
 

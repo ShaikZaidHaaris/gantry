@@ -88,10 +88,9 @@ export function ErrorNote({ error }: { error: unknown }) {
  *
  *  The first version of this printed the machine code as a heading, the module
  *  name beside it, a severity dot, and the prescription inside a tinted
- *  "WHAT TO DO" box — a card inside a card. All of that was the system talking
+ *  "WHAT TO DO" box, a card inside a card. All of that was the system talking
  *  about itself. The code still exists for anyone who needs to cite it (hover),
- *  and severity is carried by the *grouping* on every screen that uses this —
- *  "what to fix" versus "also noted" — which says more than a colored dot did.
+ *  and severity is carried by the *grouping* on every screen that uses this,  *  "what to fix" versus "also noted", which says more than a colored dot did.
  */
 export function FindingRow({ finding }: { finding: Finding }) {
   return (
@@ -139,7 +138,7 @@ export function ago(iso: string): string {
  *  Its own component with its own interval, rather than a string computed
  *  during render. A string only updates when something else re-renders the
  *  page, so a gate whose stage lasts twenty minutes would show the same figure
- *  for twenty minutes — which is precisely the "is this alive?" question the
+ *  for twenty minutes, which is precisely the "is this alive?" question the
  *  running gate exists to answer. */
 export function Elapsed({ since }: { since: string }) {
   const [, tick] = useState(0);

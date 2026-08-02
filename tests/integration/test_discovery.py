@@ -2,7 +2,7 @@
 
 These live here rather than beside the rest of the resolver tests because they
 assert that an *installed plugin* is found. With core alone they do not fail
-meaningfully — they fail because the premise is absent — and the core CI job
+meaningfully -- they fail because the premise is absent -- and the core CI job
 installs core alone on purpose.
 """
 
