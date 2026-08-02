@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -703,11 +704,39 @@ def confirm_meaning(sub_id: str, body: dict, who=Depends(viewer), session: Sessi
     return as_submission(session, sub, deep=True)
 
 
-#: The committed sample datasets, served so a visitor can try the product
-#: without having a rig. Streamed from the repository rather than copied into
-#: the web bundle: they are 19 MB, they are already in the tree, and a second
-#: copy is one that can drift from the one the README's numbers came from.
-SAMPLES = Path(__file__).resolve().parents[3] / "samples"
+def _samples_dir() -> Path:
+    """Where the committed sample datasets are, on a laptop or on a host.
+
+    Served from the repository rather than copied into the web bundle: they are
+    24 MB, they are already in the tree, and a second copy is one that can drift
+    from the one the README's numbers came from.
+
+    Found by looking rather than by counting parent directories, because the two
+    layouts do not agree. In a checkout this file is `bench/api/app/main.py`, so
+    the repository root is three parents up and `samples/` sits in it. Deployed,
+    it is `gantry_bench/api/app/main.py` while the pipeline and its samples are
+    in a sibling tree at `gantry/` -- so three parents up is `/home/ubuntu`, and
+    the same arithmetic points at a directory that does not exist.
+
+    That mismatch is invisible locally and produced a download link that
+    returned "not in this checkout" on the live site. Both candidates are
+    checked, and `BENCH_SAMPLES` overrides for any layout neither describes.
+    """
+    override = os.environ.get("BENCH_SAMPLES", "").strip()
+    if override:
+        return Path(override)
+    here = Path(__file__).resolve()
+    for candidate in (
+        here.parents[3] / "samples",              # a checkout
+        here.parents[3] / "gantry" / "samples",   # deployed beside the pipeline
+        here.parents[2] / "samples",
+    ):
+        if candidate.is_dir():
+            return candidate
+    return here.parents[3] / "samples"
+
+
+SAMPLES = _samples_dir()
 
 #: Named explicitly rather than globbed. This route hands out files by name from
 #: a directory, which is the shape of every path-traversal bug ever written; an
