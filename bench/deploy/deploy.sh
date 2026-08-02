@@ -102,6 +102,17 @@ print(','.join(sorted(e.name for e in entry_points(group='gantry.feedback'))))")
     # host that looks configured, quietly reports "direct" mode, and puts every
     # visitor in one org. Set it by hand on both sides -- see deploy/IDENTITY.md.
     echo "BENCH_IP_SALT=$(python3 -c "import secrets;print(secrets.token_hex(16))")"
+    # On by default, because this script's own deployment is exactly the case
+    # it describes: uvicorn binds to 127.0.0.1 and a local cloudflared dials it,
+    # so nothing outside the host can reach the origin to forge a header. Left
+    # off, every visitor through a quick tunnel collapses into one org and can
+    # read each other's submissions -- silently, since the product looks fine.
+    #
+    # Turn this OFF if you ever bind the API to 0.0.0.0. The flag is an
+    # assertion about the binding that the app cannot verify for itself.
+    echo "BENCH_TRUST_TUNNEL=1"
+    # Preferred over the tunnel flag when you have a named tunnel and a zone:
+    # a secret only your edge knows beats an argument about the host.
     echo "# BENCH_TRUST_HEADER=x-bench-edge"
     echo "# BENCH_TRUST_SECRET=    <- must match the Cloudflare Transform Rule"
     echo "# BENCH_CLIENT_IP=cf-connecting-ip"

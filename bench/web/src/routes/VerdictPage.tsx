@@ -91,7 +91,7 @@ export function VerdictPage() {
 
       <header className="doc-head">
         <div className="doc-brand">
-          Gantry <span className="tag">BENCH</span>
+          Gantry <span className="tag">BETA</span>
         </div>
         <h1>{data.name}</h1>
         <div className="doc-meta">

@@ -17,10 +17,6 @@ export function Hero({ compact = false }: { compact?: boolean }) {
   return (
     <section className={`hero ${compact ? "compact" : ""}`}>
       <div className="hero-copy">
-        <h1>
-          Know whether your data is worth training on —<br />
-          before you spend a week finding out.
-        </h1>
         <p>
           Upload a robot dataset. Four checks read it, in order, and stop at the
           first one that can answer. You find out whether it is readable, what the
@@ -71,11 +67,6 @@ export function TaskStrip() {
         height={1529}
         loading="lazy"
       />
-      <figcaption>
-        Scenes with their working area measured and written down — indoors, outdoors,
-        rigid objects and soft ones. A result is only worth as much as the conditions
-        recorded beside it.
-      </figcaption>
     </figure>
   );
 }

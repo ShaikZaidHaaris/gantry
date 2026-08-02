@@ -88,6 +88,34 @@ def ip_salt() -> str:
     return os.environ.get("BENCH_IP_SALT") or _EPHEMERAL_SALT
 
 
+def tunnel_only() -> bool:
+    """The operator declares this origin is reachable only through a local tunnel.
+
+    For the ``cloudflared tunnel --url http://127.0.0.1:8090`` deployment, where
+    uvicorn binds to loopback and the connector dials it from the same machine.
+    Nothing outside can open a socket to the origin at all, so the header cannot
+    be forged from outside -- there is no "outside" that can reach it.
+
+    That is a different argument from the shared secret, and a weaker one,
+    because it rests on a fact about the host rather than on a value only our
+    edge knows. It is the right trade for a quick tunnel, which has no zone and
+    therefore no Transform Rule to attach a secret with, and it is why this is
+    opt-in: the operator is asserting the binding, and this module cannot check
+    it. Bind to 0.0.0.0 with this set and anyone who can route to the port can
+    choose whose submissions they read.
+    """
+    return os.environ.get("BENCH_TRUST_TUNNEL", "").strip().lower() in {"1", "true", "yes"}
+
+
+def _is_loopback(host: str | None) -> bool:
+    if not host:
+        return False
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def trusts_edge() -> bool:
     return bool(trust_header() and trust_secret())
 
@@ -135,7 +163,13 @@ def client_ip(request) -> str:
     path the user cannot fix.
     """
     headers = request.headers
-    if _from_edge(headers):
+    peer = getattr(request.client, "host", None)
+    # Two ways to earn trust. The secret proves *our edge* forwarded this; the
+    # tunnel mode proves *nothing else could have*. Either is sufficient, and
+    # the tunnel test is checked against the actual peer rather than taken on
+    # faith, so a request arriving from anywhere but loopback is not covered by
+    # it even when the flag is set.
+    if _from_edge(headers) or (tunnel_only() and _is_loopback(peer)):
         stated = headers.get(client_ip_header(), "").strip()
         if stated:
             try:
@@ -147,7 +181,6 @@ def client_ip(request) -> str:
             found = _first_public(chain)
             if found:
                 return found
-    peer = getattr(request.client, "host", None)
     return peer or "unknown"
 
 
@@ -180,12 +213,18 @@ def describe() -> dict:
     is separate" and "every visitor is the same org" is invisible from the
     outside and is exactly what a misconfigured proxy silently causes.
     """
+    if trusts_edge():
+        mode = "edge"
+    elif tunnel_only():
+        mode = "tunnel"
+    else:
+        mode = "direct"
     return {
-        "mode": "edge" if trusts_edge() else "direct",
-        "client_ip_header": client_ip_header() if trusts_edge() else None,
+        "mode": mode,
+        "client_ip_header": client_ip_header() if mode != "direct" else None,
         "salt_is_ephemeral": not os.environ.get("BENCH_IP_SALT"),
         "warning": None
-        if trusts_edge()
+        if mode != "direct"
         else (
             "No BENCH_TRUST_HEADER/BENCH_TRUST_SECRET set, so forwarding headers "
             "are ignored and identity is the TCP peer. Behind a proxy that makes "

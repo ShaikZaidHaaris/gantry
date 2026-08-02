@@ -13,7 +13,7 @@ export default function App() {
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">
-            Gantry <span className="tag">BENCH</span>
+            Gantry <span className="tag">BETA</span>
           </div>
           <nav className="topnav">
             <NavLink to="/" end className={({ isActive }) => (isActive ? "on" : "")}>

@@ -140,6 +140,66 @@ def test_private_hops_in_a_forwarded_chain_are_skipped(monkeypatch):
     assert identity.client_ip(Req()) == "93.184.216.34"
 
 
+def test_a_tunnel_only_origin_trusts_the_header_from_loopback(monkeypatch):
+    """The quick-tunnel deployment, which cannot attach a secret.
+
+    ``cloudflared tunnel --url http://127.0.0.1:8090`` has no zone, so there is
+    no Transform Rule to add a shared secret with. Without a second way to earn
+    trust, that whole deployment silently runs with every visitor in one org --
+    which is the configuration this product is actually deployed in today.
+
+    The argument here is different: uvicorn binds to loopback and the connector
+    dials it locally, so nothing outside the host can open a socket to the
+    origin at all. The header cannot be forged from outside because there is no
+    outside that can reach it.
+    """
+    monkeypatch.delenv("BENCH_TRUST_HEADER", raising=False)
+    monkeypatch.delenv("BENCH_TRUST_SECRET", raising=False)
+    monkeypatch.setenv("BENCH_TRUST_TUNNEL", "1")
+
+    class Req:
+        headers = {identity.client_ip_header(): "203.0.113.9"}
+        client = type("C", (), {"host": "127.0.0.1"})()
+
+    assert identity.client_ip(Req()) == "203.0.113.9"
+    assert identity.describe()["mode"] == "tunnel"
+
+
+def test_tunnel_mode_still_refuses_a_header_from_anywhere_but_loopback(monkeypatch):
+    """The flag is a claim about the binding, so the binding is checked anyway.
+
+    If the operator sets this and then binds to 0.0.0.0, a request arriving over
+    the network is not covered by the argument that justified the flag -- so it
+    is not trusted, and the peer is used instead.
+    """
+    monkeypatch.delenv("BENCH_TRUST_HEADER", raising=False)
+    monkeypatch.delenv("BENCH_TRUST_SECRET", raising=False)
+    monkeypatch.setenv("BENCH_TRUST_TUNNEL", "1")
+
+    class Req:
+        headers = {identity.client_ip_header(): "203.0.113.9"}
+        client = type("C", (), {"host": "10.0.0.9"})()
+
+    assert identity.client_ip(Req()) == "10.0.0.9", (
+        "a networked peer was trusted on the strength of a flag that only holds "
+        "for a loopback connector"
+    )
+
+
+def test_tunnel_mode_is_off_unless_asked_for(monkeypatch):
+    monkeypatch.delenv("BENCH_TRUST_HEADER", raising=False)
+    monkeypatch.delenv("BENCH_TRUST_SECRET", raising=False)
+    monkeypatch.delenv("BENCH_TRUST_TUNNEL", raising=False)
+
+    class Req:
+        headers = {identity.client_ip_header(): "203.0.113.9"}
+        client = type("C", (), {"host": "127.0.0.1"})()
+
+    assert identity.client_ip(Req()) == "127.0.0.1"
+    assert identity.describe()["mode"] == "direct"
+    assert identity.describe()["warning"], "direct mode must say so"
+
+
 def test_the_stored_handle_is_not_the_address():
     """Addresses are personal data; this product only needs to tell people apart."""
     key = identity.org_key("203.0.113.9")

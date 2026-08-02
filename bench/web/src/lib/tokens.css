@@ -659,10 +659,6 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
 .publish .btn { flex: none; }
 
 .sample-links { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-.sample-note {
-  margin-top: 12px !important; padding-top: 11px;
-  border-top: 1px solid var(--accent-border); font-size: 12.5px;
-}
 
 /* hero ----------------------------------------------------------------------
    Two columns on a wide screen, stacked on a narrow one. The image is given a
@@ -673,11 +669,7 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
   gap: 34px; align-items: center; margin: 8px 0 30px;
 }
 .hero.compact { grid-template-columns: 1fr; gap: 0; margin-bottom: 22px; }
-.hero-copy h1 {
-  font-family: var(--display); font-size: 34px; line-height: 1.16;
-  font-weight: 800; letter-spacing: -0.8px; color: var(--text);
-}
-.hero-copy p { color: var(--text-2); margin-top: 14px; max-width: 56ch; font-size: 14.5px; }
+.hero-copy p { color: var(--text-2); max-width: 54ch; font-size: 16px; line-height: 1.55; }
 .hero-cta { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
 
 .hero-shot { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-lg); }
@@ -688,15 +680,10 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
   display: block; width: 100%; height: auto; aspect-ratio: 1600 / 1529;
   object-fit: contain; border-radius: var(--radius); box-shadow: var(--shadow);
 }
-.strip figcaption {
-  margin-top: 10px; color: var(--text-3); font-size: 12.5px; text-align: center;
-  max-width: 64ch; margin-left: auto; margin-right: auto;
-}
 
 @media (max-width: 860px) {
   .hero { grid-template-columns: 1fr; gap: 22px; }
-  .hero-copy h1 { font-size: 27px; }
-}
+  }
 /* "optional" beside a field label: quiet, so the label still reads as a label */
 .field .lab .opt {
   font-weight: 500; font-size: 11px; color: var(--text-3);

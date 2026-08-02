@@ -153,15 +153,6 @@ export function HowItWorks({ defaultOpen = false }: { defaultOpen?: boolean }) {
                     + ego, one hand · 58 · 9.6 MB
                   </a>
                 </div>
-                <p className="sample-note">
-                  <b>What they showed.</b> Neither ego addition beat the baseline — the
-                  two-handed one is indistinguishable from it, the one-handed one is
-                  measurably worse. That is the honest headline and not the flattering
-                  one. The finding is in the comparison <i>between the two additions</i>,
-                  and only at the top of the ladder: the checks up to and including the
-                  signal check cannot tell them apart, and plain success rate never
-                  separates them at all.
-                </p>
               </div>
             </div>
           </section>

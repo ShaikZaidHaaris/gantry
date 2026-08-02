@@ -42,6 +42,32 @@ headers entirely.
 
 ---
 
+## Which mode do you need?
+
+Three, and the right one depends on how the origin is reachable.
+
+| your setup | mode | what earns the trust |
+|---|---|---|
+| `cloudflared tunnel --url http://127.0.0.1:8090` (quick tunnel) | **tunnel** | the origin binds to loopback, so nothing outside can reach it to forge a header |
+| named tunnel, or Cloudflare in front of a public origin | **edge** | a shared secret only your edge knows |
+| laptop | **direct** | nothing; every visitor is one org, which is correct locally |
+
+**A quick tunnel cannot use the secret**, because a secret is attached by a
+Transform Rule and a Transform Rule needs a zone, which a quick tunnel has none
+of. That is why tunnel mode exists — without it, the whole `trycloudflare.com`
+deployment silently runs with every visitor sharing one org.
+
+Tunnel mode rests on a weaker argument than the secret: a fact about the host
+rather than a value only your edge knows. It is checked as far as it can be —
+a request arriving from anything but a loopback peer is not trusted even with
+the flag set — but the flag itself is your assertion that the API binds to
+loopback. **Turn it off if you ever bind to `0.0.0.0`.**
+
+    BENCH_TRUST_TUNNEL=1
+
+`deploy.sh` writes this into a fresh env file, since the deployment it produces
+is exactly this shape.
+
 ## 1. Origin environment
 
 Add to `/home/ubuntu/gantry_bench/env`:
