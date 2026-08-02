@@ -409,9 +409,18 @@ G0 passing auto-queues G1 (free). G2 and G3 wait for `POST .../gates/{key}/start
 
 `experiments/robotwin_ego/` holds the scripts. `RESULTS.md` holds the numbers.
 
-Two datasets of RoboTwin footage, 58 clips each, differing in one thing: **A**
-(`rt_two_handed`) has both arms moving; **B** (`rt_one_handed`) has one arm
-effectively frozen. Both trained as π₀.₅ LoRA for 3,000 steps, both evaluated
+Three training sets, all sharing the same 50 RoboTwin demonstrations and
+differing only in what ego footage was added on top of them:
+
+```
+baseline      rt_base           50 clips   RoboTwin's demonstrations, alone
+A             rt_two_handed     58 clips   + ego clips where both hands were tracked
+B             rt_one_handed     58 clips   + ego clips where one hand was mostly absent
+```
+
+The ego halves are cut on a real property of the footage, the fraction of frames
+in which both hands were moving, not on a corruption invented for the purpose.
+All three trained as π₀.₅ LoRA for 3,000 steps. A and B were evaluated
 closed-loop on the same 50 expert-screened scenes.
 
 ```
@@ -431,8 +440,15 @@ pairs, all favouring A, the most extreme outcome available, and it still only
 reaches p=0.125. Same rollouts, same scenes, same money. One rung concludes and
 the other cannot.
 
-Baseline: the stock model solves 12/100. A does not beat it (p=0.75). B is
-significantly **worse** than it (p=0.031).
+Against the baseline arm, trained on the 50 RoboTwin demonstrations alone and
+evaluated on 100 scenes, which solves 12/100: **neither ego addition helped.** A
+does not beat it (p=0.75) and B is significantly **worse** than it (p=0.031).
+The finding is not "ego data helps", it is that the benchmark can tell two
+additions apart on the rungs when success cannot, and that it says so plainly
+when neither one improved anything.
+
+All three are committed as `samples/`, so the experiment can be re-uploaded
+rather than only read about.
 
 ---
 

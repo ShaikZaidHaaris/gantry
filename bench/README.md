@@ -22,14 +22,15 @@ plus two storage helpers; nothing else knows the difference.
 
 ## Something to upload
 
-`bench/data/` is gitignored, so a fresh clone starts with an empty bench. Two
-real datasets are committed at the repository root for this:
+`bench/data/` is gitignored, so a fresh clone starts with an empty bench. The
+experiment's three training sets are committed at the repository root for this:
 
-    samples/two_handed_58clips.zip
-    samples/one_handed_58clips.zip
+    samples/baseline.zip                        50 clips
+    samples/baseline_plus_ego_two_handed.zip    the same 50, plus one half of the ego footage
+    samples/baseline_plus_ego_one_handed.zip    the same 50, plus the other half
 
-Upload both. Separately they show the pipeline runs; together they show the
-thing the product exists to detect. See `samples/README.md`.
+Upload all three. Any one of them shows the pipeline runs; together they show
+the thing the product exists to detect. See `samples/README.md`.
 
 ## Deploying it
 
