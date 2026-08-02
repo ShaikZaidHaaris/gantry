@@ -28,8 +28,19 @@ set -euo pipefail
 
 HOST="${1:?usage: deploy.sh user@host /path/to/key.pem}"
 KEY="${2:?usage: deploy.sh user@host /path/to/key.pem}"
-SSH=(ssh -i "$KEY" -o StrictHostKeyChecking=no "$HOST")
-RSYNC_E="ssh -i $KEY -o StrictHostKeyChecking=no"
+# Keepalives, because the alternative is not a slow deploy but a stuck one. The
+# virtualenv stage is minutes of remote pip with no output, which is exactly the
+# window an idle NAT or a dropped link closes the connection in. Without these,
+# ssh waits on a socket nobody is on the other end of and the script sits at
+# "==> virtualenv" forever: the host is idle, nothing is running, and there is no
+# error anywhere to read. Four missed probes at 15s gives up after about a
+# minute, which is far longer than any pause this script legitimately has.
+#
+# ConnectTimeout covers the other end of it: an unreachable host should say so
+# rather than hang on the first hop.
+SSH_OPTS=(-o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ConnectTimeout=15)
+SSH=(ssh -i "$KEY" "${SSH_OPTS[@]}" "$HOST")
+RSYNC_E="ssh -i $KEY ${SSH_OPTS[*]}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 REMOTE=/home/ubuntu/gantry_bench
 
@@ -132,6 +143,10 @@ if [ ! -f "$ENV" ]; then
   TOKEN=$(python3 -c "import secrets;print(secrets.token_hex(16))")
   {
     echo "BENCH_DATA=/home/ubuntu/gantry_bench/data"
+    # Said, not guessed. The API's fallback derives this from its own location,
+    # which is right in a source tree and wrong here, because the deployed
+    # layout has one fewer directory above the app.
+    echo "BENCH_SAMPLES=/home/ubuntu/gantry/samples"
     echo "BENCH_WORKER_TOKEN=$TOKEN"
     # Every feedback module this host has. A worker with fewer installed returns
     # a shorter report on the same footage, and a shorter report reads as a
@@ -188,6 +203,20 @@ else
   add_missing BENCH_TRUST_TUNNEL 1
   grep -q "^BENCH_WORKER_TOKEN=" "$ENV" || echo "    WARNING: no BENCH_WORKER_TOKEN, the job queue is open"
 fi
+
+# Backfill keys a newer version of this script introduced. Without this, an
+# already-deployed host never receives a newly required setting: the file
+# exists, so the whole block above is skipped, and the deploy reports success
+# while the feature that needed the setting is quietly off. That is how
+# BENCH_SAMPLES came to be missing on a host whose sample files were present.
+#
+# Only ever adds. A value already in the file is the operator's, including
+# secrets this script must not regenerate.
+add_if_missing() {
+  grep -q "^$1=" "$ENV" || { echo "$1=$2" >> "$ENV"; echo "  added $1"; }
+}
+add_if_missing BENCH_SAMPLES /home/ubuntu/gantry/samples
+add_if_missing BENCH_DATA /home/ubuntu/gantry_bench/data
 REMOTE_ENV
 
 echo "==> services"
@@ -204,6 +233,8 @@ sudo systemctl enable gantry-api gantry-worker
 sudo systemctl restart gantry-api gantry-worker
 sleep 6
 systemctl is-active gantry-api gantry-worker
+# Started *after* this deploy, or the restart did not take.
+echo "  api up since: $(systemctl show -p ActiveEnterTimestamp --value gantry-api)"
 curl -s -o /dev/null -m 5 -w "  api: %{http_code}\n" http://127.0.0.1:8090/api/me
 curl -s -o /dev/null -m 5 -w "  spa: %{http_code}\n" http://127.0.0.1:8090/
 REMOTE_SVC
