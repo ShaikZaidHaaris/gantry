@@ -93,6 +93,18 @@ if [ ! -f "$ENV" ]; then
     echo "BENCH_REQUIRED_MODULES=$(/home/ubuntu/gantry/.venv/bin/python -c "
 from importlib.metadata import entry_points
 print(','.join(sorted(e.name for e in entry_points(group='gantry.feedback'))))")"
+    # Identity. The salt is generated here rather than left unset, because an
+    # unset salt is regenerated per process: every visitor becomes a new org on
+    # restart and loses their submissions, with nothing on screen looking wrong.
+    #
+    # The edge secret is deliberately NOT generated. It has to equal the value a
+    # Cloudflare Transform Rule attaches, and inventing one here would produce a
+    # host that looks configured, quietly reports "direct" mode, and puts every
+    # visitor in one org. Set it by hand on both sides -- see deploy/IDENTITY.md.
+    echo "BENCH_IP_SALT=$(python3 -c "import secrets;print(secrets.token_hex(16))")"
+    echo "# BENCH_TRUST_HEADER=x-bench-edge"
+    echo "# BENCH_TRUST_SECRET=    <- must match the Cloudflare Transform Rule"
+    echo "# BENCH_CLIENT_IP=cf-connecting-ip"
   } > "$ENV"
   chmod 600 "$ENV"
   echo "  wrote a fresh $ENV"

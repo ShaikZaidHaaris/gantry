@@ -38,7 +38,13 @@ export const keys = {
 export function useMe() {
   return useQuery({
     queryKey: keys.me,
-    queryFn: () => json<{ email: string; org: { id: string; name: string } }>("/api/me"),
+    queryFn: () =>
+      json<{
+        org: { id: string; name: string };
+        /** How the server decided who you are. "direct" means forwarding
+         *  headers were ignored and every visitor shares one org. */
+        identity: { mode: string; salt_is_ephemeral: boolean; warning: string | null };
+      }>("/api/me"),
   });
 }
 
@@ -111,7 +117,7 @@ export function useVersions(id: string | undefined) {
 export function useCreateSubmission() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; benchmark: string }) =>
+    mutationFn: (body: { name: string; benchmark: string; email?: string }) =>
       json<Submission>("/api/submissions", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => client.invalidateQueries({ queryKey: keys.submissions }),
   });
@@ -163,6 +169,30 @@ export function useStartGate(id: string) {
     onSuccess: (fresh) => {
       client.setQueryData(keys.submission(id), fresh);
       client.invalidateQueries({ queryKey: keys.submissions });
+    },
+  });
+}
+
+/** Publish a finished result to the shared leaderboard, or take it back down.
+ *
+ *  Both directions through one hook, unlike start/retry above, because here they
+ *  really are one decision revisited: "should other people see this". A
+ *  withdraw-only path would also have to exist for the switch to be safe to
+ *  touch at all. */
+export function useSetListed(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (listed: boolean) =>
+      json<Submission>(`/api/submissions/${id}/listed`, {
+        method: "POST",
+        body: JSON.stringify({ listed }),
+      }),
+    onSuccess: (fresh) => {
+      client.setQueryData(keys.submission(id), fresh);
+      client.invalidateQueries({ queryKey: keys.submissions });
+      // The board itself changes as a result, and it is the thing the user is
+      // about to go and look at.
+      client.invalidateQueries({ queryKey: ["compare"] });
     },
   });
 }

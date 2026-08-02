@@ -13,7 +13,8 @@
  */
 
 import type { Gate, Progress } from "../api/types";
-import { Elapsed, StatusPill, duration } from "./ui";
+import { outcomeFor, tallies } from "../lib/plain";
+import { Elapsed, Fold, StatusPill, duration, sentence } from "./ui";
 
 const MARK: Record<string, string> = {
   passed: "✓",
@@ -23,7 +24,7 @@ const MARK: Record<string, string> = {
 };
 
 function price(cents: number): string {
-  return cents === 0 ? "free" : `$${(cents / 100).toFixed(0)}`;
+  return `$${(cents / 100).toFixed(0)}`;
 }
 
 /** Live position, falling back to whatever the record last stored.
@@ -94,10 +95,7 @@ export function GateTimeline({
         // Counted here, read below. The timeline is for "where is this up to";
         // eleven findings inline turn it into the wall of text the report
         // section exists to replace.
-        const blocking = gate.findings.filter(
-          (f) => f.severity === "strong" || f.severity === "moderate",
-        ).length;
-        const noted = gate.findings.length - blocking;
+        const marks = tallies(gate);
         return (
           <div key={gate.key} className={`gate ${gate.status} ${future ? "future" : ""}`}>
             <div className="mark">{MARK[gate.status] ?? index + 1}</div>
@@ -107,15 +105,31 @@ export function GateTimeline({
 
               {gate.status === "running" && <Running gate={gate} live={live ?? null} />}
 
-              {gate.verdict?.summary && gate.status !== "running" && (
-                <div className="result">{gate.verdict.summary}</div>
-              )}
-
-              {future && (
-                <div className="result">
-                  Not started · {price(gate.cost_cents)} · {gate.eta}
+              {/* The answer, then the arithmetic. The gate writes an accurate
+                  sentence full of statistics; that sentence is now the evidence
+                  under a plain headline rather than the first thing read. The
+                  fold is closed by default and nothing is dropped from it, so a
+                  reader who wants the figures never has to trust the paraphrase. */}
+              {gate.status !== "running" && gate.status !== "queued" && (
+                <div className="outcome">
+                  <div className="outcome-head">{outcomeFor(gate).headline}</div>
+                  {outcomeFor(gate).detail && (
+                    <div className="outcome-detail">{outcomeFor(gate).detail}</div>
+                  )}
+                  {gate.verdict?.summary && (
+                    <Fold label="How we know">
+                      <div className="evidence">{sentence(gate.verdict.summary)}</div>
+                    </Fold>
+                  )}
                 </div>
               )}
+
+              {/* No price token beside an unrun gate. Every gate is currently
+                  priced at zero, and printing "free" on each one states a
+                  policy the product has not actually decided -- it reads as a
+                  promise about what this will cost later. How long it takes is
+                  a fact; what it costs is not yet one. */}
+              {future && <div className="result">Not started · takes {gate.eta}</div>}
 
               {/* Buyable only when everything before it has actually passed.
                   The server enforces this too, a button is a convenience, not
@@ -147,13 +161,16 @@ export function GateTimeline({
                 </button>
               )}
 
-              {gate.findings.length > 0 && (
+              {marks.length > 0 && (
                 <div className="tally">
-                  {blocking > 0 && <span className="chip strong">{blocking} to fix</span>}
-                  {noted > 0 && <span className="chip">{noted} noted</span>}
-                  {gate.abstained?.length > 0 && (
-                    <span className="chip warn">{gate.abstained.length} not judged</span>
-                  )}
+                  {marks.map((m) => (
+                    <span
+                      key={m.text}
+                      className={`chip ${m.kind === "strong" ? "strong" : m.kind === "warn" ? "warn" : ""}`}
+                    >
+                      {m.text}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>

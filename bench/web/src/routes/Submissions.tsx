@@ -2,6 +2,8 @@
 
 import { Link } from "react-router-dom";
 import { useSubmissions } from "../api/client";
+import { Hero, TaskStrip } from "../components/Hero";
+import { HowItWorks } from "../components/HowItWorks";
 import { Empty, ErrorNote, Skeleton, StatusPill, ago, submissionStatus } from "../components/ui";
 
 const COLUMNS = "1.4fr 1fr 150px 130px 90px";
@@ -11,13 +13,21 @@ export function Submissions() {
 
   return (
     <div className="page">
+      {/* Full on a first visit, compact once there is work to read: the
+          picture is the front door, and a front door does not need to be as
+          wide on the hundredth entry as on the first. */}
+      <Hero compact={(data?.submissions.length ?? 0) > 0} />
+
+      {/* Shown to somebody who has not submitted anything yet, alongside the
+          full hero. Once there is a list to read, the argument has been made
+          and the space belongs to their own results. */}
+      {(data?.submissions.length ?? 0) === 0 && <TaskStrip />}
+
       <div className="page-head">
         <div>
-          <h1>Submissions</h1>
-          <p>
-            Each submission is one dataset tested against one benchmark. Free checks run
-            first; paid stages are only offered once the free ones say there is something
-            worth testing.
+          <h2 style={{ margin: 0 }}>Submissions</h2>
+          <p style={{ color: "var(--text-2)", marginTop: 4 }}>
+            One dataset, checked four ways, against one benchmark.
           </p>
         </div>
         <div className="spacer" />
@@ -25,6 +35,11 @@ export function Submissions() {
           New submission
         </Link>
       </div>
+
+      {/* Open for somebody with nothing here yet, who needs the whole thing
+          explained; folded away once they have submissions, because by then
+          they have read it and the list is what they came for. */}
+      <HowItWorks defaultOpen={data?.submissions.length === 0} />
 
       {error && <ErrorNote error={error} />}
 

@@ -150,6 +150,10 @@ export interface Submission {
   name: string;
   status: string;
   current_gate: string;
+  /** On the shared leaderboard. False until its owner publishes it. */
+  listed: boolean;
+  /** Where to reach the uploader if a check breaks. Empty when not given. */
+  email: string;
   created_at: string;
   benchmark: { key: string; name: string; simulator: string } | null;
   gates: Gate[];

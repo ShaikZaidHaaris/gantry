@@ -3,7 +3,9 @@
 import { Link, useParams } from "react-router-dom";
 import { useRetryGate, useStartGate, useSubmission, useSubmissionEvents } from "../api/client";
 import { BudgetPanel } from "../components/BudgetPanel";
+import { AnswerBanner } from "../components/Answer";
 import { Channels } from "../components/Channels";
+import { Publish } from "../components/Publish";
 import { DataReport } from "../components/DataReport";
 import { Verdict } from "../components/Verdict";
 import { Versions } from "../components/Versions";
@@ -94,7 +96,28 @@ export function SubmissionDetail() {
         </Link>
       </div>
 
+      {/* The answer first. Everything below it is the reasoning behind the
+          answer or reference material about the upload, and both were being
+          read before the result they explain. */}
+      <AnswerBanner submission={data} />
+
+      <h2>Progress</h2>
+      <GateTimeline
+        gates={data.gates}
+        currentGate={data.current_gate}
+        live={live}
+        onStart={(gate) => start.mutate({ gate })}
+        starting={start.isPending}
+        onRetry={(gate) => retry.mutate(gate)}
+        retrying={retry.isPending}
+      />
+
       {detected?.episodes ? (
+        <>
+        <h2>
+          What we found in the upload
+          <span className="h2-sub">what the file contains, before any judgement</span>
+        </h2>
         <div className="card pad" style={{ marginBottom: 18 }}>
           <div className="kv">
             <span className="k">Episodes</span>
@@ -123,20 +146,8 @@ export function SubmissionDetail() {
             <span className="v">{detected.has_sidecar ? "present" : "absent"}</span>
           </div>
         </div>
+        </>
       ) : null}
-
-      {id && <Versions id={id} />}
-
-      <h2>Progress</h2>
-      <GateTimeline
-        gates={data.gates}
-        currentGate={data.current_gate}
-        live={live}
-        onStart={(gate) => start.mutate({ gate })}
-        starting={start.isPending}
-        onRetry={(gate) => retry.mutate(gate)}
-        retrying={retry.isPending}
-      />
 
       {/* The report appears only once the gate that produces it has finished.
           Nothing on this page pretends to have a result before it has one. */}
@@ -145,14 +156,20 @@ export function SubmissionDetail() {
           <h2>
             Data report
             <span className="h2-sub">
-              free · what your footage is like, before anything is trained on it
+              what your footage is like, before anything is trained on it
             </span>
           </h2>
           <DataReport gate={report} />
         </>
       )}
 
-      {robot && (robot.status === "passed" || robot.status === "abstained") && (
+      {/* `passed` only. The robot test returns just "failed" or "passed"
+          (grep '"status":' in robot.py), so the `abstained` arm this used to
+          carry was unreachable. A failed run has no ladder to draw, and the
+          timeline already says it broke on our side and should not be charged
+          for — inventing a verdict section for it would show an empty table
+          where a result belongs. */}
+      {robot && robot.status === "passed" && (
         <>
           <h2>
             Robot test
@@ -162,6 +179,7 @@ export function SubmissionDetail() {
             </Link>
           </h2>
           <Verdict gate={robot} />
+          <Publish submission={data} />
         </>
       )}
 
@@ -179,6 +197,11 @@ export function SubmissionDetail() {
           />
         </>
       )}
+
+      {/* Below the result, not above it. Re-uploading is something you do
+          *because* of an answer, so the control for it follows the answer
+          rather than sitting between the reader and it. */}
+      {id && <Versions id={id} />}
 
       {data.events && data.events.length > 0 && (
         <>

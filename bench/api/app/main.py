@@ -17,8 +17,11 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from .identity import client_ip, describe, label, org_key
 
 from .db import (
     STORAGE,
@@ -28,11 +31,9 @@ from .db import (
     Event,
     Gate,
     Job,
-    Membership,
     Org,
     SessionLocal,
     Submission,
-    User,
     emit,
     init_db,
     new_id,
@@ -81,21 +82,68 @@ def db() -> Session:
         yield session
 
 
-def viewer(session: Session = Depends(db), x_demo_user: str | None = Header(default=None)):
-    """Development auth: one seeded org, header override for a second identity.
+def viewer(request: Request, session: Session = Depends(db)):
+    """One org per visiting address. The single seam every route asks through.
 
-    Deliberately a single seam. Real auth replaces this function and nothing
-    else -- every route already asks "who is this and which org" through it.
+    Identity is the caller's IP, resolved by :mod:`.identity`, which only reads
+    forwarding headers when the request carries proof it came through our own
+    edge. Everything downstream is unchanged: routes already scope by
+    ``org_id``, so making that id follow the address is the whole of the
+    change.
+
+    What this is and is not. It partitions visitors; it does not authenticate
+    them. Two consequences worth knowing rather than discovering:
+
+      * one address, one org. A lab, a university or a mobile carrier behind
+        NAT is a single visitor here, and everyone on it shares a submission
+        list.
+      * a new address is a new visitor. A reconnected router or a phone moving
+        between networks arrives as somebody else and cannot see what it
+        uploaded an hour ago.
+
+    Both are inherent to naming people by address; neither is a bug to be
+    found later. A cookie or a login is the fix when either starts to matter.
     """
-    email = x_demo_user or "demo@lab.example"
-    user = session.scalar(select(User).where(User.email == email))
-    if user is None:
-        user = User(id=new_id("usr"), email=email)
-        org = Org(id=new_id("org"), name=email.split("@")[1].split(".")[0].title() + " Lab")
-        session.add_all([user, org, Membership(user_id=user.id, org_id=org.id, role="owner")])
-        session.commit()
-    org_id = session.scalar(select(Membership.org_id).where(Membership.user_id == user.id))
-    return {"user": user, "org_id": org_id}
+    ip = client_ip(request)
+    key = org_key(ip)
+
+    org = session.scalar(select(Org).where(Org.ip_hash == key))
+    if org is None:
+        org = Org(id=new_id("org"), name=label(ip), ip_hash=key)
+        session.add(org)
+        try:
+            session.commit()
+        except IntegrityError:
+            # Two requests from one visitor arriving together both found no org
+            # and both inserted. The unique index on ip_hash means exactly one
+            # wins; the loser re-reads rather than raising, because the failure
+            # a user would otherwise see is a 500 on their first ever click.
+            session.rollback()
+            org = session.scalar(select(Org).where(Org.ip_hash == key))
+            if org is None:
+                raise
+    return {"org_id": org.id, "org": org}
+
+
+def _contact(raw: Any) -> str:
+    """An address we could actually write to, or nothing at all.
+
+    Optional by design, so the check refuses rather than corrects: a value that
+    cannot be an address is dropped instead of being stored as a half-address
+    somebody later tries to send to. Blank is a legitimate answer -- this is a
+    way to reach you if a run breaks, not an account.
+
+    Deliberately not a full RFC 5322 grammar. Anything stricter than "one @,
+    something either side, a dot after it" rejects real addresses, and the only
+    real test of an address is sending to it.
+    """
+    text = (raw or "").strip()[:200]
+    if not text:
+        return ""
+    local, _, domain = text.partition("@")
+    if not local or not domain or "." not in domain or " " in text:
+        raise HTTPException(422, f"{text!r} does not look like an email address")
+    return text
 
 
 def latest_version(session: Session, sub_id: str) -> int:
@@ -161,6 +209,14 @@ def as_submission(session: Session, sub: Submission, deep: bool = False) -> dict
         "name": sub.name,
         "status": sub.status,
         "current_gate": sub.current_gate,
+        #: Published to the shared leaderboard, or not. False for every
+        #: submission that predates the flag, which is the safe direction: a
+        #: result never becomes public because a column was added.
+        "listed": bool(sub.listed),
+        #: Only ever returned to the org that owns the submission -- every route
+        #: reaching this function checks that first -- and never included in a
+        #: leaderboard row, which is read across visitors.
+        "email": sub.email or "",
         "created_at": sub.created_at,
         "benchmark": {"key": bench.key, "name": bench.name, "simulator": bench.simulator} if bench else None,
         "gates": [as_gate(g) for g in gates],
@@ -190,9 +246,20 @@ def _startup() -> None:
 
 
 @app.get("/api/me")
-def me(who=Depends(viewer), session: Session = Depends(db)):
-    org = session.get(Org, who["org_id"])
-    return {"email": who["user"].email, "org": {"id": org.id, "name": org.name}}
+def me(who=Depends(viewer)):
+    """Who the server thinks you are, and how it decided.
+
+    ``identity`` is reported rather than kept quiet because the difference
+    between "every visitor is separate" and "every visitor is one org" is
+    invisible from the outside, and a proxy misconfiguration silently causes
+    the second. An operator can read it off this endpoint instead of finding
+    out from a user who can see somebody else's uploads.
+    """
+    org = who["org"]
+    return {
+        "org": {"id": org.id, "name": org.name},
+        "identity": describe(),
+    }
 
 
 @app.get("/api/benchmarks")
@@ -438,10 +505,17 @@ def compare(benchmark: str, rung: str = "solved", who=Depends(viewer), session: 
     if bench is None:
         raise HTTPException(404, "no such benchmark")
 
+    # Yours always, everyone else's only if they published it. Two conditions
+    # rather than one, because a leaderboard you cannot see your own unlisted
+    # entry on is a leaderboard you cannot check before publishing to -- and
+    # the point of opt-in is that you get to look first.
     rows = []
     available: list[str] = []
     for sub in session.scalars(
-        select(Submission).where(Submission.org_id == who["org_id"], Submission.benchmark_id == bench.id)
+        select(Submission).where(
+            Submission.benchmark_id == bench.id,
+            or_(Submission.org_id == who["org_id"], Submission.listed.is_(True)),
+        )
     ).all():
         gate = session.scalar(
             select(Gate).where(
@@ -464,9 +538,19 @@ def compare(benchmark: str, rung: str = "solved", who=Depends(viewer), session: 
         if not scored:
             continue
         wins = sum(1 for v in scored.values() if v)
+        mine = sub.org_id == who["org_id"]
         rows.append({
             "id": sub.id,
+            # Somebody else's entry is named by them, and that name is the only
+            # thing about them this exposes -- no org, no address, no hash. It
+            # is on the board because its owner published it, so the name they
+            # chose is the name they published.
             "name": sub.name,
+            "mine": mine,
+            #: Yours and unpublished, so you can see it here and nobody else
+            #: can. Drawn differently by the UI rather than hidden, because a
+            #: private entry you cannot see is one you cannot decide about.
+            "private": mine and not sub.listed,
             "wins": wins,
             "n": len(scored),
             "rate": round(wins / len(scored), 4),
@@ -530,7 +614,8 @@ async def create_submission(body: dict, who=Depends(viewer), session: Session = 
         org_id=who["org_id"],
         name=(body.get("name") or "untitled").strip()[:80],
         benchmark_id=bench.id,
-        created_by=who["user"].id,
+        created_by=who["org_id"],
+        email=_contact(body.get("email")),
         status="draft",
     )
     session.add(sub)
@@ -618,6 +703,96 @@ def confirm_meaning(sub_id: str, body: dict, who=Depends(viewer), session: Sessi
     return as_submission(session, sub, deep=True)
 
 
+#: The committed sample datasets, served so a visitor can try the product
+#: without having a rig. Streamed from the repository rather than copied into
+#: the web bundle: they are 19 MB, they are already in the tree, and a second
+#: copy is one that can drift from the one the README's numbers came from.
+SAMPLES = Path(__file__).resolve().parents[3] / "samples"
+
+#: Named explicitly rather than globbed. This route hands out files by name from
+#: a directory, which is the shape of every path-traversal bug ever written; an
+#: allow-list means the parameter cannot address anything that is not on it.
+SAMPLE_FILES = {
+    "two_handed": ("two_handed_58clips.zip", "Both arms working together"),
+    "one_handed": ("one_handed_58clips.zip", "One arm doing the work"),
+}
+
+
+@app.get("/api/samples")
+def samples():
+    """What can be downloaded, and what each one is for."""
+    out = []
+    for key, (filename, what) in SAMPLE_FILES.items():
+        path = SAMPLES / filename
+        out.append({
+            "key": key,
+            "filename": filename,
+            "what": what,
+            "bytes": path.stat().st_size if path.exists() else 0,
+            "available": path.exists(),
+        })
+    return {"samples": out}
+
+
+@app.get("/api/samples/{key}")
+def sample(key: str):
+    entry = SAMPLE_FILES.get(key)
+    if entry is None:
+        raise HTTPException(404, "no such sample")
+    path = SAMPLES / entry[0]
+    if not path.exists():
+        raise HTTPException(
+            404,
+            f"{entry[0]} is not in this checkout; it lives in samples/ on the "
+            "closed-loop branch",
+        )
+    return FileResponse(path, media_type="application/zip", filename=entry[0])
+
+
+@app.post("/api/submissions/{sub_id}/listed")
+def set_listed(sub_id: str, body: dict, who=Depends(viewer), session: Session = Depends(db)):
+    """Publish this result to the shared leaderboard, or take it back down.
+
+    Reversible on purpose, and in both directions. A benchmark that let you
+    publish but never withdraw would make the decision unaskable in practice --
+    people would decline rather than risk it -- and the honest reading of a
+    withdrawn result is that its owner no longer stands behind it, which is
+    information the board is better off not showing.
+
+    Publishing exposes exactly one thing about you: the name you gave the
+    submission, beside its rungs. Never your address, your org id, or anything
+    derived from them.
+    """
+    sub = session.get(Submission, sub_id)
+    if sub is None or sub.org_id != who["org_id"]:
+        raise HTTPException(404, "no such submission")
+
+    listed = bool(body.get("listed"))
+    if listed:
+        # Only a finished robot test can be ranked, so only a finished robot
+        # test can be published. Without this the switch would appear to work
+        # and the entry would never show, which reads as the product losing it.
+        done = session.scalar(
+            select(Gate).where(
+                Gate.submission_id == sub.id,
+                Gate.key == "g3",
+                Gate.status == "passed",
+                Gate.version == latest_version(session, sub.id),
+            )
+        )
+        if done is None:
+            raise HTTPException(
+                409,
+                "the robot test has not produced a result for this version yet, so "
+                "there is nothing to rank",
+            )
+
+    sub.listed = listed
+    emit(session, sub.id, "listed.changed", listed=listed)
+    session.commit()
+    return as_submission(session, sub, deep=True)
+
+
 #: How often the stream looks for something new. Also the rate progress frames
 #: coalesce at: a worker beating ten times a second still produces one frame
 #: per tick here, so a chatty gate cannot flood a browser.
@@ -630,8 +805,20 @@ IDLE_LIMIT = 900
 
 
 @app.get("/api/submissions/{sub_id}/events")
-async def stream_events(sub_id: str, request: Request, after: int = 0):
+async def stream_events(
+    sub_id: str,
+    request: Request,
+    after: int = 0,
+    who=Depends(viewer),
+    session: Session = Depends(db),
+):
     """The live channel. Two frame types, on purpose.
+
+    Scoped like every other route, which it was not: this endpoint took no
+    viewer at all, so any submission id streamed its whole event log --
+    filenames, gate outcomes, timings -- to anyone who asked. It was the one
+    hole in an otherwise consistently scoped API, and the least visible,
+    because a browser opening its own stream never exercises the gap.
 
     ``message`` frames are the durable log -- queued, started, finished. Each
     carries an ``id:``, so a browser that loses its connection reconnects with
@@ -647,6 +834,12 @@ async def stream_events(sub_id: str, request: Request, after: int = 0):
     stream coalesces at its own rate no matter how fast a worker reports --
     a training loop beating ten times a second still produces one frame here.
     """
+    # Checked once, before the stream opens, and with the same 404-for-not-yours
+    # shape the rest of the API uses: a 403 would confirm the id exists, which
+    # is itself worth knowing to somebody guessing.
+    owned = session.get(Submission, sub_id)
+    if owned is None or owned.org_id != who["org_id"]:
+        raise HTTPException(404, "no such submission")
 
     async def gen():
         last = int(request.headers.get("last-event-id") or after or 0)

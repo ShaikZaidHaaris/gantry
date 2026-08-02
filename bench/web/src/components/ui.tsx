@@ -36,7 +36,14 @@ export function StatusPill({ status, label }: { status: GateStatus; label?: stri
  *  first when the second is true. */
 export function submissionStatus(sub: Submission): { status: GateStatus; label: string } {
   const gate = sub.gates.find((g) => g.key === sub.current_gate);
-  if (sub.status === "running") return { status: "running", label: gate ? `${gate.name}…` : "Running" };
+  // "Running" only when a gate really is. The server moves `current_gate` on to
+  // the next gate as soon as the previous one passes, so a submission whose
+  // checks have all finished sits at `running` pointing at something merely
+  // queued -- and the pill then said "Signal check…" beside a page reporting
+  // that the signal check had passed.
+  if (sub.status === "running" && gate?.status === "running")
+    return { status: "running", label: `${gate.name}…` };
+  if (sub.status === "running" && !gate) return { status: "running", label: "Running" };
   if (sub.status === "refused") return { status: "refused", label: "Refused" };
   if (sub.status === "abstained") return { status: "abstained", label: "Can't tell" };
   if (sub.status === "failed") return { status: "failed", label: "Our error" };
@@ -44,6 +51,45 @@ export function submissionStatus(sub: Submission): { status: GateStatus; label: 
   if (sub.status === "queued") return { status: "queued", label: "Queued" };
   const done = [...sub.gates].reverse().find((g) => g.status === "passed");
   return { status: "passed", label: done ? `${done.name} passed` : "Ready" };
+}
+
+/** Evidence, folded away until asked for.
+ *
+ *  The pattern the screens are built on: the plain answer is always visible and
+ *  the figures that justify it are one click below it. Shared rather than
+ *  per-screen because "how we know" has to look and behave identically
+ *  everywhere -- a disclosure that opens differently on two pages reads as two
+ *  different kinds of thing.
+ *
+ *  Closed by default, and that is the whole point. Nothing is deleted to make
+ *  room for plain language; the p-value, the interval and the n are always one
+ *  click away, and a reader who wants them never has to trust a paraphrase. */
+export function Fold({
+  label = "How we know",
+  defaultOpen = false,
+  children,
+}: {
+  label?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="fold">
+      <button
+        type="button"
+        className="fold-head"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+      >
+        <span className="chev" data-open={open}>
+          ▸
+        </span>
+        {label}
+      </button>
+      {open && <div className="fold-body">{children}</div>}
+    </div>
+  );
 }
 
 export function Empty({

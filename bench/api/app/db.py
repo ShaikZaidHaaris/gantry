@@ -24,6 +24,7 @@ import secrets
 from pathlib import Path
 
 from sqlalchemy import (
+    Boolean,
     Integer,
     String,
     Text,
@@ -75,6 +76,11 @@ class Org(Base):
     __tablename__ = "orgs"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String)
+    #: Which visitor this org belongs to, as a salted hash of their address --
+    #: never the address itself. Unique, so two requests from one visitor can
+    #: never race into two orgs and split their own submissions in half.
+    #: Nullable because orgs created before IP identity have no visitor.
+    ip_hash: Mapped[str | None] = mapped_column(String, unique=True, nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(String, default=now)
 
 
@@ -122,6 +128,17 @@ class Submission(Base):
     status: Mapped[str] = mapped_column(String, default="draft")
     current_gate: Mapped[str] = mapped_column(String, default="")
     created_by: Mapped[str] = mapped_column(String)
+    #: Where to reach whoever uploaded this, if we need to.
+    #:
+    #: Optional, and stored in the clear because an address you cannot read is
+    #: an address you cannot write to -- unlike the visitor's IP next door,
+    #: which is hashed precisely because nothing here ever needs to recover it.
+    #: It exists for one purpose: a run that breaks hours in, on our side, with
+    #: nobody watching. It is also the only way back to a submission after the
+    #: uploader's address changes, since identity here is the address.
+    email: Mapped[str] = mapped_column(String, default="")
+    #: On the shared leaderboard, or not. Off until its owner turns it on.
+    listed: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[str] = mapped_column(String, default=now)
 
 
@@ -220,10 +237,50 @@ def emit(session: Session, submission_id: str, kind: str, **payload) -> None:
 #: Columns added after the first schema shipped. Real migrations land with
 #: Postgres; until then this keeps a developer's existing demo database
 #: working instead of asking them to delete it.
+#: ``column: (sql_type, default)``.
+#:
+#: The type used to be hardcoded ``TEXT`` for everything here, and that was a
+#: real bug rather than an untidiness. A boolean added this way is stored as the
+#: *string* ``'0'``, and ``bool('0')`` is True in Python -- so on any database
+#: that predated the column, every submission read back as published to the
+#: shared leaderboard. The opposite of what opt-in means, on the one flag where
+#: getting it wrong exposes somebody's results.
+#:
+#: It survived the tests because tests build a fresh database, where
+#: ``create_all`` makes the column ``BOOLEAN`` and this path never runs. Only a
+#: migrated database -- which is to say every real one -- saw it. ``trials`` and
+#: the two ``version`` columns had the same defect and are fixed with it.
 LATER = {
-    "gates": {"measures_json": "'{}'", "abstained_json": "'[]'", "progress_json": "'{}'", "detail_json": "'{}'", "trials": "0", "version": "1"},
-    "jobs": {"version": "1"},
-    "benchmarks": {"cost_json": "'{}'"},
+    "gates": {
+        "measures_json": ("TEXT", "'{}'"),
+        "abstained_json": ("TEXT", "'[]'"),
+        "progress_json": ("TEXT", "'{}'"),
+        "detail_json": ("TEXT", "'{}'"),
+        "trials": ("INTEGER", "0"),
+        "version": ("INTEGER", "1"),
+    },
+    "jobs": {"version": ("INTEGER", "1")},
+    "benchmarks": {"cost_json": ("TEXT", "'{}'")},
+    # Which visitor an org belongs to. NULL on every org that existed before
+    # this, which is right: they belong to nobody in particular and stay
+    # reachable only by whoever already had their submissions.
+    "orgs": {"ip_hash": ("TEXT", "NULL")},
+    # Opt-in to the shared leaderboard, and the default is the whole point. A
+    # result stands next to other people's because its owner said so, never
+    # because they did not find the switch.
+    # `email` defaults to empty rather than NULL so every read is a string and
+    # no caller has to think about which absence it got.
+    "submissions": {"listed": ("INTEGER", "0"), "email": ("TEXT", "''")},
+}
+
+#: Columns an earlier version of :data:`LATER` created as TEXT, whose values are
+#: therefore strings like ``'0'`` on any database migrated before the fix above.
+#: Rewritten in place once, because changing a column's type in SQLite means
+#: rebuilding the table and the values are what actually matter.
+REPAIR = {
+    "submissions": ["listed"],
+    "gates": ["trials", "version"],
+    "jobs": ["version"],
 }
 
 #: Seconds without a heartbeat before a running job is presumed dead. Workers
@@ -289,11 +346,51 @@ def init_db() -> None:
     with engine.begin() as conn:
         for table, columns in LATER.items():
             have = {r[1] for r in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
-            for column, default in columns.items():
+            for column, (sql_type, default) in columns.items():
                 if column not in have:
                     conn.exec_driver_sql(
-                        f"ALTER TABLE {table} ADD COLUMN {column} TEXT DEFAULT {default}"
+                        f"ALTER TABLE {table} ADD COLUMN {column} {sql_type} DEFAULT {default}"
                     )
+        # Rebuild any numeric column the earlier TEXT-for-everything migration
+        # created, rather than merely rewriting its values.
+        #
+        # An UPDATE cannot fix this, which is worth stating because it is the
+        # obvious thing to reach for and it silently does nothing: SQLite applies
+        # the column's *affinity* on write, so `CAST(listed AS INTEGER)` yields 0
+        # and storing it into a TEXT column turns it straight back into '0'.
+        #
+        # A text flag is then wrong in both directions at once. `bool('0')` is
+        # True in Python, so an unpublished submission reads as published; and
+        # `'1' = 1` is false in SQL, so a genuinely published one is filtered off
+        # the shared board. One is a privacy failure and the other loses the
+        # feature -- from the same column.
+        #
+        # So: add a correctly typed column, copy through CAST, drop the old, and
+        # rename. Needs SQLite 3.35 for DROP/RENAME COLUMN; anything older skips
+        # the repair rather than refusing to start, and only a database migrated
+        # by the broken version is affected at all.
+        for table, columns in REPAIR.items():
+            info = list(conn.exec_driver_sql(f"PRAGMA table_info({table})"))
+            declared = {row[1]: (row[2] or "").upper() for row in info}
+            for column in columns:
+                if declared.get(column) != "TEXT":
+                    continue  # already correctly typed, or the table has no such column
+                try:
+                    conn.exec_driver_sql(
+                        f"ALTER TABLE {table} ADD COLUMN {column}__fixed INTEGER DEFAULT 0"
+                    )
+                    conn.exec_driver_sql(
+                        f"UPDATE {table} SET {column}__fixed = "
+                        f"CAST(COALESCE({column}, 0) AS INTEGER)"
+                    )
+                    conn.exec_driver_sql(f"ALTER TABLE {table} DROP COLUMN {column}")
+                    conn.exec_driver_sql(
+                        f"ALTER TABLE {table} RENAME COLUMN {column}__fixed TO {column}"
+                    )
+                except Exception:  # pragma: no cover - old SQLite, or a half-done repair
+                    # A wrong value is bad; a product that will not start is
+                    # worse, and this is recoverable by hand.
+                    pass
     with SessionLocal() as s:
         if not s.query(Benchmark).count():
             s.add(
