@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-evaluator-so101"
+version = "0.1.0.dev0"
+description = "Real-hardware evaluator and teleoperation recorder for a leader-follower pair of SO-ARM101 arms"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+# The serial stack is an extra, not a dependency. Everything in this package
+# except the last inch of wire runs against MockTransport, and the whole test
+# suite runs on a laptop with no driver board, no USB device and no pyserial
+# installed. Making the serial library required would mean a machine that can
+# never touch a robot still cannot install the package that talks to one, and
+# it would put a native-ish dependency in the path of CI for no gain.
+#
+# The refusal when the extra is missing is by name, at construction of
+# SerialTransport, not an ImportError at package import: a plugin that cannot
+# be imported cannot explain itself.
+serial = ["pyserial>=3.5"]
+# gantry-policy-basic supplies the constant and replay policies the conformance
+# kit is driven with. Declared, because a test importing something the package
+# does not name is how a plugin quietly acquires a dependency.
+dev = ["pytest>=7.4", "gantry-policy-basic"]
+
+# Two planes, one package. The arms are the machine (plane 2) and the operator
+# station that drives them is the evaluator (plane 4); shipping the descriptor
+# apart from the only code that can honour it invites a run against a
+# description of an arm nobody has wired.
+[project.entry-points."gantry.evaluators"]
+so101 = "gantry_evaluator_so101:SO101Evaluator"
+
+# An entry point is called as a factory with the manifest's config, so this
+# names the builder rather than a descriptor instance: an EmbodimentDescriptor
+# is data and data is not callable.
+#
+# Two machines, one package, and only one of them has an evaluator above. That
+# asymmetry is the point: `so101_bimanual` is two SO-101 followers described as
+# one twelve-DoF machine, which is data anyone can check, whereas driving that
+# wiring is a claim nobody here can check — SO101Evaluator drives a
+# leader-follower pair and there is no bimanual rig to test a runner against.
+# Registering the descriptor and not a runner is what keeps `gantry list` from
+# implying the rig runs.
+#
+# It is also the embodiment that CANNOT be teleop-recorded on the two arms on
+# order: a bimanual follower pair leaves no leader, so recording demonstrations
+# for it takes four arms. See gantry_evaluator_so101.bimanual.TELEOPERATION,
+# which carries that limit into the descriptor's metadata.
+[project.entry-points."gantry.embodiments"]
+so101 = "gantry_evaluator_so101:so101_embodiment"
+so101_bimanual = "gantry_evaluator_so101.bimanual:so101_bimanual"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
