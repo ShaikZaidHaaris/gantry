@@ -301,6 +301,80 @@ REPAIR = {
     "jobs": ["version"],
 }
 
+#: Columns the model declares unique that :data:`LATER` had to add with
+#: ``ALTER TABLE``, which in SQLite cannot carry a UNIQUE constraint.
+#:
+#: Maps table to ``(column, [(referring_table, referring_column), ...])``. The
+#: referrers are how rows get merged rather than dropped when duplicates already
+#: exist, since a duplicate may own data.
+UNIQUE_LATER = {
+    "orgs": ("ip_hash", [("submissions", "org_id"), ("memberships", "org_id")]),
+}
+
+
+def enforce_unique(conn) -> None:
+    """Make the unique columns actually unique, merging anything already doubled.
+
+    ``orgs.ip_hash`` is declared ``unique=True`` in the model, so it is unique on
+    every database ``create_all`` built -- which is every database the tests use,
+    and no database anybody deployed. On a migrated one the column arrived
+    through ``ALTER TABLE ADD COLUMN``, which SQLite will not accept a UNIQUE
+    constraint on, so the index was never created and the guarantee the rest of
+    the code leans on was never there.
+
+    What that costs: :func:`viewer` finds an org by ``ip_hash`` and takes what it
+    gets. A visitor with two org rows is handed one of them, and everything they
+    uploaded under the other is unreachable. It presents as data loss and is not
+    -- the submissions are in the table, owned by an org that visitor is no
+    longer being given. Found on the live database, two visitors affected.
+
+    Merging, not deleting, because a duplicate can own submissions. The lowest id
+    wins arbitrarily but deterministically; what matters is that everything
+    pointing at the losers is moved before they go, so no row is orphaned.
+
+    Runs on every start, so it has to be a no-op the second time: the merge finds
+    no duplicates and the index creation is ``IF NOT EXISTS``.
+    """
+    for table, (column, refs) in UNIQUE_LATER.items():
+        have = {r[1] for r in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
+        if column not in have:
+            continue  # nothing to enforce yet
+
+        duplicated = [
+            row[0]
+            for row in conn.exec_driver_sql(
+                f"SELECT {column} FROM {table} "
+                f"WHERE {column} IS NOT NULL GROUP BY {column} HAVING COUNT(*) > 1"
+            )
+        ]
+        for value in duplicated:
+            ids = [
+                row[0]
+                for row in conn.exec_driver_sql(
+                    f"SELECT id FROM {table} WHERE {column} = ? ORDER BY id", (value,)
+                )
+            ]
+            keep, losers = ids[0], ids[1:]
+            for loser in losers:
+                for ref_table, ref_column in refs:
+                    present = conn.exec_driver_sql(
+                        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                        (ref_table,),
+                    ).fetchone()
+                    if not present:
+                        continue  # an older database may not have the table yet
+                    conn.exec_driver_sql(
+                        f"UPDATE {ref_table} SET {ref_column} = ? WHERE {ref_column} = ?",
+                        (keep, loser),
+                    )
+                conn.exec_driver_sql(f"DELETE FROM {table} WHERE id = ?", (loser,))
+
+        # NULL is exempt: SQLite treats NULLs as distinct in a unique index, which
+        # is what the legacy orgs that predate this column need.
+        conn.exec_driver_sql(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS ux_{table}_{column} ON {table}({column})"
+        )
+
 #: Seconds without a heartbeat before a running job is presumed dead. Workers
 #: beat on a background thread every :data:`~worker.run.BEAT` seconds, which
 #: continues through a gate's longest blocking call, so this only trips when the
@@ -409,6 +483,9 @@ def init_db() -> None:
                     # A wrong value is bad; a product that will not start is
                     # worse, and this is recoverable by hand.
                     pass
+        # Last, because merging rows is easier to reason about once every column
+        # they might be compared on has its final type.
+        enforce_unique(conn)
     with SessionLocal() as s:
         if not s.query(Benchmark).count():
             s.add(

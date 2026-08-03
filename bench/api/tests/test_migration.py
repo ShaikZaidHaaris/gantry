@@ -149,6 +149,156 @@ def test_the_migration_is_idempotent(migrated):
     assert read(migrated, "SELECT listed, email FROM submissions WHERE id='sub_old'") == before
 
 
+@pytest.fixture()
+def doubled(tmp_path):
+    """A migrated database where one visitor ended up owning two orgs.
+
+    Not hypothetical: this is the shape the live database was found in, two
+    visitors affected. ``orgs.ip_hash`` is ``unique=True`` in the model and so is
+    unique on every database ``create_all`` built, which is every database the
+    rest of the suite uses. It arrived on real databases through ``ALTER TABLE
+    ADD COLUMN``, which SQLite will not attach a UNIQUE constraint to, so the
+    index was simply never there.
+    """
+    path = tmp_path / "doubled.db"
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        """
+        CREATE TABLE orgs (id TEXT PRIMARY KEY, name TEXT, created_at TEXT, ip_hash TEXT);
+        CREATE TABLE submissions (id TEXT PRIMARY KEY, org_id TEXT, name TEXT);
+        CREATE TABLE memberships (id TEXT PRIMARY KEY, org_id TEXT, user_id TEXT);
+
+        INSERT INTO orgs VALUES ('org_a', 'Visitor 9d72', '', 'ip_same');
+        INSERT INTO orgs VALUES ('org_b', 'Visitor 9d72', '', 'ip_same');
+        INSERT INTO orgs VALUES ('org_c', 'Visitor 264f', '', 'ip_other');
+        -- Legacy orgs from before the column existed. Several, deliberately.
+        INSERT INTO orgs VALUES ('org_lab', 'Lab Lab',  '', NULL);
+        INSERT INTO orgs VALUES ('org_old', 'Old Lab',  '', NULL);
+
+        -- One upload under each half of the split identity.
+        INSERT INTO submissions VALUES ('sub_early', 'org_a', 'before the split');
+        INSERT INTO submissions VALUES ('sub_later', 'org_b', 'after the split');
+        INSERT INTO memberships VALUES ('mem_1', 'org_b', 'user_1');
+        """
+    )
+    conn.commit()
+    conn.close()
+    return path
+
+
+def enforce(path: Path) -> None:
+    """Run the real migration step, not a reimplementation of it."""
+    from sqlalchemy import create_engine
+
+    engine = create_engine(f"sqlite:///{path}")
+    with engine.begin() as conn:
+        dbmod.enforce_unique(conn)
+    engine.dispose()
+
+
+def test_a_doubled_visitor_is_merged_rather_than_half_deleted(doubled):
+    """The defect, stated as what it costs the person it happens to.
+
+    ``viewer()`` looks an org up by ``ip_hash`` and takes what it finds. With two
+    rows it gets one of them, and everything uploaded under the other is
+    unreachable: not deleted, just owned by an org that visitor is no longer
+    being handed. Deleting the spare would make that permanent, so the rows that
+    point at it move first.
+    """
+    enforce(doubled)
+    conn = sqlite3.connect(doubled)
+    try:
+        remaining = [r[0] for r in conn.execute("SELECT id FROM orgs WHERE ip_hash='ip_same'")]
+        assert remaining == ["org_a"], f"expected one org for the address, got {remaining}"
+
+        owners = dict(conn.execute("SELECT id, org_id FROM submissions ORDER BY id"))
+        assert owners == {"sub_early": "org_a", "sub_later": "org_a"}, (
+            "a submission was left pointing at the org that was deleted, which "
+            "orphans it for good"
+        )
+        assert [r[0] for r in conn.execute("SELECT org_id FROM memberships")] == ["org_a"]
+    finally:
+        conn.close()
+
+
+def test_an_unrelated_visitor_is_untouched(doubled):
+    """Merging is scoped to the duplicated value, not applied to the table."""
+    enforce(doubled)
+    conn = sqlite3.connect(doubled)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM orgs WHERE id='org_c'").fetchone()[0] == 1
+    finally:
+        conn.close()
+
+
+def test_orgs_from_before_the_column_are_all_kept(doubled):
+    """NULL is not a duplicate of NULL.
+
+    SQLite treats NULLs as distinct in a unique index, which is exactly what the
+    legacy orgs need: they predate the column, they belong to nobody in
+    particular, and collapsing them into one would hand one visitor's data to
+    whoever holds the survivor.
+    """
+    enforce(doubled)
+    conn = sqlite3.connect(doubled)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM orgs WHERE ip_hash IS NULL").fetchone()[0] == 2
+    finally:
+        conn.close()
+
+
+def test_the_index_then_stops_it_recurring(doubled):
+    """Merging once is a cleanup; the index is the fix.
+
+    Without it the next race between two concurrent first-requests from the same
+    address writes a second row and the whole thing starts again.
+    """
+    enforce(doubled)
+    conn = sqlite3.connect(doubled)
+    try:
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("INSERT INTO orgs VALUES ('org_new', 'Visitor 9d72', '', 'ip_same')")
+    finally:
+        conn.close()
+
+
+def test_enforcing_uniqueness_twice_changes_nothing(doubled):
+    """It runs on every start."""
+    enforce(doubled)
+    conn = sqlite3.connect(doubled)
+    before = (
+        conn.execute("SELECT id, org_id FROM submissions ORDER BY id").fetchall(),
+        conn.execute("SELECT id, ip_hash FROM orgs ORDER BY id").fetchall(),
+    )
+    conn.close()
+
+    enforce(doubled)
+    conn = sqlite3.connect(doubled)
+    try:
+        after = (
+            conn.execute("SELECT id, org_id FROM submissions ORDER BY id").fetchall(),
+            conn.execute("SELECT id, ip_hash FROM orgs ORDER BY id").fetchall(),
+        )
+    finally:
+        conn.close()
+    assert after == before
+
+
+def test_every_unique_later_column_is_declared_unique_on_the_model():
+    """The two have to agree, or the migration is enforcing something the ORM is not.
+
+    A column listed here but not ``unique=True`` in the model means fresh
+    databases and migrated ones disagree about what is allowed, which is the
+    exact split that hid this bug for as long as it hid.
+    """
+    for table, (column, _refs) in dbmod.UNIQUE_LATER.items():
+        model = next(m for m in dbmod.Base.registry.mappers if m.local_table.name == table)
+        assert model.local_table.c[column].unique, (
+            f"{table}.{column} is migrated as unique but the model does not "
+            "declare it, so a fresh database would allow duplicates"
+        )
+
+
 def test_every_later_entry_declares_a_type():
     """The rule the bug broke, pinned so the next column cannot repeat it.
 
