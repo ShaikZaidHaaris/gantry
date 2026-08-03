@@ -23,7 +23,7 @@
  *  without the person who made it standing next to it.
  */
 
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { useSubmission } from "../api/client";
 import { Verdict } from "../components/Verdict";
 import { ErrorNote, Skeleton, bytes } from "../components/ui";
@@ -35,6 +35,10 @@ function when(iso: string): string {
 
 export function VerdictPage() {
   const { id } = useParams();
+  // Mounted at both /submissions/:id/verdict and /samples/:id/verdict. The
+  // back link has to return where the reader came from, and the path already
+  // says which that was.
+  const home = useLocation().pathname.startsWith("/samples/") ? "/samples" : "/submissions";
   const { data, isPending, error } = useSubmission(id);
 
   if (isPending) {
@@ -70,7 +74,7 @@ export function VerdictPage() {
           <b>There is no verdict for this submission yet.</b>
           <div style={{ marginTop: 4 }}>
             The robot test has not produced a result, so there is nothing here to export.{" "}
-            <Link to={`/submissions/${id}`}>Back to the submission</Link>.
+            <Link to={`${home}/${id}`}>Back to the result</Link>.
           </div>
         </div>
       </div>
@@ -80,8 +84,8 @@ export function VerdictPage() {
   return (
     <div className="page doc">
       <div className="doc-actions no-print">
-        <Link className="btn" to={`/submissions/${id}`}>
-          Back to the submission
+        <Link className="btn" to={`${home}/${id}`}>
+          Back to the result
         </Link>
         <span className="spacer" />
         <button type="button" className="btn primary" onClick={() => window.print()}>

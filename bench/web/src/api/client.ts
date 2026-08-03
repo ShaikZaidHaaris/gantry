@@ -75,6 +75,29 @@ export function useSubmission(id: string | undefined): UseQueryResult<Submission
  *  instant once a position has been seen, and `placeholderData` keeps the last
  *  answer on screen while the next one loads, a panel that blanks between
  *  positions is unreadable while being dragged. */
+/** The datasets on offer, and the finished result for each.
+ *
+ *  `result` is the server's, not ours. A deployment seeded without the fixture
+ *  returns null for it, and the card then offers the download alone rather than
+ *  linking somewhere that 404s. Hardcoding the ids here would have made that
+ *  failure invisible until somebody clicked. */
+export interface SampleOffer {
+  key: string;
+  filename: string;
+  what: string;
+  bytes: number;
+  available: boolean;
+  result: string | null;
+}
+
+export function useSamples() {
+  return useQuery({
+    queryKey: ["samples"] as const,
+    queryFn: () => json<{ samples: SampleOffer[] }>("/api/samples"),
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
 export function usePlan(benchmark: string | undefined, trials: number, magnitude: number) {
   return useQuery({
     queryKey: ["plan", benchmark, trials, magnitude] as const,

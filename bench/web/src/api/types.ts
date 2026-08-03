@@ -152,6 +152,10 @@ export interface Submission {
   current_gate: string;
   /** On the shared leaderboard. False until its owner publishes it. */
   listed: boolean;
+  /** A seeded worked example rather than somebody's upload. Read-only: it
+   *  belongs to nobody, so every control that would change it is refused by
+   *  the server and hidden here. */
+  demo?: boolean;
   /** Where to reach the uploader if a check breaks. Empty when not given. */
   email: string;
   created_at: string;

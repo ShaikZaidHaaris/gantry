@@ -660,6 +660,29 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
 
 .sample-links { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 
+/* Two offers side by side, each a result to open and a file to take. */
+.sample-offers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.sample-offer {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  padding: 14px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--bg);
+}
+.sample-what { display: flex; flex-direction: column; gap: 2px; }
+.sample-what span { color: var(--text-3); font-size: 12px; }
+.sample-dl { font-size: 12px; color: var(--text-2); text-decoration: underline; }
+.sample-none { font-size: 12px; color: var(--text-3); }
+@media (max-width: 700px) { .sample-offers { grid-template-columns: 1fr; } }
+
+/* A worked example, said once at the top of the page it applies to. */
+.demo-note {
+  display: flex; gap: 10px; align-items: baseline;
+  padding: 12px 14px; margin-bottom: 16px;
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: var(--radius); background: var(--bg-2);
+}
+.demo-note b { white-space: nowrap; }
+.demo-note span { color: var(--text-2); font-size: 13px; }
+
 /* hero ----------------------------------------------------------------------
    Two columns on a wide screen, stacked on a narrow one. The image is given a
    fixed aspect ratio so the page does not reflow when it arrives -- a hero that

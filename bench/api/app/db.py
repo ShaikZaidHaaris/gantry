@@ -139,6 +139,21 @@ class Submission(Base):
     email: Mapped[str] = mapped_column(String, default="")
     #: On the shared leaderboard, or not. Off until its owner turns it on.
     listed: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: A worked example, not somebody's work.
+    #:
+    #: Seeded from a run that actually happened, owned by nobody, readable by
+    #: everybody, and writable by no one. It exists so a visitor can see a
+    #: finished result before deciding whether to upload anything, which is
+    #: otherwise impossible: every real submission belongs to one visitor and
+    #: 404s for the rest, and that scoping is deliberate.
+    #:
+    #: It is a flag on this table rather than a table of its own so the sample
+    #: renders through exactly the same screen as a real result. A parallel
+    #: type would drift, and a demo that drifts from the product stops being
+    #: evidence of anything. Everywhere the two must not be confused is
+    #: enforced at the query: never in a visitor's list, never on the
+    #: leaderboard, never mutable.
+    demo: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[str] = mapped_column(String, default=now)
 
 
@@ -270,7 +285,10 @@ LATER = {
     # because they did not find the switch.
     # `email` defaults to empty rather than NULL so every read is a string and
     # no caller has to think about which absence it got.
-    "submissions": {"listed": ("INTEGER", "0"), "email": ("TEXT", "''")},
+    # `demo` marks a seeded worked example. It defaults to 0 so every row an
+    # existing database already holds stays a real submission, which is what
+    # they all are.
+    "submissions": {"listed": ("INTEGER", "0"), "email": ("TEXT", "''"), "demo": ("INTEGER", "0")},
 }
 
 #: Columns an earlier version of :data:`LATER` created as TEXT, whose values are
