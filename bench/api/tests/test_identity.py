@@ -140,6 +140,65 @@ def test_private_hops_in_a_forwarded_chain_are_skipped(monkeypatch):
     assert identity.client_ip(Req()) == "93.184.216.34"
 
 
+def test_the_chain_resolver_believes_whatever_is_left_most(monkeypatch):
+    """Documenting a sharp edge, because a deployment choice depends on it.
+
+    Left-most is the correct read behind Cloudflare, which owns the header and
+    rewrites it. It is the wrong read behind a proxy that *appends*, which is
+    the default for nginx and for Caddy: a client that sends its own
+    ``X-Forwarded-For`` gets the real address appended after it, so the value
+    the resolver picks is the one the client wrote.
+
+    This test asserts that hazard rather than a fix, because the fix does not
+    belong here. A resolver cannot tell a forged hop from a real one by looking
+    at the chain; only the proxy knows which entries it added. So the proxy is
+    made to overwrite instead of append, and `deploy/Caddyfile.template` does
+    exactly that. If this test ever starts failing, that config assumption has
+    moved and the Caddyfile needs rereading.
+    """
+    monkeypatch.setenv("BENCH_TRUST_HEADER", "x-bench-edge")
+    monkeypatch.setenv("BENCH_TRUST_SECRET", "s3cret")
+    monkeypatch.setenv("BENCH_CLIENT_IP", "cf-connecting-ip")  # absent, so the chain is used
+
+    class Req:
+        # What an appending proxy produces when the client prepends a lie:
+        # their chosen value first, their real address second.
+        headers = {"x-bench-edge": "s3cret", "x-forwarded-for": "8.8.8.8, 93.184.216.34"}
+        client = type("C", (), {"host": "10.0.0.5"})()
+
+    assert identity.client_ip(Req()) == "8.8.8.8"
+
+
+def test_a_proxy_set_single_value_header_beats_a_forged_chain(monkeypatch):
+    """The configuration that makes a plain reverse proxy safe.
+
+    Caddy writes the TCP peer into a single-value header on every request,
+    overwriting anything that arrived, and ``BENCH_CLIENT_IP`` points at that
+    header. The chain is then never consulted, so the previous test's hazard is
+    unreachable: a client can still send an ``X-Forwarded-For`` full of lies and
+    it changes nothing.
+
+    Worth stating as a test rather than a comment in a Caddyfile, because the
+    two files are edited years apart by different people.
+    """
+    monkeypatch.setenv("BENCH_TRUST_HEADER", "x-bench-edge")
+    monkeypatch.setenv("BENCH_TRUST_SECRET", "s3cret")
+    monkeypatch.setenv("BENCH_CLIENT_IP", "x-real-ip")
+
+    class Req:
+        headers = {
+            "x-bench-edge": "s3cret",
+            "x-real-ip": "93.184.216.34",  # written by the proxy from {remote_host}
+            "x-forwarded-for": "8.8.8.8",  # written by the client, hopefully
+        }
+        client = type("C", (), {"host": "10.0.0.5"})()
+
+    assert identity.client_ip(Req()) == "93.184.216.34", (
+        "the forged chain won over the proxy's own header, so a visitor can "
+        "choose whose submissions they read"
+    )
+
+
 def test_a_tunnel_only_origin_trusts_the_header_from_loopback(monkeypatch):
     """The quick-tunnel deployment, which cannot attach a secret.
 

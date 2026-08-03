@@ -226,8 +226,9 @@ cat <<'NOTE'
 
       systemctl is-active gantry-tunnel
 
-  Otherwise, for a URL that survives a restart, see deploy/TUNNEL.md. It needs a
-  domain on Cloudflare and one browser login, and opens no inbound port.
+  Otherwise, for a URL that survives a restart, see deploy/PUBLIC-URL.md. Two
+  options there: a hostname of your own with Caddy for TLS, or a Cloudflare
+  named tunnel that opens no inbound port at all.
 
   For a throwaway link right now:
 

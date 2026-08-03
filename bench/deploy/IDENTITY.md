@@ -49,7 +49,7 @@ Three, and the right one depends on how the origin is reachable.
 | your setup | mode | what earns the trust |
 |---|---|---|
 | `cloudflared tunnel --url http://127.0.0.1:8090` (quick tunnel) | **tunnel** | the origin binds to loopback, so nothing outside can reach it to forge a header |
-| named tunnel ([TUNNEL.md](TUNNEL.md)), or Cloudflare in front of a public origin | **edge** | a shared secret only your edge knows |
+| Caddy or a named tunnel ([PUBLIC-URL.md](PUBLIC-URL.md)), or Cloudflare in front of a public origin | **edge** | a shared secret only your edge knows |
 | laptop | **direct** | nothing; every visitor is one org, which is correct locally |
 
 **A quick tunnel cannot use the secret**, because a secret is attached by a

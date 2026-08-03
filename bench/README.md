@@ -62,14 +62,16 @@ Builds the frontend, copies the API, the bundle and the worker, and installs
 both as systemd units with `Restart=always`. The API serves the built SPA
 itself, so there is one process and no proxy to misconfigure.
 
-It binds to loopback and does not open a port. Expose it with a Cloudflare named
-tunnel, which keeps it that way:
+It binds to loopback and does not open a port. Put a public hostname in front of
+it with either
 
-    bench/deploy/tunnel-setup.sh bench.yourdomain.com     # on the host
+    bench/deploy/caddy-setup.sh  bench.yourdomain.com     # A record + Let's Encrypt
+    bench/deploy/tunnel-setup.sh bench.yourdomain.com     # Cloudflare named tunnel
 
-That gives one hostname that is the same after every restart, installed as a
-third systemd unit. Needs a domain on Cloudflare and one browser login, both
-covered in [deploy/TUNNEL.md](deploy/TUNNEL.md).
+Both leave the API on loopback, so the origin stays unreachable from outside
+either way; they differ in whether you open ports or move nameservers. The
+trade-off, and the reverse-proxy header handling that identity depends on, are
+in [deploy/PUBLIC-URL.md](deploy/PUBLIC-URL.md).
 
 A quick tunnel (`cloudflared tunnel --url http://127.0.0.1:8090`) works for a
 demo you are sitting in front of, but its hostname is randomly regenerated on
