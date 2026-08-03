@@ -41,7 +41,13 @@ OPENPI = HOME / "openpi"
 ROBOTWIN = HOME / "RoboTwin"
 EGORUN = HOME / "egorun"
 LEROBOT = HOME / ".cache/huggingface/lerobot/gantry"
-CHECKPOINTS = OPENPI / "checkpoints"
+#: Where the 8.5 GB checkpoints land. Overridable because on a GPU box the root
+#: volume is usually the small one: this instance has 12 GB free on a 500 GB EBS
+#: root and 391 GB free on a local NVMe that costs nothing, and a checkpoint
+#: that is deleted after its evaluation is exactly what ephemeral storage is
+#: for. Losing it when the instance stops costs nothing, because the run that
+#: produced it deletes it anyway.
+CHECKPOINTS = Path(os.environ.get("BENCH_CHECKPOINTS") or OPENPI / "checkpoints")
 PORT = 8000
 
 #: Training steps. Read from the job so a proof run and a paid run are the same
@@ -93,9 +99,43 @@ def stop_server() -> None:
     time.sleep(10)
 
 
-def free_bytes(path: Path = Path("/")) -> int:
-    stat = os.statvfs(path)
+def free_bytes(path: Path | None = None) -> int:
+    """Space where the checkpoint actually goes, not on ``/``.
+
+    These are the same directory by default and stop being the same the moment
+    ``BENCH_CHECKPOINTS`` points at another volume, at which point measuring
+    ``/`` answers a question nobody asked: it would refuse a run with 391 GB
+    waiting, or worse, permit one with 12 GB.
+
+    Walks up to the nearest existing parent, because the target may not have
+    been created yet and ``statvfs`` on a missing path raises.
+    """
+    target = path or CHECKPOINTS
+    while not target.exists() and target != target.parent:
+        target = target.parent
+    stat = os.statvfs(target)
     return stat.f_bavail * stat.f_frsize
+
+
+def on_its_own_volume() -> bool:
+    """Whether ``CHECKPOINTS`` is really on a different filesystem from root.
+
+    Worth checking because the volume it is pointed at here is an instance store
+    that nothing persists: it is not in fstab, and its mount unit is one systemd
+    inferred from ``/proc/self/mountinfo`` rather than any configuration. A boot
+    where the DLAMI script does not rebuild it leaves ``/opt/dlami/nvme`` as an
+    ordinary directory on the root disk, and every write meant for 391 GB of
+    NVMe silently lands on the 12 GB that is left of ``/``.
+
+    That failure has already happened here once in another form: a run filled
+    the disk mid-write and lost the whole training.
+    """
+    if not os.environ.get("BENCH_CHECKPOINTS"):
+        return True  # not configured to be elsewhere, so nothing to verify
+    target = CHECKPOINTS
+    while not target.exists() and target != target.parent:
+        target = target.parent
+    return os.stat(target).st_dev != os.stat("/").st_dev
 
 
 def derangement(count: int, seed: int = 20250801) -> list[int]:
@@ -276,10 +316,19 @@ def train(arm: str, steps: int, progress: Path) -> Path:
     if out.exists():
         emit(progress, "training", note=f"{arm} already trained")
         return out
+    if not on_its_own_volume():
+        raise RuntimeError(
+            f"BENCH_CHECKPOINTS points at {CHECKPOINTS}, but that path is on the "
+            "root filesystem right now, not on its own volume. The ephemeral disk "
+            "is almost certainly not mounted: it is not in fstab, and a boot where "
+            "the DLAMI script does not rebuild it leaves the mount point behind as "
+            "an ordinary directory. Writing 8.5 GB there would fill the root disk"
+        )
     if free_bytes() < NEED_BYTES:
         raise RuntimeError(
-            f"only {free_bytes() / 1024**3:.1f} GB free; a checkpoint needs about 8.5 GB "
-            "and a run that fills the disk mid-write loses the whole training"
+            f"only {free_bytes() / 1024**3:.1f} GB free on {CHECKPOINTS}; a checkpoint "
+            "needs about 8.5 GB and a run that fills the disk mid-write loses the "
+            "whole training"
         )
     emit(progress, "training", total=steps, note=arm)
     # Kept, not streamed. The gate shows the last few lines of a failure, and a
