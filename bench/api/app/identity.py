@@ -195,6 +195,104 @@ def org_key(ip: str) -> str:
     return f"ip_{digest[:32]}"
 
 
+# -- the cookie, which is what actually survives ---------------------------
+#
+# An address is a poor handle for a person and fails in both directions: it
+# changes under a visitor who has not moved, losing everything they uploaded,
+# and it is shared by everyone behind one NAT, so a lab reads as a single
+# visitor. A cookie fixes both. It is not a stronger claim about who somebody
+# is, it is a claim they can carry.
+#
+# What it is not: authentication. It is a bearer token. Anyone holding it is
+# that visitor, which is the same trust level the address had, and it is why it
+# is signed, HttpOnly and Secure rather than a bare random string in a readable
+# cookie.
+
+#: Long, because the thing it protects is a submission list somebody may come
+#: back to weeks later, and a visitor has no other way back.
+COOKIE_MAX_AGE = 400 * 24 * 3600  # the longest Chrome will honour
+
+
+def cookie_name() -> str:
+    return os.environ.get("BENCH_COOKIE_NAME", "gantry_visitor")
+
+
+def cookie_secret() -> str:
+    """The key the handle is signed with.
+
+    Falls back to ``BENCH_IP_SALT``, which deploy.sh already writes and keeps,
+    rather than generating one per process. A per-process secret would invalidate
+    every cookie on every restart, which presents to a visitor as their
+    submissions vanishing, and is exactly the trap :func:`ip_salt` documents.
+    """
+    return os.environ.get("BENCH_COOKIE_SECRET") or ip_salt()
+
+
+def cookie_secure() -> bool:
+    """Whether to mark the cookie ``Secure``, which means https only.
+
+    Follows the deployment rather than being hardcoded either way, because both
+    answers are wrong somewhere. Hardcoded on, a browser never returns the cookie
+    to a laptop serving plain http, so every request is a new visitor and the
+    product looks broken locally. Hardcoded off, the cookie is sent in clear on
+    any downgrade in production, and it is the whole of somebody's identity.
+
+    ``edge`` and ``tunnel`` both mean a real proxy in front terminating TLS;
+    ``direct`` means a laptop. Overridable for anything that is neither.
+    """
+    raw = os.environ.get("BENCH_COOKIE_SECURE", "").strip().lower()
+    if raw in {"1", "true", "yes"}:
+        return True
+    if raw in {"0", "false", "no"}:
+        return False
+    return trusts_edge() or tunnel_only()
+
+
+def mint() -> str:
+    """A fresh handle: random value, then a signature over it.
+
+    Signed so a forged or edited cookie is refused rather than silently creating
+    an org. Unsigned, anyone could pick another visitor's handle by guessing,
+    and 'guessing' would mean typing a different number.
+    """
+    raw = secrets.token_urlsafe(24)
+    return f"{raw}.{_sign(raw)}"
+
+
+def _sign(raw: str) -> str:
+    return hmac.new(cookie_secret().encode(), raw.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def verified(cookie: str | None) -> str | None:
+    """The handle inside a cookie, or ``None`` if it was not one we issued.
+
+    ``compare_digest`` because this runs on every request and a comparison that
+    returns early leaks the signature a byte at a time.
+    """
+    if not cookie or "." not in cookie:
+        return None
+    raw, _, signature = cookie.rpartition(".")
+    if not raw or not signature:
+        return None
+    return raw if hmac.compare_digest(signature, _sign(raw)) else None
+
+
+def token_key(token: str) -> str:
+    """A non-reversible handle for one cookie.
+
+    Hashed for the same reason the address is: the database holds something that
+    identifies a visitor without holding the thing that authenticates them, so a
+    dump of the orgs table is not a set of working credentials.
+    """
+    digest = hashlib.sha256(f"{ip_salt()}:{token}".encode()).hexdigest()
+    return f"ck_{digest[:32]}"
+
+
+def label_for(key: str) -> str:
+    """What to call a visitor identified by a cookie."""
+    return f"Visitor {key[-4:]}"
+
+
 def label(ip: str) -> str:
     """What to call this visitor on screen.
 

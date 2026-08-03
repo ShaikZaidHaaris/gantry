@@ -291,7 +291,7 @@ def test_every_unique_later_column_is_declared_unique_on_the_model():
     databases and migrated ones disagree about what is allowed, which is the
     exact split that hid this bug for as long as it hid.
     """
-    for table, (column, _refs) in dbmod.UNIQUE_LATER.items():
+    for table, column, _refs in dbmod.UNIQUE_LATER:
         model = next(m for m in dbmod.Base.registry.mappers if m.local_table.name == table)
         assert model.local_table.c[column].unique, (
             f"{table}.{column} is migrated as unique but the model does not "

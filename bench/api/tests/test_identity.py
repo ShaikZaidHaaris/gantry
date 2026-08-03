@@ -52,7 +52,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 @pytest.fixture()
 def client():
-    with TestClient(app) as c:
+    with TestClient(app, base_url="https://testserver") as c:
         yield c
 
 
@@ -67,6 +67,22 @@ def as_ip(client, ip: str, method: str = "get", path: str = "/api/me", **kw):
     if identity.trusts_edge():
         headers[identity.trust_header()] = identity.trust_secret()
     return getattr(client, method)(path, headers=headers, **kw)
+
+
+@pytest.fixture()
+def browser():
+    """A fresh visitor: its own cookie jar, and therefore its own org.
+
+    Identity is now the cookie, not the address, so two visitors are two
+    browsers. One TestClient with two addresses is one visitor holding one
+    cookie, which is the correct new behaviour and would make every isolation
+    test below pass for the wrong reason.
+    """
+
+    def make():
+        return TestClient(app, base_url="https://testserver")
+
+    return make
 
 
 # -- resolving the address --------------------------------------------------
@@ -271,27 +287,51 @@ def test_the_stored_handle_is_not_the_address():
 # -- one visitor, one set of submissions ------------------------------------
 
 
-def test_two_addresses_cannot_see_each_others_submissions(client):
-    """The property the user asked for, stated as an attempt to violate it."""
-    a = as_ip(client, "203.0.113.1", "post", "/api/submissions",
-              json={"name": "mine", "benchmark": "pick_dual_bottles"}).json()
+def test_two_visitors_cannot_see_each_others_submissions(browser):
+    """The property the user asked for, stated as an attempt to violate it.
 
-    listed_by_b = as_ip(client, "198.51.100.2", path="/api/submissions").status_code
-    assert listed_by_b == 200
+    Two browsers, not two addresses. Since identity became the cookie, one
+    client presenting two different addresses is a single visitor carrying a
+    single cookie, and writing it that way would assert nothing.
+    """
+    with browser() as a_browser, browser() as b_browser:
+        a = as_ip(a_browser, "203.0.113.1", "post", "/api/submissions",
+                  json={"name": "mine", "benchmark": "pick_dual_bottles"}).json()
 
-    rows = as_ip(client, "198.51.100.2", path="/api/submissions").json()["submissions"]
-    assert all(r["id"] != a["id"] for r in rows), "B can see A's submission in the list"
+        assert as_ip(b_browser, "198.51.100.2", path="/api/submissions").status_code == 200
 
-    direct = as_ip(client, "198.51.100.2", path=f"/api/submissions/{a['id']}")
-    assert direct.status_code == 404, "B fetched A's submission by id"
+        rows = as_ip(b_browser, "198.51.100.2", path="/api/submissions").json()["submissions"]
+        assert all(r["id"] != a["id"] for r in rows), "B can see A's submission in the list"
 
-    stream = as_ip(client, "198.51.100.2", path=f"/api/submissions/{a['id']}/events")
-    assert stream.status_code == 404, (
-        "B opened A's event stream -- this endpoint took no viewer at all before, "
-        "so every submission's log was world-readable"
-    )
+        direct = as_ip(b_browser, "198.51.100.2", path=f"/api/submissions/{a['id']}")
+        assert direct.status_code == 404, "B fetched A's submission by id"
 
-    assert as_ip(client, "203.0.113.1", path=f"/api/submissions/{a['id']}").status_code == 200
+        stream = as_ip(b_browser, "198.51.100.2", path=f"/api/submissions/{a['id']}/events")
+        assert stream.status_code == 404, (
+            "B opened A's event stream -- this endpoint took no viewer at all "
+            "before, so every submission's log was world-readable"
+        )
+
+        assert as_ip(a_browser, "203.0.113.1", path=f"/api/submissions/{a['id']}").status_code == 200
+
+
+def test_a_visitor_keeps_their_submissions_when_their_address_changes(browser):
+    """The whole reason the cookie exists.
+
+    Under address identity this was impossible by construction: a reconnected
+    router or a move from wifi to tethering made somebody a stranger to their
+    own uploads, with the rows still in the table owned by nobody reachable.
+    """
+    with browser() as visitor:
+        made = as_ip(visitor, "203.0.113.50", "post", "/api/submissions",
+                     json={"name": "before the move", "benchmark": "pick_dual_bottles"}).json()
+
+        # Same browser, entirely different network.
+        seen = as_ip(visitor, "198.51.100.77", path=f"/api/submissions/{made['id']}")
+        assert seen.status_code == 200, (
+            "changing address lost the visitor their own submission, which is "
+            "the failure the cookie was added to remove"
+        )
 
 
 def test_one_address_keeps_its_own_submissions_across_requests(client):
@@ -329,12 +369,13 @@ def test_publishing_needs_a_result_to_publish(client):
     assert "nothing to rank" in resp.text
 
 
-def test_nobody_can_publish_somebody_elses_submission(client):
-    made = as_ip(client, "203.0.113.22", "post", "/api/submissions",
-                 json={"name": "not yours", "benchmark": "pick_dual_bottles"}).json()
-    resp = as_ip(client, "198.51.100.99", "post", f"/api/submissions/{made['id']}/listed",
-                 json={"listed": True})
-    assert resp.status_code == 404
+def test_nobody_can_publish_somebody_elses_submission(browser):
+    with browser() as owner, browser() as stranger:
+        made = as_ip(owner, "203.0.113.22", "post", "/api/submissions",
+                     json={"name": "not yours", "benchmark": "pick_dual_bottles"}).json()
+        resp = as_ip(stranger, "198.51.100.99", "post",
+                     f"/api/submissions/{made['id']}/listed", json={"listed": True})
+        assert resp.status_code == 404
 
 
 def _rankable(sub_id: str, listed: bool) -> None:
@@ -366,34 +407,152 @@ def _rankable(sub_id: str, listed: bool) -> None:
         session.commit()
 
 
-def test_an_unlisted_submission_is_invisible_to_others_on_the_board(client):
+def test_an_unlisted_submission_is_invisible_to_others_on_the_board(browser):
     """The leaderboard reads across visitors, so its filter is a permission too."""
-    made = as_ip(client, "203.0.113.23", "post", "/api/submissions",
-                 json={"name": "hidden", "benchmark": "pick_dual_bottles"}).json()
-    _rankable(made["id"], listed=False)
+    with browser() as owner, browser() as stranger:
+        made = as_ip(owner, "203.0.113.23", "post", "/api/submissions",
+                     json={"name": "hidden", "benchmark": "pick_dual_bottles"}).json()
+        _rankable(made["id"], listed=False)
 
-    mine = as_ip(client, "203.0.113.23", path="/api/compare?benchmark=pick_dual_bottles").json()
-    assert any(e["id"] == made["id"] for e in mine["entries"]), (
-        "its owner must see their own unlisted entry, or they cannot judge it "
-        "before deciding whether to publish"
-    )
-    assert next(e for e in mine["entries"] if e["id"] == made["id"])["private"] is True
+        mine = as_ip(owner, "203.0.113.23",
+                     path="/api/compare?benchmark=pick_dual_bottles").json()
+        assert any(e["id"] == made["id"] for e in mine["entries"]), (
+            "its owner must see their own unlisted entry, or they cannot judge "
+            "it before deciding whether to publish"
+        )
+        assert next(e for e in mine["entries"] if e["id"] == made["id"])["private"] is True
 
-    theirs = as_ip(client, "198.51.100.50", path="/api/compare?benchmark=pick_dual_bottles")
-    assert theirs.status_code == 200
-    assert all(e["id"] != made["id"] for e in theirs.json()["entries"]), (
-        "an unpublished result appeared on somebody else's leaderboard"
-    )
+        theirs = as_ip(stranger, "198.51.100.50",
+                       path="/api/compare?benchmark=pick_dual_bottles")
+        assert theirs.status_code == 200
+        assert all(e["id"] != made["id"] for e in theirs.json()["entries"]), (
+            "an unpublished result appeared on somebody else's leaderboard"
+        )
 
 
-def test_publishing_puts_it_on_everybody_elses_board(client):
+def test_publishing_puts_it_on_everybody_elses_board(browser):
     """The other direction, so the filter cannot simply hide everything."""
-    made = as_ip(client, "203.0.113.24", "post", "/api/submissions",
-                 json={"name": "shared", "benchmark": "pick_dual_bottles"}).json()
-    _rankable(made["id"], listed=True)
+    with browser() as owner, browser() as stranger:
+        made = as_ip(owner, "203.0.113.24", "post", "/api/submissions",
+                     json={"name": "shared", "benchmark": "pick_dual_bottles"}).json()
+        _rankable(made["id"], listed=True)
 
-    theirs = as_ip(client, "198.51.100.51", path="/api/compare?benchmark=pick_dual_bottles").json()
-    row = next((e for e in theirs["entries"] if e["id"] == made["id"]), None)
-    assert row is not None, "a published result did not reach another visitor's board"
-    assert row["mine"] is False
-    assert row["name"] == "shared", "the published name is what is shown"
+        theirs = as_ip(stranger, "198.51.100.51",
+                       path="/api/compare?benchmark=pick_dual_bottles").json()
+        row = next((e for e in theirs["entries"] if e["id"] == made["id"]), None)
+        assert row is not None, "a published result did not reach another visitor's board"
+        assert row["mine"] is False
+        assert row["name"] == "shared", "the published name is what is shown"
+
+
+# -- the cookie, which is now the identity ----------------------------------
+
+
+def test_the_signature_is_actually_checked():
+    """A unit test, because the end-to-end version cannot see this.
+
+    Written first as "edit a cookie and try to read somebody's submission", and
+    it passed with the signature check deleted. It had to: `token_key` hashes
+    the whole cookie, signature included, so a tampered one hashes differently
+    and simply matches no org. That test proves a handle cannot be guessed,
+    which is true and worth having, but it says nothing about the signature.
+
+    What the signature actually buys is refusing rubbish before it reaches the
+    database, and keeping the design honest if `token_key` is ever narrowed to
+    the unsigned half, at which point it becomes the only thing preventing
+    impersonation. Asserted directly so it cannot rot unnoticed.
+    """
+    good = identity.mint()
+    raw, _, signature = good.rpartition(".")
+
+    assert identity.verified(good) == raw
+    assert identity.verified(raw) is None, "a cookie with no signature was accepted"
+    assert identity.verified(f"{raw}.{'0' * len(signature)}") is None, "a wrong signature was accepted"
+    assert identity.verified(f"{raw}x.{signature}") is None, "an edited handle was accepted"
+    assert identity.verified("") is None and identity.verified(None) is None
+
+
+def test_another_visitors_cookie_cannot_be_guessed(browser):
+    """The property that actually stops impersonation.
+
+    The handle is 24 random bytes and the stored key is a salted hash of the
+    whole cookie, so anything short of the exact string matches no org at all.
+    """
+    with browser() as owner:
+        made = as_ip(owner, "203.0.113.70", "post", "/api/submissions",
+                     json={"name": "mine", "benchmark": "pick_dual_bottles"}).json()
+        stolen = owner.cookies[identity.cookie_name()]
+
+    raw, _, signature = stolen.rpartition(".")
+    forgeries = [
+        raw,                                   # no signature at all
+        f"{raw}.{'0' * len(signature)}",       # a signature of the right shape
+        f"{raw}x.{signature}",                 # the handle edited, signature kept
+    ]
+    for forged in forgeries:
+        with browser() as attacker:
+            attacker.cookies.set(identity.cookie_name(), forged)
+            seen = as_ip(attacker, "198.51.100.70", path=f"/api/submissions/{made['id']}")
+            assert seen.status_code == 404, (
+                f"a cookie of {forged[:12]}... was accepted, so anyone can read "
+                "anyone's submissions by editing one value"
+            )
+
+
+def test_an_existing_address_org_is_adopted_rather_than_stranded(browser):
+    """The migration, which runs once per visitor and asks nothing of them.
+
+    Every org predates the cookie and is keyed by address. Without this they
+    would all be unreachable the moment cookies became the handle: the rows are
+    still there, owned by nobody who can present anything.
+    """
+    key = identity.org_key("203.0.113.80")
+    with dbmod.SessionLocal() as session:
+        legacy = dbmod.Org(id=dbmod.new_id("org"), name="Legacy", ip_hash=key)
+        session.add(legacy)
+        session.add(
+            dbmod.Submission(
+                id="sub_legacy_probe", org_id=legacy.id, name="from before",
+                benchmark_id="b", created_by="x",
+            )
+        )
+        session.commit()
+        legacy_id = legacy.id
+
+    with browser() as returning:
+        seen = as_ip(returning, "203.0.113.80", path="/api/submissions/sub_legacy_probe")
+        assert seen.status_code == 200, (
+            "a visitor who predates the cookie lost access to their own uploads"
+        )
+        assert returning.cookies.get(identity.cookie_name()), "no cookie was issued"
+
+    with dbmod.SessionLocal() as session:
+        assert session.get(dbmod.Org, legacy_id).token_hash, (
+            "the org was read but never given a cookie, so it would be adopted "
+            "again by the next visitor arriving from that address"
+        )
+
+
+def test_adoption_cannot_take_an_org_that_already_has_a_cookie(browser):
+    """The migration must not become a way in.
+
+    Addresses are shared and they get reassigned. If adoption looked at any org
+    matching the address, a second person behind the same NAT, or the next
+    holder of a recycled address, would be handed the first one's submissions.
+    """
+    with browser() as first:
+        made = as_ip(first, "203.0.113.90", "post", "/api/submissions",
+                     json={"name": "already cookied", "benchmark": "pick_dual_bottles"}).json()
+
+    with dbmod.SessionLocal() as session:
+        # Give that org the address too, which is the state adoption looks for.
+        org = session.get(dbmod.Submission, made["id"]).org_id
+        session.get(dbmod.Org, org).ip_hash = identity.org_key("203.0.113.90")
+        session.commit()
+
+    with browser() as second:
+        seen = as_ip(second, "203.0.113.90", path=f"/api/submissions/{made['id']}")
+        assert seen.status_code == 404, (
+            "a second visitor from the same address was adopted into an org that "
+            "already belonged to a browser, and can read its submissions"
+        )

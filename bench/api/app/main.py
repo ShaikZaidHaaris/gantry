@@ -14,14 +14,26 @@ import os
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .identity import client_ip, describe, label, org_key
+from .identity import (
+    COOKIE_MAX_AGE,
+    client_ip,
+    cookie_name,
+    cookie_secure,
+    describe,
+    label,
+    label_for,
+    mint,
+    org_key,
+    token_key,
+    verified,
+)
 from .samples import ids as sample_ids
 from .samples import seed as seed_samples
 
@@ -84,46 +96,95 @@ def db() -> Session:
         yield session
 
 
-def viewer(request: Request, session: Session = Depends(db)):
-    """One org per visiting address. The single seam every route asks through.
+def _settle(session: Session, org: Org, lookup) -> Org:
+    """Commit a new org, or take the one that won a race with this request.
 
-    Identity is the caller's IP, resolved by :mod:`.identity`, which only reads
-    forwarding headers when the request carries proof it came through our own
-    edge. Everything downstream is unchanged: routes already scope by
-    ``org_id``, so making that id follow the address is the whole of the
-    change.
-
-    What this is and is not. It partitions visitors; it does not authenticate
-    them. Two consequences worth knowing rather than discovering:
-
-      * one address, one org. A lab, a university or a mobile carrier behind
-        NAT is a single visitor here, and everyone on it shares a submission
-        list.
-      * a new address is a new visitor. A reconnected router or a phone moving
-        between networks arrives as somebody else and cannot see what it
-        uploaded an hour ago.
-
-    Both are inherent to naming people by address; neither is a bug to be
-    found later. A cookie or a login is the fix when either starts to matter.
+    Two requests from one visitor arriving together both find nothing and both
+    insert. The unique index means exactly one wins; the loser re-reads rather
+    than raising, because the failure a user would otherwise see is a 500 on
+    their first ever click.
     """
-    ip = client_ip(request)
-    key = org_key(ip)
+    session.add(org)
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        found = lookup()
+        if found is None:
+            raise
+        return found
+    return org
 
-    org = session.scalar(select(Org).where(Org.ip_hash == key))
-    if org is None:
-        org = Org(id=new_id("org"), name=label(ip), ip_hash=key)
-        session.add(org)
-        try:
-            session.commit()
-        except IntegrityError:
-            # Two requests from one visitor arriving together both found no org
-            # and both inserted. The unique index on ip_hash means exactly one
-            # wins; the loser re-reads rather than raising, because the failure
-            # a user would otherwise see is a 500 on their first ever click.
-            session.rollback()
-            org = session.scalar(select(Org).where(Org.ip_hash == key))
-            if org is None:
-                raise
+
+def viewer(request: Request, response: Response, session: Session = Depends(db)):
+    """One org per visitor. The single seam every route asks through.
+
+    A visitor is a signed cookie we issued, not an address. The address was both
+    too coarse and too fragile: everyone behind one NAT shared a submission list,
+    and a reconnected router made somebody a stranger to their own uploads. A
+    cookie is carried by the person rather than by the network they happen to be
+    on, so it fixes both directions at once.
+
+    Three cases, in order:
+
+      * a valid cookie: that org, and nothing else is consulted.
+      * no cookie, but this address already has an org: adopt it and set a
+        cookie for it. This is the migration, and it runs once per visitor with
+        nothing to do on their part. Without it every org that predates the
+        cookie would be stranded with its submissions inside.
+      * neither: a new org, keyed by the cookie alone.
+
+    What this is and is not. It is a bearer token, so it partitions visitors and
+    does not authenticate them: whoever holds the cookie is that visitor. That
+    is the same trust level the address had, which is why it is signed, HttpOnly
+    and Secure rather than a bare number a visitor could edit. The remaining
+    limit is worth stating plainly: clearing cookies, a private window or a
+    second device is a new visitor, and the way back from that is the email
+    already collected at upload, not anything in here.
+    """
+    # `verified` answers whether we issued this; the whole cookie is what gets
+    # hashed. Both paths must hash the identical string, and hashing the signed
+    # value on the way out while hashing the unsigned one on the way back in is
+    # a bug that presents exactly as the cookie never being sent.
+    cookie = request.cookies.get(cookie_name())
+    if verified(cookie):
+        key = token_key(cookie)
+        org = session.scalar(select(Org).where(Org.token_hash == key))
+        if org is not None:
+            return {"org_id": org.id, "org": org}
+        # Signed by us but unknown, which is a database restored from before the
+        # cookie was issued. Treat it as no cookie and let the visitor be
+        # adopted or created below, rather than handing back a 404 they cannot
+        # act on.
+
+    fresh = mint()
+    key = token_key(fresh)
+
+    # The migration. Only ever reads an org that has no cookie yet, so it cannot
+    # take one that already belongs to a browser.
+    ip = client_ip(request)
+    org = session.scalar(
+        select(Org).where(Org.ip_hash == org_key(ip), Org.token_hash.is_(None))
+    )
+    if org is not None:
+        org.token_hash = key
+        session.commit()
+    else:
+        org = _settle(
+            session,
+            Org(id=new_id("org"), name=label_for(key), token_hash=key),
+            lambda: session.scalar(select(Org).where(Org.token_hash == key)),
+        )
+
+    response.set_cookie(
+        cookie_name(),
+        fresh,
+        max_age=COOKIE_MAX_AGE,
+        httponly=True,       # no script reads it, so a page flaw cannot lift it
+        secure=cookie_secure(),  # https only wherever a proxy terminates TLS
+        samesite="lax",      # not attached to cross-site requests
+        path="/",
+    )
     return {"org_id": org.id, "org": org}
 
 

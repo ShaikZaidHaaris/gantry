@@ -81,6 +81,13 @@ class Org(Base):
     #: never race into two orgs and split their own submissions in half.
     #: Nullable because orgs created before IP identity have no visitor.
     ip_hash: Mapped[str | None] = mapped_column(String, unique=True, nullable=True, index=True)
+    #: Which browser this org belongs to, as a salted hash of a signed cookie we
+    #: issued. This is the handle that survives. An address changes under a
+    #: visitor who has not moved, taking their submissions with it, and is shared
+    #: by everyone behind one NAT, so a whole lab reads as a single person.
+    #: Nullable because every org predates it; those are adopted by their
+    #: ``ip_hash`` on the owner's next visit and carry a cookie from then on.
+    token_hash: Mapped[str | None] = mapped_column(String, unique=True, nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(String, default=now)
 
 
@@ -279,7 +286,7 @@ LATER = {
     # Which visitor an org belongs to. NULL on every org that existed before
     # this, which is right: they belong to nobody in particular and stay
     # reachable only by whoever already had their submissions.
-    "orgs": {"ip_hash": ("TEXT", "NULL")},
+    "orgs": {"ip_hash": ("TEXT", "NULL"), "token_hash": ("TEXT", "NULL")},
     # Opt-in to the shared leaderboard, and the default is the whole point. A
     # result stands next to other people's because its owner said so, never
     # because they did not find the switch.
@@ -304,12 +311,18 @@ REPAIR = {
 #: Columns the model declares unique that :data:`LATER` had to add with
 #: ``ALTER TABLE``, which in SQLite cannot carry a UNIQUE constraint.
 #:
-#: Maps table to ``(column, [(referring_table, referring_column), ...])``. The
-#: referrers are how rows get merged rather than dropped when duplicates already
-#: exist, since a duplicate may own data.
-UNIQUE_LATER = {
-    "orgs": ("ip_hash", [("submissions", "org_id"), ("memberships", "org_id")]),
-}
+#: Each entry is ``(table, column, [(referring_table, referring_column), ...])``.
+#: The referrers are how rows get merged rather than dropped when duplicates
+#: already exist, since a duplicate may own data.
+#:
+#: A list rather than a dict keyed by table, because one table can have two of
+#: these: ``orgs`` gained ``ip_hash`` and then ``token_hash``, and a mapping
+#: would silently keep only the second.
+_ORG_REFS = [("submissions", "org_id"), ("memberships", "org_id")]
+UNIQUE_LATER = [
+    ("orgs", "ip_hash", _ORG_REFS),
+    ("orgs", "token_hash", _ORG_REFS),
+]
 
 
 def enforce_unique(conn) -> None:
@@ -335,7 +348,7 @@ def enforce_unique(conn) -> None:
     Runs on every start, so it has to be a no-op the second time: the merge finds
     no duplicates and the index creation is ``IF NOT EXISTS``.
     """
-    for table, (column, refs) in UNIQUE_LATER.items():
+    for table, column, refs in UNIQUE_LATER:
         have = {r[1] for r in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
         if column not in have:
             continue  # nothing to enforce yet
