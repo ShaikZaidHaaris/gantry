@@ -141,6 +141,13 @@ send "$ROOT/bench/api" "$REMOTE/api" --delete '__pycache__' 'data'
 send "$ROOT/bench/web/dist" "$REMOTE/web/dist" --delete
 send "$ROOT/bench/worker" "$REMOTE/worker" --delete '__pycache__'
 send "$ROOT/bench/deploy" "$REMOTE/deploy"
+# The runner, to the path its own run.sh names. Left out until now, so the only
+# copy on the deployed host was one somebody placed by hand: the exact thing the
+# note at the top of this file warns about, and it had already drifted from the
+# repository. It is copied whether or not BENCH_RUNNER is set, because shipping
+# it is not the same as switching it on, and the gate reads the variable.
+send "$ROOT/bench/runner" /home/ubuntu/gantry_runner --delete '__pycache__'
+"${SSH[@]}" "chmod +x /home/ubuntu/gantry_runner/run.sh"
 
 echo "==> virtualenv"
 "${SSH[@]}" bash -s <<'REMOTE_VENV'
@@ -225,29 +232,34 @@ else
   # Only ever appends. A value an operator set by hand is theirs, and a deploy
   # script that overwrites secrets is one that rotates them on a day nobody
   # meant to.
-  add_missing() {
-    grep -q "^$1=" "$ENV" || { echo "$1=$2" >> "$ENV"; echo "    added $1"; }
-  }
-  echo "  keeping the existing $ENV, adding anything missing:"
-  add_missing BENCH_DATA /home/ubuntu/gantry_bench/data
-  add_missing BENCH_IP_SALT "$(python3 -c 'import secrets;print(secrets.token_hex(16))')"
-  add_missing BENCH_TRUST_TUNNEL 1
+  echo "  keeping the existing $ENV"
   grep -q "^BENCH_WORKER_TOKEN=" "$ENV" || echo "    WARNING: no BENCH_WORKER_TOKEN, the job queue is open"
 fi
 
-# Backfill keys a newer version of this script introduced. Without this, an
-# already-deployed host never receives a newly required setting: the file
-# exists, so the whole block above is skipped, and the deploy reports success
-# while the feature that needed the setting is quietly off. That is how
-# BENCH_SAMPLES came to be missing on a host whose sample files were present.
+# Backfill keys a newer version of this script introduced, on both paths.
+#
+# Without this, an already-deployed host never receives a newly required
+# setting: the file exists, the fresh-file block above is skipped, and the
+# deploy reports success while the feature that needed the setting is quietly
+# off. That is how BENCH_SAMPLES came to be missing on a host whose sample files
+# were present, and how identity ran with every visitor sharing one org.
+#
+# One helper covering both branches, rather than the two near-identical ones a
+# merge left here. On a fresh file every line below is already present and each
+# is a no-op, which is the property that lets this run unconditionally.
 #
 # Only ever adds. A value already in the file is the operator's, including
 # secrets this script must not regenerate.
 add_if_missing() {
   grep -q "^$1=" "$ENV" || { echo "$1=$2" >> "$ENV"; echo "  added $1"; }
 }
-add_if_missing BENCH_SAMPLES /home/ubuntu/gantry/samples
 add_if_missing BENCH_DATA /home/ubuntu/gantry_bench/data
+add_if_missing BENCH_SAMPLES /home/ubuntu/gantry/samples
+add_if_missing BENCH_IP_SALT "$(python3 -c 'import secrets;print(secrets.token_hex(16))')"
+add_if_missing BENCH_TRUST_TUNNEL 1
+# BENCH_RUNNER is deliberately NOT backfilled. Setting it arms gate 3, which is
+# hours of GPU per submission and free to whoever clicks it, so switching it on
+# is a decision about a host and its bill, not a side effect of deploying.
 REMOTE_ENV
 
 echo "==> services"
@@ -320,9 +332,19 @@ cat <<'NOTE'
 
 ==> training
 
-  The robot test only *produces* rollouts when BENCH_RUNNER points at a runner
-  (see bench/runner). Left unset, the gate reads rollouts already on disk and
-  otherwise reports plainly that it cannot make them -- which is the right
-  default for anything shared, because a stray click should not start a run
-  that costs a day of GPU.
+  The runner is now copied to /home/ubuntu/gantry_runner, but the robot test
+  only *produces* rollouts when BENCH_RUNNER points at it:
+
+      echo BENCH_RUNNER=/home/ubuntu/gantry_runner/run.sh >> gantry_bench/env
+      sudo systemctl restart gantry-worker
+
+  Left unset, the gate reads rollouts already on disk and otherwise reports
+  plainly that it cannot make them. That is the right default for anything
+  shared: gate 3 is free to the visitor, takes about 1.6 hours of GPU per arm,
+  and runs several arms, so a stray click on a public URL is most of a day of
+  GPU that nobody is billed for.
+
+  Before switching it on, check the disk. A checkpoint is 8.5 GB, the runner
+  refuses to start below 11 GB free, and it deletes each checkpoint after its
+  evaluation precisely because two cannot coexist.
 NOTE
