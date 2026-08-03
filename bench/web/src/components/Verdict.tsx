@@ -14,7 +14,7 @@
  */
 
 import type { Cell, Gate, LadderRow, Paired } from "../api/types";
-import { FindingRow, sentence } from "./ui";
+import { sentence } from "./ui";
 
 const NOT_MEASURED = "not measured";
 
@@ -156,7 +156,11 @@ export function Verdict({ gate }: { gate: Gate }) {
           {limits.length === 0 && notes.length === 0 ? (
             <div className="what">Nothing was held back. Every arm and every rung was measured.</div>
           ) : (
-            [...limits, ...notes].map((f) => <FindingRow key={f.code} finding={f} />)
+            <ul className="what-list">
+              {[...limits, ...notes].map((f) => (
+                <li key={f.code}>{sentence(f.summary)}</li>
+              ))}
+            </ul>
           )}
         </div>
       </section>

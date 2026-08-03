@@ -2,24 +2,18 @@
  *
  *  This is the first thing a contributor gets back, and for most uploads it is
  *  the only thing they will ever read closely. It is laid out as an argument in
- *  four steps rather than as a dump of everything the modules returned:
+ *  three steps rather than as a dump of everything the modules returned:
  *
  *    1. what to fix        the deliverable, ranked, each with a fix
  *    2. also noted         real but not urgent, folded away
  *    3. what we measured   the numbers, each with its n
- *    4. what we could not judge
- *
- *  Step 4 is not a footnote and is never dropped. A module that declined and a
- *  module that found nothing produce the same empty list and mean opposite
- *  things, and a report that hides the difference reads as a clean bill of
- *  health when it is nothing of the kind.
  *
  *  Nothing here computes. Every number was written by a module upstream, and
  *  the page's whole job is to order it.
  */
 
 import { useState } from "react";
-import type { Abstention, Finding, Gate, Measure } from "../api/types";
+import type { Finding, Gate, Measure } from "../api/types";
 import { FindingRow, readable } from "./ui";
 
 /** Ranked. Findings arrive per-module, so an ordering has to be imposed here or
@@ -106,7 +100,6 @@ export function DataReport({ gate }: { gate: Gate }) {
   const fix = findings.filter((f) => f.severity === "strong" || f.severity === "moderate");
   const noted = findings.filter((f) => f.severity === "weak" || f.severity === "info");
   const measures = Object.entries(gate.measures ?? {});
-  const abstained: Abstention[] = gate.abstained ?? [];
 
   return (
     <div className="report">
@@ -126,8 +119,8 @@ export function DataReport({ gate }: { gate: Gate }) {
           </div>
         ) : (
           <div className="note">
-            Every check that had something to read came back clean. That does not mean the
-            data is good. See what we could not judge, below.
+            Every check that had something to read came back clean, which is not the same
+            as the data being good.
           </div>
         )}
       </Section>
@@ -171,25 +164,6 @@ export function DataReport({ gate }: { gate: Gate }) {
         </Section>
       )}
 
-      <Section
-        title="What we could not judge"
-        hint="Some checks had nothing to work with. They did not pass, they just could not run."
-      >
-        {abstained.length > 0 ? (
-          <Fold label={`${abstained.length} check${abstained.length === 1 ? "" : "s"} had nothing to go on`}>
-            <div className="card pad">
-              {abstained.map((a, i) => (
-                <div className="abstain" key={i} title={(a.codes ?? []).join(", ")}>
-                  <span className="mod">{a.module}</span>
-                  <span>{a.reason}</span>
-                </div>
-              ))}
-            </div>
-          </Fold>
-        ) : (
-          <div className="note">Every check found what it needed and ran.</div>
-        )}
-      </Section>
     </div>
   );
 }
