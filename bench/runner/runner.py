@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -310,6 +311,54 @@ def norm_stats(arm: str, progress: Path) -> None:
         raise RuntimeError(f"computing norm stats for {arm} failed (exit {code})")
 
 
+#: A line that names an exception: an optional dotted module path, a class whose
+#: name ends in Error/Exception/Interrupt, then a colon.
+_NAMES_A_FAULT = re.compile(r"^(?:[\w.]+\.)?\w*(?:Error|Exception|Interrupt)\s*:")
+
+#: Lines that are part of a traceback's presentation rather than its content.
+#: The carets underline the failing expression and carry no information once the
+#: line above them is gone; JAX then prints a footer explaining that it hid its
+#: own frames, which is the last thing in the file and therefore exactly what a
+#: naive tail returns.
+_JUST_DECORATION = re.compile(r"^\s*(?:\^+|-{5,}|~+)\s*$")
+_JAX_FOOTER = "For simplicity, JAX has removed its internal frames"
+
+
+def _why(log: Path, keep: int = 4) -> str:
+    """The line that says what went wrong, rather than the last lines of the file.
+
+    This existed as ``" / ".join(lines[-6:])`` and produced, for a real crash:
+
+        RuntimeError: training ... failed (exit 1).
+            train_state, info = ptrain_step(train_rng, train_state, batch) /
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+    which names the line that was executing and never the thing that went wrong
+    with it. The actual cause, ``XlaRuntimeError: CUDNN_STATUS_NOT_SUPPORTED``,
+    was four lines above and got pushed out by the footer JAX prints *after* its
+    own traceback. Somebody read that card and could not tell a GPU fault from a
+    bad dataset, which is the whole job of the message.
+
+    So: find the last line that names an exception and keep it with the detail
+    lines under it, which for XLA is where the actual driver error sits. Falls
+    back to the tail when nothing does, because a message that is merely
+    unhelpful beats one that is empty.
+    """
+    if not log.exists():
+        return ""
+    lines = [
+        line.rstrip()
+        for line in log.read_text(errors="replace").splitlines()
+        if line.strip() and not _JUST_DECORATION.match(line) and _JAX_FOOTER not in line
+    ]
+    if not lines:
+        return ""
+    for index in range(len(lines) - 1, -1, -1):
+        if _NAMES_A_FAULT.match(lines[index].strip()):
+            return " / ".join(part.strip() for part in lines[index : index + keep])
+    return " / ".join(part.strip() for part in lines[-keep:])
+
+
 def train(arm: str, steps: int, progress: Path) -> Path:
     """Train one arm. Returns the checkpoint directory."""
     out = CHECKPOINTS / f"pi05_{arm}" / "bench" / str(steps - 1)
@@ -341,11 +390,7 @@ def train(arm: str, steps: int, progress: Path) -> Path:
         cwd=OPENPI,
     )
     if code != 0 or not out.exists():
-        why = ""
-        if log.exists():
-            lines = [l for l in log.read_text().splitlines() if l.strip()]
-            why = " / ".join(lines[-6:])
-        raise RuntimeError(f"training {arm} failed (exit {code}). {why}"[:1200])
+        raise RuntimeError(f"training {arm} failed (exit {code}). {_why(log)}"[:1200])
     return out
 
 
@@ -380,11 +425,10 @@ def serve(arm: str, checkpoint: Path, progress: Path) -> subprocess.Popen:
             return process
         except OSError:
             time.sleep(10)
-    tail = ""
-    if log.exists():
-        lines = [l for l in log.read_text().splitlines() if l.strip()]
-        tail = " / ".join(lines[-5:])
-    raise RuntimeError(f"the policy server for {arm} never came up. {tail}"[:800])
+    # Same treatment as training. A server that failed to bind says so in an
+    # exception, and a timeout standing in front of the tail of its log reads as
+    # "it was slow" when it actually refused to start for a nameable reason.
+    raise RuntimeError(f"the policy server for {arm} never came up. {_why(log)}"[:800])
 
 
 def evaluate(arm: str, task: str, scenes: int, progress: Path) -> Path:
