@@ -390,9 +390,24 @@ def enforce_unique(conn) -> None:
 
 #: Seconds without a heartbeat before a running job is presumed dead. Workers
 #: beat on a background thread every :data:`~worker.run.BEAT` seconds, which
-#: continues through a gate's longest blocking call, so this only trips when the
-#: worker process is genuinely gone.
-STALE_AFTER = 90.0
+#: continues through a gate's longest blocking call.
+#:
+#: Ten minutes, not ninety seconds, and the difference was paid for. A beat is
+#: a *write*, and every routine operation on the host stalls writes: a
+#: consistent ``sqlite3 .backup`` holds the lock for as long as it copies, a
+#: deploy restarts the API, and the migration on the next startup rebuilds
+#: columns before serving. At 90s the margin was nine missed beats, and one
+#: backup-then-restart during a live robot test stalled the beats just long
+#: enough that the first sweep after startup declared a healthy worker dead --
+#: three hours into a run whose training had finally succeeded. The worker was
+#: still there, still evaluating, still beating; the card told the visitor our
+#: machine had stopped responding.
+#:
+#: The trade is real but cheap: a genuinely dead worker is now noticed in ten
+#: minutes instead of ninety seconds, on jobs that run for hours. The failure
+#: the old value bought -- an honest multi-hour result thrown away because the
+#: operator deployed -- is the expensive direction to be wrong in.
+STALE_AFTER = 600.0
 
 
 def sweep_stale(session: Session, *, after: float = STALE_AFTER) -> int:
