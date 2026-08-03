@@ -103,8 +103,11 @@ export function DataReport({ gate }: { gate: Gate }) {
 
   return (
     <div className="report">
+      {/* The count is in the title because this is the answer people came back
+          for, and "What to fix" alone reads the same whether there are two
+          things or eleven. */}
       <Section
-        title={fix.length ? "What to fix" : "Nothing to fix"}
+        title={fix.length ? `What to fix (${fix.length})` : "Nothing to fix"}
         hint={
           fix.length
             ? "Ordered by how much they matter. Each one comes from a measurement you can check."

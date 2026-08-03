@@ -76,6 +76,28 @@ export function SubmissionDetail() {
   const sized = data.gates.find((g) => g.sized && g.status === "queued");
   const robot = data.gates.find((g) => g.key === "g3");
 
+  //: Whether anything is still moving. `queued` counts: a gate waiting for a
+  //: worker is a gate this page will change on its own, and the timeline is the
+  //: only place that says so.
+  const stillRunning = data.gates.some((g) => g.status === "queued" || g.status === "running");
+
+  //: Rendered above the findings while a check is live and below them after,
+  //: rather than duplicated, so the two positions cannot drift apart.
+  const progress = (
+    <>
+      <h2>Progress</h2>
+      <GateTimeline
+        gates={data.gates}
+        currentGate={data.current_gate}
+        live={live}
+        onStart={data.demo ? undefined : (gate) => start.mutate({ gate })}
+        starting={start.isPending}
+        onRetry={data.demo ? undefined : (gate) => retry.mutate(gate)}
+        retrying={retry.isPending}
+      />
+    </>
+  );
+
   return (
     <div className="page">
       <div className="page-head">
@@ -117,16 +139,14 @@ export function SubmissionDetail() {
           read before the result they explain. */}
       <AnswerBanner submission={data} />
 
-      <h2>Progress</h2>
-      <GateTimeline
-        gates={data.gates}
-        currentGate={data.current_gate}
-        live={live}
-        onStart={data.demo ? undefined : (gate) => start.mutate({ gate })}
-        starting={start.isPending}
-        onRetry={data.demo ? undefined : (gate) => retry.mutate(gate)}
-        retrying={retry.isPending}
-      />
+      {/* Progress leads while there is progress to watch, and gets out of the
+          way once there is not.
+          While a check is running, the timeline is the page: it is the only
+          thing changing and the only reason to keep the tab open. The moment
+          everything has settled it becomes the least interesting thing here,
+          and leaving it on top pushed the findings, which is what the visitor
+          came back for, below the fold behind a list of ticks. */}
+      {stillRunning && progress}
 
       {detected?.episodes ? (
         <>
@@ -213,6 +233,10 @@ export function SubmissionDetail() {
           />
         </>
       )}
+
+      {/* Finished: the timeline is now history, so it sits under the findings
+          it produced rather than in front of them. */}
+      {!stillRunning && progress}
 
       {/* Below the result, not above it. Re-uploading is something you do
           *because* of an answer, so the control for it follows the answer
