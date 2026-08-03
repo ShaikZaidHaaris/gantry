@@ -74,7 +74,20 @@ def emit(progress: Path, phase: str, current=None, total=None, note: str = "") -
 TOOLS = f"{HOME}/.local/bin"
 
 
-def run(cmd: list[str] | str, cwd: Path | None = None, env: dict | None = None) -> int:
+def run(
+    cmd: list[str] | str,
+    cwd: Path | None = None,
+    env: dict | None = None,
+    log: Path | None = None,
+) -> int:
+    """Run a stage, optionally keeping what it said.
+
+    ``log`` is not optional in spirit. A stage whose output goes nowhere can only
+    ever report ``exit 1``, and this runner is invoked by a worker whose own
+    stdout is not the journal, so "nowhere" is literal: the text does not exist
+    anywhere afterwards. Two stages were in that state and both produced
+    failures that could not be diagnosed without re-running them by hand.
+    """
     shell = isinstance(cmd, str)
     print(f"[runner] $ {cmd if shell else ' '.join(cmd)}", flush=True)
     merged = {
@@ -83,7 +96,13 @@ def run(cmd: list[str] | str, cwd: Path | None = None, env: dict | None = None) 
         "WANDB_MODE": "disabled",
         **(env or {}),
     }
-    return subprocess.call(cmd, cwd=str(cwd) if cwd else None, shell=shell, env=merged)
+    where = str(cwd) if cwd else None
+    if log is None:
+        return subprocess.call(cmd, cwd=where, shell=shell, env=merged)
+    with log.open("w") as out:
+        return subprocess.call(
+            cmd, cwd=where, shell=shell, env=merged, stdout=out, stderr=subprocess.STDOUT
+        )
 
 
 def stop_server() -> None:
@@ -306,9 +325,10 @@ def norm_stats(arm: str, progress: Path) -> None:
     computed from what each actually contains.
     """
     emit(progress, "computing normalisation statistics", note=arm)
-    code = run(f"uv run scripts/compute_norm_stats.py --config-name=pi05_{arm}", cwd=OPENPI)
+    log = HOME / f"bench_norm_{arm}.log"
+    code = run(f"uv run scripts/compute_norm_stats.py --config-name=pi05_{arm}", cwd=OPENPI, log=log)
     if code != 0:
-        raise RuntimeError(f"computing norm stats for {arm} failed (exit {code})")
+        raise RuntimeError(f"computing norm stats for {arm} failed (exit {code}). {_why(log)}"[:800])
 
 
 #: A line that names an exception: an optional dotted module path, a class whose
@@ -433,14 +453,18 @@ def serve(arm: str, checkpoint: Path, progress: Path) -> subprocess.Popen:
 
 def evaluate(arm: str, task: str, scenes: int, progress: Path) -> Path:
     emit(progress, "evaluating", total=scenes, note=f"{arm} · {task}")
+    log = HOME / f"bench_eval_{arm}.log"
     code = run(
         [str(ROBOTWIN / ".venv/bin/python"), "-u", str(EGORUN / "run_ablation.py"),
          task, str(scenes), str(PORT), arm],
         cwd=ROBOTWIN,
+        log=log,
     )
     record = EGORUN / f"abl_run_{arm}_{task}.json"
     if code != 0 or not record.exists():
-        raise RuntimeError(f"evaluating {arm} failed (exit {code}); no record at {record}")
+        raise RuntimeError(
+            f"evaluating {arm} failed (exit {code}); no record at {record}. {_why(log)}"[:800]
+        )
     return record
 
 
