@@ -24,7 +24,7 @@ export function Submissions() {
         <div>
           <h2 style={{ margin: 0 }}>Submissions</h2>
           <p style={{ color: "var(--text-2)", marginTop: 4 }}>
-            One dataset, checked four ways, against one benchmark.
+            Each upload runs four checks against one benchmark.
           </p>
         </div>
         <div className="spacer" />
@@ -60,9 +60,9 @@ export function Submissions() {
               </Link>
             }
           >
-            Upload a LeRobot dataset and we will tell you whether it is readable, what the
-            footage is like, and, if you choose to go further, whether it actually makes a
-            robot better.
+            Upload a LeRobot dataset and we will tell you whether it is readable, what is
+            in the footage, and whether a policy trained on it actually makes the robot
+            better.
           </Empty>
         )}
 

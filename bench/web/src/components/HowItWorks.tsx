@@ -218,9 +218,9 @@ export function HowItWorks({ defaultOpen = false }: { defaultOpen?: boolean }) {
           <section>
             <h3>What happens to it</h3>
             <p>
-              Four checks run in order. Each one only starts if the one before it got
-              through, so a dataset that cannot be opened never reaches the ten minutes of
-              probe-fitting.
+              Four checks run in order, and each one only starts if the one before it
+              passed. A dataset that will not open never reaches the ten minutes of
+              probe fitting.
             </p>
             <ol className="checks">
               {CHECKS.map((c) => (

@@ -36,10 +36,10 @@ export function Hero() {
     <section className="hero">
       <div className="hero-copy">
         <p>
-          Upload a robot dataset. Four checks read it, in order, and stop at the
-          first one that can answer. You find out whether it is readable, what the
-          footage is like, whether it carries any learnable signal at all, and
-          finally whether a policy trained on it actually does better.
+          Upload a robot dataset and it runs four checks. Can we read the file, what
+          the footage actually contains, whether there is any signal a policy could
+          learn from, and whether a policy trained on it does better than one trained
+          on shuffled data.
         </p>
         <div className="hero-cta">
           <Link className="btn primary" to="/submissions/new">
