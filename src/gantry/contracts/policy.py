@@ -26,6 +26,7 @@ Invariants
 
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
@@ -98,7 +99,11 @@ def policy_descriptor(
     **metadata: Any,
 ) -> Descriptor:
     """Every capability explicit. A default here would be a claim nobody made."""
-    if chunk < 1:
+    # `chunk` is published as a capability and matched by exact equality, so a
+    # NaN would not even satisfy a requirement asking for the same NaN. It
+    # passes `< 1` because every comparison against it is False, which is how a
+    # value that can never match anything gets declared as a capability.
+    if not math.isfinite(chunk) or chunk < 1:
         raise ValueError(f"chunk must be at least 1, got {chunk}")
     return Descriptor(
         plane="policy",

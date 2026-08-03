@@ -40,6 +40,7 @@ Invariants
 
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
@@ -131,7 +132,14 @@ class TaskSpec:
                     f"task {self.name!r} repeats scene id(s) {sorted(duplicates)}",
                 )
             )
-        if self.horizon < 1:
+        # Finiteness first, because `< 1` cannot see either non-finite value and
+        # both produce a run rather than a refusal. A NaN horizon makes every
+        # `step < horizon` loop False on the first test, so the evaluator records
+        # a complete episode in which the policy was never asked for an action;
+        # an infinite one never terminates. This kit is what certifies an
+        # evaluator, so a blind check here passes the defect down to every
+        # plugin that runs against it.
+        if not math.isfinite(self.horizon) or self.horizon < 1:
             checks.append(
                 Verdict.no("task.horizon", f"task {self.name!r} has horizon {self.horizon}")
             )
@@ -168,9 +176,15 @@ class Protocol:
 
     def validate(self) -> Verdict:
         checks = []
-        if self.epochs < 1:
+        # Both counts take the finiteness check for the same reason as horizon:
+        # NaN passes `< 1` and then loses every later comparison too, so it does
+        # not fail loudly anywhere. `execute` is the more dangerous of the two:
+        # it decides how many actions of each predicted chunk are carried out,
+        # and a NaN silently falls through to the fully closed-loop path, which
+        # is a different experiment reported under the same protocol.
+        if not math.isfinite(self.epochs) or self.epochs < 1:
             checks.append(Verdict.no("protocol.epochs", f"epochs={self.epochs} runs nothing"))
-        if self.execute is not None and self.execute < 1:
+        if self.execute is not None and (not math.isfinite(self.execute) or self.execute < 1):
             checks.append(
                 Verdict.no("protocol.execute", f"execute={self.execute} executes nothing")
             )
