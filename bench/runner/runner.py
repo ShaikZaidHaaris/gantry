@@ -73,6 +73,32 @@ def emit(progress: Path, phase: str, current=None, total=None, note: str = "") -
 #: three layers up, as "training failed".
 TOOLS = f"{HOME}/.local/bin"
 
+#: Where the CUDA libraries are, for exactly the reason TOOLS exists.
+#:
+#: A service-managed worker has no LD_LIBRARY_PATH at all; an interactive shell
+#: on this host has one pointing into /usr/local/cuda. Without it JAX cannot
+#: resolve the CUDA libraries it needs and cuDNN fails to finalise an engine
+#: config on the first training step. It surfaces as
+#:
+#:     XlaRuntimeError: UNKNOWN: CUDNN_STATUS_NOT_SUPPORTED
+#:
+#: which reads as "this GPU cannot do that operation" and is really "a shared
+#: library was not on the search path". It cost a long time, because it looks
+#: like a hardware or version problem and every hand-run reproduction succeeded:
+#: a person testing by hand always has the interactive environment, and the
+#: thing that fails only ever runs without it.
+#:
+#: Reproduced both directions on the identical command. `env -u LD_LIBRARY_PATH`
+#: fails at step 0; the interactive value trains.
+CUDA_LIBS = ":".join(
+    [
+        "/usr/local/cuda/lib",
+        "/usr/local/cuda/lib64",
+        "/usr/local/cuda/targets/x86_64-linux/lib",
+        "/usr/local/cuda/extras/CUPTI/lib64",
+    ]
+)
+
 
 def run(
     cmd: list[str] | str,
@@ -93,6 +119,7 @@ def run(
     merged = {
         **os.environ,
         "PATH": f"{TOOLS}:{os.environ.get('PATH', '')}",
+        "LD_LIBRARY_PATH": f"{CUDA_LIBS}:{os.environ.get('LD_LIBRARY_PATH', '')}".rstrip(":"),
         "WANDB_MODE": "disabled",
         **(env or {}),
     }

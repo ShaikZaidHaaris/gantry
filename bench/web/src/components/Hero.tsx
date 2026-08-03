@@ -17,8 +17,21 @@
  */
 
 import { Link } from "react-router-dom";
+import { useSamples } from "../api/client";
 
 export function Hero() {
+  // The second button used to be the leaderboard, which is opt-in and therefore
+  // empty until somebody publishes: a first-time visitor pressed it and got a
+  // page with nothing on it, which reads as a broken product rather than an
+  // honest default. A finished worked example answers the question they
+  // actually have, which is what one of these reports looks like.
+  //
+  // The id comes from the API rather than being written here, because a
+  // deployment whose fixture failed to seed reports `result: null`, and a link
+  // to a page that is not there is worse than the leaderboard was.
+  const { data } = useSamples();
+  const example = data?.samples.find((s) => s.result)?.result ?? null;
+
   return (
     <section className="hero">
       <div className="hero-copy">
@@ -32,8 +45,8 @@ export function Hero() {
           <Link className="btn primary" to="/submissions/new">
             Upload a dataset
           </Link>
-          <Link className="btn" to="/compare">
-            See the leaderboard
+          <Link className="btn" to={example ? `/samples/${example}` : "/compare"}>
+            {example ? "Example results" : "See the leaderboard"}
           </Link>
         </div>
       </div>
