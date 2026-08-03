@@ -202,6 +202,15 @@ sudo systemctl daemon-reload
 # the health checks pass, and nothing you changed is live. Restart, always.
 sudo systemctl enable gantry-api gantry-worker
 sudo systemctl restart gantry-api gantry-worker
+# The tunnel unit is installed by deploy/tunnel-setup.sh, not by this script,
+# because it needs a hostname and a Cloudflare login that only a human has. But
+# once it exists, a deploy has to refresh it, or an edit to the unit in this
+# repository never reaches the host it is deployed on.
+if [ -f /etc/systemd/system/gantry-tunnel.service ]; then
+    sudo cp /home/ubuntu/gantry_bench/deploy/gantry-tunnel.service /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl restart gantry-tunnel
+fi
 sleep 6
 systemctl is-active gantry-api gantry-worker
 curl -s -o /dev/null -m 5 -w "  api: %{http_code}\n" http://127.0.0.1:8090/api/me
@@ -212,11 +221,22 @@ cat <<'NOTE'
 
 ==> done. Reaching it:
 
-    cloudflared tunnel --url http://127.0.0.1:8090
+  If deploy/tunnel-setup.sh has been run on this host, it is already reachable
+  at its own hostname and there is nothing to do here. Check with
 
-  which prints a https://<name>.trycloudflare.com URL. That URL is ephemeral --
-  it changes whenever cloudflared restarts. A stable one needs a Cloudflare
-  account and a named tunnel.
+      systemctl is-active gantry-tunnel
+
+  Otherwise, for a URL that survives a restart, see deploy/TUNNEL.md. It needs a
+  domain on Cloudflare and one browser login, and opens no inbound port.
+
+  For a throwaway link right now:
+
+      cloudflared tunnel --url http://127.0.0.1:8090
+
+  which prints a https://<name>.trycloudflare.com URL. Ephemeral in both senses:
+  the name changes every time cloudflared starts, and as a bare process it does
+  not come back after a reboot. Fine for a demo you are watching, wrong for a
+  link you send anybody.
 
   The alternative is opening a port in the host's firewall, which this script
   will not do for you.

@@ -49,7 +49,7 @@ Three, and the right one depends on how the origin is reachable.
 | your setup | mode | what earns the trust |
 |---|---|---|
 | `cloudflared tunnel --url http://127.0.0.1:8090` (quick tunnel) | **tunnel** | the origin binds to loopback, so nothing outside can reach it to forge a header |
-| named tunnel, or Cloudflare in front of a public origin | **edge** | a shared secret only your edge knows |
+| named tunnel ([TUNNEL.md](TUNNEL.md)), or Cloudflare in front of a public origin | **edge** | a shared secret only your edge knows |
 | laptop | **direct** | nothing; every visitor is one org, which is correct locally |
 
 **A quick tunnel cannot use the secret**, because a secret is attached by a
@@ -132,6 +132,11 @@ Expected:
 `"mode": "direct"` means the secret is not matching and **every visitor is
 sharing one org right now**. `"salt_is_ephemeral": true` means orgs will not
 survive a restart.
+
+Read `"edge"` narrowly, though. `describe()` reports it as soon as the two
+variables are set **at the origin**; it has no way to check that the header is
+arriving. A Transform Rule that was never created, or created with a typo in the
+value, still reads as `"edge"` here. Which is why the next check exists.
 
 Then confirm the guard actually holds, from a machine that can reach the origin
 directly:

@@ -1,0 +1,13 @@
+[Unit]
+Description=Gantry Bench tunnel (Cloudflare named tunnel)
+After=network-online.target gantry-api.service
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+ExecStart=/usr/local/bin/cloudflared --no-autoupdate --config /home/ubuntu/.cloudflared/config.yml tunnel run
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
