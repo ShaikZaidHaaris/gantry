@@ -404,9 +404,15 @@ def train(arm: str, steps: int, progress: Path) -> Path:
     # trainer's last few lines are its stack trace -- which says what broke and
     # never why. The log is where the why is, and it has to outlive the run.
     log = HOME / f"bench_train_{arm}.log"
+    # --checkpoint-base-dir, or the override above is half applied: this function
+    # would look for the checkpoint on the NVMe while the trainer wrote it to its
+    # own default under openpi/, so a run would train for an hour and a half,
+    # drop 8.5 GB on the disk we were trying to keep off, and then be reported as
+    # a failure because `out.exists()` was False. Both halves name CHECKPOINTS.
     code = run(
         f"XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 uv run scripts/train.py pi05_{arm} "
-        f"--exp-name=bench --overwrite --no-wandb-enabled > {log} 2>&1",
+        f"--exp-name=bench --overwrite --no-wandb-enabled "
+        f"--checkpoint-base-dir={CHECKPOINTS} > {log} 2>&1",
         cwd=OPENPI,
     )
     if code != 0 or not out.exists():
