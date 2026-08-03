@@ -15,7 +15,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useBenchmarks, useCreateSubmission, uploadDataset } from "../api/client";
+import { useBenchmarks, useCreateSubmission, useMe, uploadDataset } from "../api/client";
 import { ErrorNote, bytes } from "../components/ui";
 
 /** The one benchmark. Fixed while there is only one, because a select with a single
@@ -38,8 +38,14 @@ export function NewSubmission() {
 
   const chosen = benchmarks.data?.benchmarks.find((b) => b.key === BENCHMARK);
 
+  // The server's number, not a copy of it. A limit written into this screen
+  // separately is one that eventually disagrees with the check, and the visitor
+  // finds out by waiting for an upload that was never going to be accepted.
+  const limit = useMe().data?.max_upload_bytes ?? 1024 ** 3;
+  const tooBig = file !== null && file.size > limit;
+
   async function send() {
-    if (!file) return;
+    if (!file || tooBig) return;
     setBusy(true);
     setError(null);
     try {
@@ -132,7 +138,9 @@ export function NewSubmission() {
           }}
         >
           <b>{file ? file.name : "Drop your dataset (.zip)"}</b>
-          {file ? bytes(file.size) : "LeRobot v2 export with meta/, data/ and videos/"}
+          {file
+            ? `${bytes(file.size)}${tooBig ? `, over the ${bytes(limit)} limit` : ""}`
+            : `LeRobot v2 export with meta/, data/ and videos/ · up to ${bytes(limit)}`}
           <input
             type="file"
             accept=".zip"
@@ -154,9 +162,23 @@ export function NewSubmission() {
         )}
 
         <div style={{ marginTop: 18 }}>
-          <button className="btn primary" onClick={send} disabled={!file || busy}>
+          <button className="btn primary" onClick={send} disabled={!file || busy || tooBig}>
             {busy ? "Uploading…" : "Upload and run intake"}
           </button>
+        </div>
+
+        {tooBig && (
+          <div className="note danger" style={{ marginTop: 18 }}>
+            <b>This archive is {bytes(file.size)}, over the {bytes(limit)} limit.</b> Trim
+            the export, or upload a subset of the episodes: the checks read the same
+            things either way.
+          </div>
+        )}
+
+        <div className="note" style={{ marginTop: 18 }}>
+          <b>Up to {bytes(limit)} per upload.</b> Larger archives are refused before they
+          finish sending, so trim the export or send a subset of the episodes rather than
+          waiting on one that cannot be accepted.
         </div>
 
         <div className="note" style={{ marginTop: 18 }}>

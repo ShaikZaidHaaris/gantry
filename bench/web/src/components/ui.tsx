@@ -167,7 +167,9 @@ export function bytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 ** 2) return `${(n / 1024).toFixed(0)} KB`;
   if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
-  return `${(n / 1024 ** 3).toFixed(2)} GB`;
+  // Trailing zeros dropped at GB, because the upload ceiling is a round number
+  // and "up to 1.00 GB" reads like a rounding artifact rather than a rule.
+  return `${(n / 1024 ** 3).toFixed(2).replace(/\.00$/, "")} GB`;
 }
 
 export function ago(iso: string): string {

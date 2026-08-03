@@ -44,6 +44,9 @@ export function useMe() {
         /** How the server decided who you are. "direct" means forwarding
          *  headers were ignored and every visitor shares one org. */
         identity: { mode: string; salt_is_ephemeral: boolean; warning: string | null };
+        /** The server's upload ceiling, so the screen states the number that is
+         *  actually enforced rather than a copy of it that drifts. */
+        max_upload_bytes: number;
       }>("/api/me"),
   });
 }

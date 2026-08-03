@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -279,6 +278,11 @@ def me(who=Depends(viewer)):
     return {
         "org": {"id": org.id, "name": org.name},
         "identity": describe(),
+        # Reported so the upload screen states the same number the server
+        # enforces. A limit written into the copy separately is one that
+        # eventually disagrees with the check, and the visitor finds out after
+        # waiting for the upload.
+        "max_upload_bytes": MAX_UPLOAD_BYTES,
     }
 
 
@@ -677,8 +681,57 @@ def get_submission(sub_id: str, who=Depends(viewer), session: Session = Depends(
     return as_submission(session, sub, deep=True)
 
 
+#: Largest archive we accept, in bytes.
+#:
+#: A ceiling rather than a guess at what anybody needs: the box this runs on has
+#: 12 GB free on its root volume, uploads land there, and each one is then
+#: unpacked beside itself. Without a bound, one visitor fills the disk and every
+#: other submission fails at intake with an error about our storage, which is
+#: our fault presented as theirs.
+#:
+#: Read from the environment so a host with room can raise it without a deploy.
+MAX_UPLOAD_BYTES = int(os.environ.get("BENCH_MAX_UPLOAD_BYTES", 1024**3))
+
+
+def _store_within(source, target: Path, limit: int) -> int:
+    """Copy an upload to disk, stopping the moment it exceeds ``limit``.
+
+    Enforced here as well as on the declared length, because Content-Length is
+    a claim the client makes: it can be wrong, absent on a chunked request, or
+    a deliberate lie, and the header check alone would let all three through.
+    Counting what actually arrives is the only bound that holds.
+
+    The partial file is removed on refusal. Leaving it costs the disk space the
+    limit exists to protect, and a half-written archive that no row points at is
+    invisible to everything except `df`.
+    """
+    written = 0
+    try:
+        with target.open("wb") as out:
+            while chunk := source.read(1024 * 1024):
+                written += len(chunk)
+                if written > limit:
+                    raise HTTPException(
+                        413,
+                        f"this archive is larger than the {limit // 1024**3} GB limit. "
+                        "Trim the export, or upload a subset of the episodes: the checks "
+                        "read the same things either way",
+                    )
+                out.write(chunk)
+    except HTTPException:
+        target.unlink(missing_ok=True)
+        raise
+    return written
+
+
 @app.post("/api/submissions/{sub_id}/dataset")
-async def upload_dataset(sub_id: str, file: UploadFile, who=Depends(viewer), session: Session = Depends(db)):
+async def upload_dataset(
+    sub_id: str,
+    file: UploadFile,
+    request: Request,
+    who=Depends(viewer),
+    session: Session = Depends(db),
+):
     """Store the archive and queue intake.
 
     Local disk stands in for object storage; the swap to presigned S3 changes
@@ -688,6 +741,18 @@ async def upload_dataset(sub_id: str, file: UploadFile, who=Depends(viewer), ses
     if sub is None or sub.org_id != who["org_id"]:
         raise HTTPException(404, "no such submission")
 
+    # Refuse on the declared size first, so an upload that cannot possibly be
+    # accepted is turned away before it spends the visitor's bandwidth rather
+    # than after. Not trusted: `_store_within` counts the bytes that arrive.
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            413,
+            f"this archive is larger than the {MAX_UPLOAD_BYTES // 1024**3} GB limit. "
+            "Trim the export, or upload a subset of the episodes: the checks read "
+            "the same things either way",
+        )
+
     previous = session.scalars(
         select(DatasetVersion).where(DatasetVersion.submission_id == sub_id).order_by(DatasetVersion.version.desc())
     ).first()
@@ -696,11 +761,10 @@ async def upload_dataset(sub_id: str, file: UploadFile, who=Depends(viewer), ses
     folder = STORAGE / sub_id / f"v{version}"
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / "dataset.zip"
-    with target.open("wb") as out:
-        shutil.copyfileobj(file.file, out)
+    stored = _store_within(file.file, target, MAX_UPLOAD_BYTES)
 
     row = DatasetVersion(
-        id=new_id("dsv"), submission_id=sub_id, version=version, path=str(target), bytes=target.stat().st_size
+        id=new_id("dsv"), submission_id=sub_id, version=version, path=str(target), bytes=stored
     )
     session.add(row)
 
