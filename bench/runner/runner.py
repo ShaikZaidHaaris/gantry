@@ -278,8 +278,18 @@ TEMPLATE = """
     TrainConfig(
         name="pi05_{arm}",
         model=pi0_config.Pi0Config(pi05=True, action_horizon=10, discrete_state_input=False),
-        data=LeRobotAlohaDataConfig(
+        data=LeRobotPoseDataConfig(
             repo_id="gantry/{arm}",
+            # Pose, not Aloha. LeRobotAlohaDataConfig assumes an action is
+            # fourteen wide, because an Aloha is two arms of six joints and a
+            # gripper. RoboTwin's end-effector space is sixteen: position, a
+            # wxyz quaternion and a gripper, twice.
+            #
+            # Training with the Aloha config does not fail. It produces a
+            # checkpoint that emits fourteen numbers from sixteen-wide data, and
+            # nothing says so until evaluation refuses the chunk hours later,
+            # having already spent the GPU. Every hand-run config here that
+            # produced a working checkpoint uses the Pose one.
             use_delta_joint_actions=False,
             adapt_to_pi=False,
             default_prompt="{prompt}",
@@ -310,24 +320,51 @@ TEMPLATE = """
 """
 
 
+def _existing_block(text: str, arm: str) -> tuple[int, int] | None:
+    """Span of the ``TrainConfig`` openpi already holds for this arm, if any."""
+    at = text.find(f'name="pi05_{arm}",')
+    if at < 0:
+        return None
+    start = text.rfind("    TrainConfig(", 0, at)
+    end = text.find("\n    ),", at)
+    if start < 0 or end < 0:
+        return None
+    return start, end + len("\n    ),\n")
+
+
 def register(arm: str, steps: int, prompt: str, progress: Path) -> None:
-    """Add this arm to openpi's own config list, if it is not already there.
+    """Put this arm in openpi's own config list, matching the current template.
 
     Written here rather than by ``add_configs.py``, which takes no arguments and
     is hardcoded to the three arms of the hand-run ablation. A submission needs
     its own entry, named after itself.
+
+    Rewritten, not skipped, when an entry is already there. This used to return
+    early on any existing name, which meant a correction to TEMPLATE could never
+    reach an arm that had been registered under the old one: the fix landed in
+    this file, the run picked up the stale block, and it failed exactly as
+    before. That is how a fourteen-wide Aloha config survived being replaced by
+    the sixteen-wide Pose one, and the symptom was a training run that spent an
+    hour and a half before evaluation refused its output.
     """
     emit(progress, "registering the arm", note=arm)
     text = CONFIG_PY.read_text()
-    if f'name="pi05_{arm}"' in text:
-        return
-    if ANCHOR not in text:
-        raise RuntimeError(
-            "openpi's config file no longer has the anchor this inserts before; "
-            "it has been edited or upgraded and this needs looking at"
-        )
-    block = TEMPLATE.format(arm=arm, prompt=prompt, steps=steps)
-    CONFIG_PY.write_text(text.replace(ANCHOR, block.rstrip() + "\n" + ANCHOR, 1))
+    block = TEMPLATE.format(arm=arm, prompt=prompt, steps=steps).strip("\n")
+
+    span = _existing_block(text, arm)
+    if span is not None:
+        start, end = span
+        if text[start:end].strip() == block.strip():
+            return  # already exactly this
+        emit(progress, "registering the arm", note=f"{arm} (replacing a stale entry)")
+        CONFIG_PY.write_text(text[:start] + block + "\n" + text[end:])
+    else:
+        if ANCHOR not in text:
+            raise RuntimeError(
+                "openpi's config file no longer has the anchor this inserts before; "
+                "it has been edited or upgraded and this needs looking at"
+            )
+        CONFIG_PY.write_text(text.replace(ANCHOR, block + "\n\n" + ANCHOR, 1))
 
     # Prove it parses and resolves before anything spends an hour on the GPU.
     check = subprocess.run(
