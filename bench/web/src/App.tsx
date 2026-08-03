@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import { useMe } from "./api/client";
+import { Contact } from "./components/Contact";
 import { NewSubmission } from "./routes/NewSubmission";
 import { SubmissionDetail } from "./routes/SubmissionDetail";
 import { Compare } from "./routes/Compare";
@@ -38,6 +39,9 @@ export default function App() {
         <Route path="/samples/:id" element={<SubmissionDetail />} />
         <Route path="/samples/:id/verdict" element={<VerdictPage />} />
       </Routes>
+      {/* Outside Routes: reachable from every screen, including the one where
+          somebody has just been told their data did not pass. */}
+      <Contact />
     </div>
   );
 }

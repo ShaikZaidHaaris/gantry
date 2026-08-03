@@ -717,3 +717,32 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
   font-weight: 500; font-size: 11px; color: var(--text-3);
   text-transform: uppercase; letter-spacing: 0.04em; margin-left: 6px;
 }
+
+/* Contact, in the footer of every page. Sits on the canvas rather than on a
+   surface card: it is not part of the working table, it is the edge of it. */
+.contact {
+  border-top: 1px solid var(--border);
+  margin-top: 56px;
+  background: var(--surface);
+}
+.contact-inner {
+  max-width: 1080px; margin: 0 auto; padding: 28px 24px 36px;
+  display: flex; flex-wrap: wrap; gap: 20px 40px;
+  align-items: baseline; justify-content: space-between;
+}
+.contact h2 {
+  font-family: var(--display); font-weight: 800; font-size: 16px;
+  margin: 0 0 6px;
+}
+.contact p { margin: 0; font-size: 13.5px; color: var(--muted, #5d6b73); max-width: 46ch; }
+.contact-links {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 8px 10px;
+}
+.contact-links a {
+  display: inline-flex; align-items: center; border-radius: 999px;
+  padding: 7px 15px; font-size: 13.5px; font-weight: 600;
+  border: 1px solid var(--border-2, var(--border));
+  background: var(--surface); color: var(--text); text-decoration: none;
+}
+.contact-links a:hover { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent); }
