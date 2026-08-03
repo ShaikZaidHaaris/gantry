@@ -74,19 +74,50 @@ send() {
 # dependencies removed -- so the very next line dies with "tsc is not
 # recognized". The deploy stops after one line of output and the diagnosis is
 # nowhere near the symptom. Check first and say so.
+#
+# Scoped to *this* checkout's binary, which the first version was not: it asked
+# whether any process named esbuild or node existed anywhere on the machine, so
+# an unrelated site open in another window, or Adobe's bundled node, refused the
+# deploy and sent you looking for a dev server you did not have running. A guard
+# that cries wolf gets bypassed, and this one is worth keeping.
+#
+# `node` is not consulted at all. The dev server is a node process but the file
+# npm cannot unlink is esbuild.exe, so that is the handle to look for.
+#
+# The comparison deliberately contains no regex and no backslash escaping. The
+# version before this normalised separators with `-replace '\\','/'`, and bash
+# collapsed those backslashes on the way into powershell, leaving the invalid
+# pattern `\`. Every process then threw inside Where-Object, the pipeline
+# produced nothing, and a guard that can never fire looks exactly like a guard
+# that found nothing wrong. The path is converted to backslashes on this side
+# instead, and passed as a literal single-quoted string.
+#
+# stderr is not discarded, for the same reason: hiding it is what let the broken
+# version look like it was working.
 if [ -d "$ROOT/bench/web/node_modules" ]; then
-  for lock in "$ROOT"/bench/web/node_modules/@esbuild/*/esbuild*; do
-    [ -e "$lock" ] || continue
-    if command -v powershell.exe >/dev/null 2>&1 &&
-       powershell.exe -NoProfile -Command "exit ((Get-Process -Name esbuild,node -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)" 2>/dev/null; then
-      :
-    else
-      echo "  a dev server appears to be running; it will lock esbuild and corrupt node_modules." >&2
-      echo "  stop it first:  bench/.demo/run-local.sh stop   (and close any 'npm run dev')" >&2
-      exit 1
-    fi
-    break
-  done
+  MODULES_WIN="$( (cd "$ROOT/bench/web/node_modules" && pwd -W) 2>/dev/null )"
+  MODULES_WIN="${MODULES_WIN//\//\\}"   # C:/x/y -> C:\x\y, without tr's backslash warning
+  if [ -n "$MODULES_WIN" ] && command -v powershell.exe >/dev/null 2>&1; then
+    LOCK_OUT="$(powershell.exe -NoProfile -Command "
+      \$want = '$MODULES_WIN'
+      Get-Process -Name esbuild -ErrorAction SilentlyContinue |
+        Where-Object { \$_.Path -and \$_.Path.StartsWith(\$want, 'OrdinalIgnoreCase') } |
+        Select-Object -First 1 -ExpandProperty Path" 2>&1 | tr -d '\r' | tr -s '\n' '\n')"
+    case "$LOCK_OUT" in
+      "")
+        : ;;                                  # nothing holding it
+      *esbuild.exe*)
+        echo "  a dev server is holding this checkout's esbuild, and npm ci would corrupt node_modules:" >&2
+        echo "    $LOCK_OUT" >&2
+        echo "  stop it first:  bench/.demo/run-local.sh stop   (and close any 'npm run dev')" >&2
+        exit 1 ;;
+      *)
+        # Said out loud rather than treated as "all clear", which is the failure
+        # this check has already had once.
+        echo "  note: could not check for a running dev server, continuing anyway:" >&2
+        echo "    $LOCK_OUT" >&2 ;;
+    esac
+  fi
 fi
 
 echo "==> building the frontend"
