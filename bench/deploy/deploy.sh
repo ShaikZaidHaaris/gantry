@@ -58,13 +58,19 @@ send() {
   local wipe=0; [ "${1:-}" = "--delete" ] && { wipe=1; shift; }
   local ex=() tarex=()
   for e in "$@"; do ex+=(--exclude "$e"); tarex+=(--exclude="$e"); done
+  # `${a[@]+"${a[@]}"}` rather than `"${a[@]}"`. Under `set -u`, bash 3.2 calls
+  # an empty array unbound and aborts, and 3.2 is what macOS ships as /bin/bash.
+  # Every call with no excludes -- the samples directory, the built bundle --
+  # therefore killed the deploy at the first copy with "ex[@]: unbound
+  # variable", on any Mac. The idiom expands to nothing when the array is empty
+  # and is correct on bash 4 too.
   if [ "$HAVE_RSYNC" = 1 ]; then
-    local flags=(-az -e "$RSYNC_E" "${ex[@]}")
+    local flags=(-az -e "$RSYNC_E" ${ex[@]+"${ex[@]}"})
     [ "$wipe" = 1 ] && flags+=(--delete)
     rsync "${flags[@]}" "$src/" "$HOST:$dst/"
   else
     [ "$wipe" = 1 ] && "${SSH[@]}" "rm -rf '$dst'"
-    tar -czf - -C "$src" "${tarex[@]}" . | "${SSH[@]}" "mkdir -p '$dst' && tar -xzf - -C '$dst'"
+    tar -czf - -C "$src" ${tarex[@]+"${tarex[@]}"} . | "${SSH[@]}" "mkdir -p '$dst' && tar -xzf - -C '$dst'"
   fi
 }
 
@@ -95,7 +101,14 @@ send() {
 # stderr is not discarded, for the same reason: hiding it is what let the broken
 # version look like it was working.
 if [ -d "$ROOT/bench/web/node_modules" ]; then
-  MODULES_WIN="$( (cd "$ROOT/bench/web/node_modules" && pwd -W) 2>/dev/null )"
+  # `|| true` because `pwd -W` is a Git Bash extension and every other shell
+  # rejects it. Under `set -e` a bare assignment carries the substitution's exit
+  # status, so on macOS and Linux this line ended the script here: no output at
+  # all, not even "==> building the frontend", and exit 1. A deploy that prints
+  # nothing looks like a deploy that did nothing, which is exactly what it was.
+  # An empty value is the correct answer anyway, and means "not Windows" to the
+  # check below.
+  MODULES_WIN="$( (cd "$ROOT/bench/web/node_modules" && pwd -W) 2>/dev/null || true )"
   MODULES_WIN="${MODULES_WIN//\//\\}"   # C:/x/y -> C:\x\y, without tr's backslash warning
   if [ -n "$MODULES_WIN" ] && command -v powershell.exe >/dev/null 2>&1; then
     LOCK_OUT="$(powershell.exe -NoProfile -Command "
@@ -165,10 +178,33 @@ for p in plugins/*/; do
   [ -f "$p/pyproject.toml" ] && .venv/bin/pip install -q -e "$p" || true
 done
 .venv/bin/pip install -q fastapi "uvicorn[standard]" sqlalchemy python-multipart
+# The hand tracker, for uploads that are raw egocentric video rather than a
+# robot export. Optional to the framework and required by the product: without
+# it every clip fails identically, and while intake now reports that correctly
+# as our fault rather than theirs, a host that cannot do the job at all is not
+# a deployment of this product.
+.venv/bin/pip install -q rtmlib mediapipe onnxruntime || \
+  echo "  note: the hand tracker did not install; raw ego uploads will report ego.tracker_missing"
+# Its weights, to the second path worker/ego.py looks in. Fetched rather than
+# assumed: this worked on the box that happened to have a copy from an earlier
+# experiment, and would have failed on any other with an error naming a file
+# nobody ever put there.
+if [ ! -f /opt/gantry/models/hand_landmarker.task ]; then
+  sudo mkdir -p /opt/gantry/models
+  sudo curl -sSL -o /opt/gantry/models/hand_landmarker.task \
+    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" \
+    && echo "  fetched the hand landmarker weights" \
+    || echo "  note: could not fetch the landmarker weights; set BENCH_HAND_MODEL by hand"
+fi
 .venv/bin/python -c "
 from importlib.metadata import entry_points
 names = sorted(e.name for e in entry_points(group='gantry.feedback'))
-print(f'  {len(names)} feedback checks installed')"
+print(f'  {len(names)} feedback checks installed')
+try:
+    import rtmlib, mediapipe  # noqa: F401
+    print('  hand tracker installed')
+except ImportError:
+    print('  hand tracker NOT installed')"
 REMOTE_VENV
 
 echo "==> environment"

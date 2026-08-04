@@ -16,6 +16,8 @@ import zipfile
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+from .. import ego
+
 #: What a gate is handed to say where it is: phase, and optionally how far
 #: through and a note. Typed here so a gate can be run outside a worker -- in a
 #: test, or by hand -- without one.
@@ -36,8 +38,24 @@ def _finding(code: str, severity: str, summary: str, fix: str | None = None) -> 
     return {"code": code, "severity": severity, "summary": summary, "prescription": fix}
 
 
-def unpack(archive: Path, into: Path) -> tuple[Path | None, list[dict]]:
-    """Unzip, and find the LeRobot root inside whatever folder structure came."""
+#: Codes that mean *we* broke, not that the data was judged and found wanting.
+#: The product's central distinction: `failed` can be retried because the fault
+#: is ours to fix, `refused` cannot, because re-rolling until the answer is
+#: liked is the one thing a benchmark must not offer. A missing tracker fails
+#: every clip identically and says nothing whatever about the footage.
+OURS = {"ego.tracker_missing", "ego.conversion_failed"}
+
+
+def unpack(archive: Path, into: Path, report: Report = _quiet) -> tuple[Path | None, list[dict]]:
+    """Unzip, and find the dataset inside whatever folder structure came.
+
+    Two shapes are accepted. A LeRobot v2 export is used as it is. Raw
+    egocentric video, which is a clip manifest beside the footage, is converted
+    here into the first shape and then treated as one, so nothing downstream
+    learns a second format. See :mod:`worker.ego` for why that path exists at
+    all: there is no `action` column in kitchen video, and manufacturing one is
+    the whole job.
+    """
     into.mkdir(parents=True, exist_ok=True)
     try:
         with zipfile.ZipFile(archive) as zf:
@@ -58,17 +76,99 @@ def unpack(archive: Path, into: Path) -> tuple[Path | None, list[dict]]:
         return None, [_finding("intake.not_a_zip", "strong", "this file is not a zip archive")]
 
     info = next(into.rglob("meta/info.json"), None)
-    if info is None:
+    if info is not None:
+        return info.parents[1], []
+
+    # No export. Before refusing, look for the other thing a contributor
+    # plausibly has: their own footage plus a manifest saying what is in it.
+    folder = ego.find(into)
+    if folder is not None:
+        return _from_ego(folder, into, report)
+
+    return None, [
+        _finding(
+            "intake.no_lerobot_meta",
+            "strong",
+            "no meta/info.json anywhere in the archive, so this is not a LeRobot v2 dataset",
+            "Export with LeRobot v2 (a meta/ folder beside data/), or upload raw egocentric "
+            f"video with a {ego.MANIFEST} beside it saying what each clip shows and where it "
+            "was filmed.",
+        )
+    ]
+
+
+def _from_ego(folder: Path, into: Path, report: Report) -> tuple[Path | None, list[dict]]:
+    """Turn raw ego footage into a LeRobot dataset, or say why it cannot.
+
+    The manifest is checked before a single frame is decoded, because the
+    refusals it can earn are ones the contributor fixes in a text file, and
+    making them wait through hand tracking to hear about a missing sentence
+    would be unkind and pointless.
+    """
+    try:
+        found = ego.describe(folder)
+    except (OSError, ValueError) as error:
         return None, [
             _finding(
-                "intake.no_lerobot_meta",
+                "ego.manifest_unreadable",
                 "strong",
-                "no meta/info.json anywhere in the archive, so this is not a LeRobot v2 dataset",
-                "Export with LeRobot v2 (a meta/ folder beside data/), or tell us the format "
-                "you have and we will say whether a connector exists for it.",
+                f"the clip manifest could not be read: {error}",
+                f"{ego.MANIFEST} should be a JSON list of clips, each with a path, an "
+                "instruction and a scene.",
             )
         ]
-    return info.parents[1], []
+
+    blocking = [f for f in ego.check(found) if f["severity"] == "strong"]
+    if blocking:
+        return None, blocking
+
+    report(
+        "turning your footage into episodes",
+        note=(
+            "using the poses you supplied"
+            if found["poses"] == "yours"
+            else "finding the hands, which takes a few minutes"
+        ),
+    )
+    try:
+        result = ego.convert(folder, into / "ego_lerobot", report)
+    except Exception as error:  # noqa: BLE001 - ours, and it must not read as their fault
+        return None, [
+            _finding(
+                "ego.conversion_failed",
+                "strong",
+                f"we could not turn this footage into episodes: {str(error)[:200]}",
+                "This is our machinery rather than your data. The run can be tried again.",
+            )
+        ]
+
+    # Ours before theirs. A worker without the tracker installed fails every
+    # clip identically, and reporting that as "we found no hands in your
+    # footage" blames a contributor for our own machine. It is the same
+    # distinction the rest of the product turns on: `failed` is us, `refused`
+    # is a judgement on the data, and only the first is worth retrying.
+    if result.get("ours"):
+        return None, [
+            _finding(
+                "ego.tracker_missing",
+                "strong",
+                "this worker cannot estimate hand poses, so your footage was never judged",
+                f"Our machinery, not your data: {result['ours'][0]['why']}",
+            )
+        ]
+
+    if not result["episodes"]:
+        why = result["dropped"][0]["why"] if result["dropped"] else "no reason recorded"
+        return None, [
+            _finding(
+                "ego.no_hands_found",
+                "strong",
+                f"no clip produced a usable hand trajectory ({len(result['dropped'])} tried)",
+                f"The first one failed with: {why}. Hand tracking needs the hands to be "
+                "visible and in focus for a reasonable share of the clip.",
+            )
+        ]
+    return (into / "ego_lerobot"), []
 
 
 #: Videos actually opened, spread evenly across the upload. A file that lists
@@ -238,9 +338,15 @@ def run(
     point is to be heard while the gate is still running.
     """
     report("unpacking", note=archive.name)
-    root, problems = unpack(archive, workdir / "unpacked")
+    root, problems = unpack(archive, workdir / "unpacked", report)
     if root is None:
-        return {"status": "refused", "detected": {}, "findings": problems, "summary": problems[0]["summary"]}
+        ours = any(p["code"] in OURS for p in problems)
+        return {
+            "status": "failed" if ours else "refused",
+            "detected": {},
+            "findings": problems,
+            "summary": problems[0]["summary"],
+        }
 
     report("reading the manifest")
     report("opening a sample of the videos")
