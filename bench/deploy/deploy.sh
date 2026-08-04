@@ -58,13 +58,19 @@ send() {
   local wipe=0; [ "${1:-}" = "--delete" ] && { wipe=1; shift; }
   local ex=() tarex=()
   for e in "$@"; do ex+=(--exclude "$e"); tarex+=(--exclude="$e"); done
+  # `${a[@]+"${a[@]}"}` rather than `"${a[@]}"`. Under `set -u`, bash 3.2 calls
+  # an empty array unbound and aborts, and 3.2 is what macOS ships as /bin/bash.
+  # Every call with no excludes -- the samples directory, the built bundle --
+  # therefore killed the deploy at the first copy with "ex[@]: unbound
+  # variable", on any Mac. The idiom expands to nothing when the array is empty
+  # and is correct on bash 4 too.
   if [ "$HAVE_RSYNC" = 1 ]; then
-    local flags=(-az -e "$RSYNC_E" "${ex[@]}")
+    local flags=(-az -e "$RSYNC_E" ${ex[@]+"${ex[@]}"})
     [ "$wipe" = 1 ] && flags+=(--delete)
     rsync "${flags[@]}" "$src/" "$HOST:$dst/"
   else
     [ "$wipe" = 1 ] && "${SSH[@]}" "rm -rf '$dst'"
-    tar -czf - -C "$src" "${tarex[@]}" . | "${SSH[@]}" "mkdir -p '$dst' && tar -xzf - -C '$dst'"
+    tar -czf - -C "$src" ${tarex[@]+"${tarex[@]}"} . | "${SSH[@]}" "mkdir -p '$dst' && tar -xzf - -C '$dst'"
   fi
 }
 
