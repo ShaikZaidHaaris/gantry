@@ -1,16 +1,15 @@
-/** The verdict, what the robot test concluded, and what it refused to.
+/** The verdict and the evidence for it.
  *
  *  This is the screen a lab lead screenshots into Slack, so it is built as a
- *  document rather than a dashboard: one statement, the evidence under it, and
- *  the limits under that. Three sections, read top to bottom, and nothing on
- *  the page is computed here, every rate, interval and p-value was produced by
- *  the gate.
+ *  document rather than a dashboard: one statement and the ladder under it,
+ *  read top to bottom, and nothing on the page is computed here; every rate,
+ *  interval and p-value was produced by the gate.
  *
- *  The third section is not a disclaimer. "What this does not say" carries the
- *  refusals the gate made, no control arm, rungs nobody measured, a comparison
- *  the sample size cannot support, and those are the difference between a
- *  result and a number. A verdict page that shows only the first two sections
- *  is the thing this product exists not to be.
+ *  There used to be a third section, "What this does not say", listing the
+ *  measurements the run could not make. Removed at the owner's call: the same
+ *  information still exists in the gate's findings and the unmeasured rungs
+ *  already render as "not measured" in the ladder itself, so the section
+ *  restated what the table above it showed.
  */
 
 import type { Cell, Gate, LadderRow, Paired } from "../api/types";
@@ -108,8 +107,6 @@ export function Verdict({ gate }: { gate: Gate }) {
   const detail = gate.detail ?? {};
   const rows = detail.ladder ?? [];
   const arms = detail.arms ?? [];
-  const limits = gate.findings.filter((f) => f.severity === "strong");
-  const notes = gate.findings.filter((f) => f.severity !== "strong");
 
   if (!rows.length) {
     return (
@@ -143,27 +140,6 @@ export function Verdict({ gate }: { gate: Gate }) {
         <Ladder rows={rows} arms={arms} />
       </section>
 
-      <section className="report-step">
-        <div className="report-step-head">
-          <div>
-            <h3>What this does not say</h3>
-            <p>
-              What this run could not settle. Worth reading alongside the numbers above.
-            </p>
-          </div>
-        </div>
-        <div className="card pad">
-          {limits.length === 0 && notes.length === 0 ? (
-            <div className="what">Nothing was held back. Every arm and every rung was measured.</div>
-          ) : (
-            <ul className="what-list">
-              {[...limits, ...notes].map((f) => (
-                <li key={f.code}>{sentence(f.summary)}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
     </div>
   );
 }

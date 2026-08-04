@@ -194,11 +194,6 @@ h2 { font-size: 17px; font-weight: 700; margin: 30px 0 11px; letter-spacing: -0.
 .fix { margin-top: 5px; font-size: 12.5px; line-height: 1.6; color: var(--text-2);
        max-width: 78ch; }
 
-/* "What this does not say" as a tight list rather than full finding rows:
-   the caveats read as a scannable few lines, not a stack of headed paragraphs. */
-.what-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
-.what-list li { font-size: 12.5px; line-height: 1.5; color: var(--text-2); max-width: 78ch; }
-.what-list li::marker { color: var(--text-3); }
 
 /* wizard ------------------------------------------------------------------- */
 .steps { display: flex; gap: 8px; margin-bottom: 24px; }
