@@ -105,7 +105,19 @@ def digest(record: dict) -> dict:
 
 
 def ask(facts: dict, *, key: str, model: str = "") -> list[str]:
-    """One call, one JSON reply, at most four points back."""
+    """One call, one JSON reply, at most four points back.
+
+    Two gpt-5-family behaviours shaped this, both learned from the first live
+    call rather than the docs. Reasoning tokens are spent from the same
+    ``max_completion_tokens`` budget as the answer, and the model reasons
+    freely by default: a trivial probe spent 704 tokens thinking before its
+    one-line reply, and the real digest blew the whole budget on thought and
+    returned empty content, which parsed as "Expecting value: line 1 column
+    0". So the effort is pinned to minimal -- this is a summarisation of
+    measurements, not a puzzle -- with a retry without the field for any model
+    that refuses it, and an empty reply names the budget as the cause instead
+    of failing as a JSON error three layers up.
+    """
     body = {
         "model": model or MODEL,
         "messages": [
@@ -113,19 +125,38 @@ def ask(facts: dict, *, key: str, model: str = "") -> list[str]:
             {"role": "user", "content": json.dumps(facts, ensure_ascii=False)},
         ],
         "response_format": {"type": "json_object"},
-        # gpt-5-family models spend reasoning tokens from this same budget, so
-        # it is set well above the size of four sentences. `max_tokens` is the
-        # old name and these models refuse it.
-        "max_completion_tokens": 2000,
+        "reasoning_effort": "minimal",
+        # `max_tokens` is the old name and these models refuse it.
+        "max_completion_tokens": 4000,
     }
-    request = urllib.request.Request(
-        OPENAI_URL,
-        data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
-    )
-    with urllib.request.urlopen(request, timeout=90) as response:
-        reply = json.loads(response.read())
-    text = reply["choices"][0]["message"]["content"]
+
+    def post(payload: dict) -> dict:
+        request = urllib.request.Request(
+            OPENAI_URL,
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+        )
+        with urllib.request.urlopen(request, timeout=90) as response:
+            return json.loads(response.read())
+
+    try:
+        reply = post(body)
+    except urllib.error.HTTPError as error:
+        detail = error.read()[:400].decode(errors="replace")
+        if error.code == 400 and "reasoning_effort" in detail:
+            reply = post({k: v for k, v in body.items() if k != "reasoning_effort"})
+        else:
+            raise urllib.error.HTTPError(error.url, error.code, detail, error.hdrs, None)
+
+    choice = reply["choices"][0]
+    text = choice["message"].get("content") or ""
+    if not text.strip():
+        reason = choice.get("finish_reason", "?")
+        raise RuntimeError(
+            f"the model returned no content (finish_reason={reason}); with a "
+            "gpt-5-family model that usually means reasoning consumed the whole "
+            "completion budget"
+        )
     points = json.loads(text).get("points", [])
     return [str(p).strip() for p in points if str(p).strip()][:MAX_POINTS]
 

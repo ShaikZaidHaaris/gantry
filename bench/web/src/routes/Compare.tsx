@@ -9,12 +9,14 @@
  *  third and second are the same letter. A ranked table without this invites
  *  exactly that reading.
  *
- *  **The rung is a control, not a footnote.** Success is the coarsest measure
- *  and the least able to separate anything; the rungs below it are measured on
- *  the same rollouts at no extra cost and routinely separate when success
- *  cannot. Putting them behind a switch, rather than in an appendix, is the
- *  difference between a leaderboard that can answer a question and one that
- *  reports a single number.
+ *  **One rung: solved.** There was a picker here offering every intermediate
+ *  rung -- lifted, moved, reached and their variants -- on the argument that
+ *  the finer rungs separate entries when success cannot. True, and removed at
+ *  the owner's call: seven unexplained switches on the most public screen read
+ *  as complexity, not power. The board now ranks on solved, full stop. The
+ *  per-rung rates still exist on every submission's own verdict page, and the
+ *  API still takes a rung parameter, so the picker is one state variable away
+ *  if it ever earns its place back.
  */
 
 import { useState } from "react";
@@ -27,7 +29,7 @@ function pct(x: number): string {
 }
 
 export function Compare() {
-  const [rung, setRung] = useState("solved");
+  const rung = "solved";
   const [left, setLeft] = useState<string | null>(null);
   const [right, setRight] = useState<string | null>(null);
   const { data, isPending, error } = useCompare("pick_dual_bottles", rung);
@@ -106,22 +108,6 @@ export function Compare() {
         </Empty>
       ) : (
         <>
-          <div className="rungbar">
-            <span className="lab">Rank on</span>
-            <div className="segmented">
-              {data.rungs.map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  className={name === rung ? "on" : ""}
-                  onClick={() => setRung(name)}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="card scroll-x">
             <div className="board">
               <div className="brow head">
