@@ -161,6 +161,11 @@ class Submission(Base):
     #: enforced at the query: never in a visitor's list, never on the
     #: leaderboard, never mutable.
     demo: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: Generated advice on improving the dataset, JSON: {"points": [...],
+    #: "model": "..."}. Written by the worker after a real verdict, never
+    #: computed here, and empty is a fine state: a submission with no coaching
+    #: is just a submission with no coaching.
+    coach_json: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[str] = mapped_column(String, default=now)
 
 
@@ -295,7 +300,12 @@ LATER = {
     # `demo` marks a seeded worked example. It defaults to 0 so every row an
     # existing database already holds stays a real submission, which is what
     # they all are.
-    "submissions": {"listed": ("INTEGER", "0"), "email": ("TEXT", "''"), "demo": ("INTEGER", "0")},
+    "submissions": {
+        "listed": ("INTEGER", "0"),
+        "email": ("TEXT", "''"),
+        "demo": ("INTEGER", "0"),
+        "coach_json": ("TEXT", "'{}'"),
+    },
 }
 
 #: Columns an earlier version of :data:`LATER` created as TEXT, whose values are

@@ -252,6 +252,12 @@ print(','.join(sorted(e.name for e in entry_points(group='gantry.feedback'))))")
     echo "# BENCH_TRUST_HEADER=x-bench-edge"
     echo "# BENCH_TRUST_SECRET=    <- must match the Cloudflare Transform Rule"
     echo "# BENCH_CLIENT_IP=cf-connecting-ip"
+    # Advice generation. Off until a key is set, and the product is whole
+    # without it: gates run, verdicts land, only the coaching card is absent.
+    # Set the key by editing this file on the host, never by pasting it into a
+    # chat or a shell history you do not control.
+    echo "# OPENAI_API_KEY=          <- enables the improvement-advice card"
+    echo "# BENCH_FEEDBACK_MODEL=gpt-5-nano"
   } > "$ENV"
   chmod 600 "$ENV"
   echo "  wrote a fresh $ENV"

@@ -219,6 +219,29 @@ export function SubmissionDetail() {
         </>
       )}
 
+      {/* Advice under the evidence it interprets, never above it. Labelled as
+          generated because it is the one thing on this page a model wrote
+          rather than a gate measured, and a reader must be able to tell. */}
+      {(data.coach?.points?.length ?? 0) > 0 && (
+        <>
+          <h2>
+            How to improve this dataset
+            <span className="h2-sub">read from the results above, by a language model</span>
+          </h2>
+          <div className="card pad">
+            <ul className="coach-list">
+              {data.coach!.points!.slice(0, 4).map((point, i) => (
+                <li key={i}>{point}</li>
+              ))}
+            </ul>
+            <div className="coach-note">
+              Generated advice. The measurements above are the ground truth; check any
+              point against them before acting on it.
+            </div>
+          </div>
+        </>
+      )}
+
       {!data.demo && sized && report?.status === "passed" && (
         <>
           <h2>

@@ -158,6 +158,9 @@ export interface Submission {
   demo?: boolean;
   /** Where to reach the uploader if a check breaks. Empty when not given. */
   email: string;
+  /** Generated advice on improving the dataset, {} until the worker writes it.
+   *  Interpretation of the measurements above, not a measurement itself. */
+  coach?: { points?: string[]; model?: string };
   created_at: string;
   benchmark: { key: string; name: string; simulator: string } | null;
   gates: Gate[];

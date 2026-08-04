@@ -767,3 +767,9 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
 
 /* Under the drop zone: what is accepted, where the person deciding is looking. */
 .drop-note { margin: 10px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--text-2); }
+
+/* Generated advice: a list a person acts on, and a label that says a model
+   wrote it. Kept visually quieter than the findings above it. */
+.coach-list { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+.coach-list li { font-size: 13.5px; line-height: 1.55; max-width: 78ch; }
+.coach-note { margin-top: 12px; font-size: 12px; color: var(--text-3, #8a949a); }

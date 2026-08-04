@@ -286,6 +286,9 @@ def as_submission(session: Session, sub: Submission, deep: bool = False) -> dict
         #: are blanked directly above. Never in a leaderboard row, which is read
         #: across visitors.
         "email": "" if sub.demo else (sub.email or ""),
+        #: Generated advice, or {} when none was written. Rendered as its own
+        #: labelled card; nothing else reads it.
+        "coach": json.loads(sub.coach_json or "{}"),
         "created_at": sub.created_at,
         "benchmark": {"key": bench.key, "name": bench.name, "simulator": bench.simulator} if bench else None,
         "gates": [as_gate(g) for g in gates],
@@ -1250,6 +1253,40 @@ def retry_gate(sub_id: str, key: str, who=Depends(viewer), session: Session = De
     emit(session, sub_id, "gate.retried", gate=key, attempt=len(attempts) + 1)
     session.commit()
     return as_submission(session, sub, deep=True)
+
+
+@app.post("/api/submissions/{sub_id}/for-worker")
+def submission_for_worker(sub_id: str, body: dict, session: Session = Depends(db), _=Depends(worker)):
+    """The full record, for the worker that is coaching it.
+
+    Worker-authed, not viewer-scoped: the worker has no cookie and already
+    holds the dataset itself, so the record is not an escalation. POST because
+    the worker's transport only speaks POST, and a second verb there for one
+    read would be ceremony.
+    """
+    sub = session.get(Submission, sub_id)
+    if sub is None:
+        raise HTTPException(404, "no such submission")
+    return as_submission(session, sub, deep=True)
+
+
+@app.post("/api/submissions/{sub_id}/coach")
+def store_coach(sub_id: str, body: dict, session: Session = Depends(db), _=Depends(worker)):
+    """Store generated advice. Worker-authed: visitors read this, never write it.
+
+    At most four points, enforced here as well as at generation, because this
+    is the door and the generator is merely one caller of it.
+    """
+    sub = session.get(Submission, sub_id)
+    if sub is None:
+        raise HTTPException(404, "no such submission")
+    points = [str(p).strip() for p in (body.get("points") or []) if str(p).strip()][:4]
+    if not points:
+        raise HTTPException(422, "no points to store")
+    sub.coach_json = json.dumps({"points": points, "model": str(body.get("model") or "")})
+    emit(session, sub_id, "feedback.written", points=len(points))
+    session.commit()
+    return {"stored": len(points)}
 
 
 @app.post("/api/jobs/claim")

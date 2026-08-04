@@ -45,6 +45,7 @@ import urllib.error
 import urllib.request
 import json as jsonlib
 
+import coach
 from fetch import Download, ensure_dataset
 from gates import intake, report, robot, signal
 
@@ -247,6 +248,13 @@ def once(api: str, worker: str, gates: list[str], workroot: Path | None = None) 
                 },
             )
             print(f"[{worker}]   -> {result['status']}: {result['summary']}", flush=True)
+            # Advice after the verdict, never instead of it. The gate's result
+            # is already stored by the time this runs, and every failure path
+            # inside returns a sentence for the log rather than raising. Only
+            # on real verdicts: a "failed" is our machinery, and coaching a
+            # visitor about our own outage would be advice about nothing.
+            if result["status"] in ("passed", "refused", "abstained"):
+                print(f"[{worker}]   {coach.maybe_coach(api, got['submission_id'], call)}", flush=True)
         except Exception as error:  # noqa: BLE001 - one job, not the worker
             traceback.print_exc()
             call(
