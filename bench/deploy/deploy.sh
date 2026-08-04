@@ -326,11 +326,47 @@ if [ -f /etc/systemd/system/gantry-tunnel.service ]; then
     sudo systemctl restart gantry-tunnel
 fi
 sleep 6
-systemctl is-active gantry-api gantry-worker
-# Started *after* this deploy, or the restart did not take.
-echo "  api up since: $(systemctl show -p ActiveEnterTimestamp --value gantry-api)"
-curl -s -o /dev/null -m 5 -w "  api: %{http_code}\n" http://127.0.0.1:8090/api/me
-curl -s -o /dev/null -m 5 -w "  spa: %{http_code}\n" http://127.0.0.1:8090/
+
+# One unit at a time. `systemctl is-active a b` exits 0 when *at least one* of
+# them is active, so a crash-looping worker beside a healthy API is a success as
+# far as the shell is concerned. That is exactly what happened: the worker died
+# on an import for over an hour of deploys while every one of them printed
+# "active" for the API and "==> done", and the failure was found by uploading
+# something rather than by deploying.
+#
+# `activating` is a failure here too, not a "nearly". A unit with
+# Restart=always sits in `activating` forever while it crash-loops, which is
+# the shape the broken worker actually had.
+for unit in gantry-api gantry-worker; do
+  state="$(systemctl is-active "$unit" || true)"
+  echo "  $unit: $state (since $(systemctl show -p ActiveEnterTimestamp --value "$unit"))"
+  if [ "$state" != "active" ]; then
+    echo "  $unit is not running. Recent log:" >&2
+    journalctl -u "$unit" -n 15 --no-pager >&2
+    exit 1
+  fi
+done
+
+curl -sf -o /dev/null -m 5 -w "  api: %{http_code}\n" http://127.0.0.1:8090/api/me
+curl -sf -o /dev/null -m 5 -w "  spa: %{http_code}\n" http://127.0.0.1:8090/
+
+# Running is not the same as working. A worker can be `active` and still be
+# failing to reach the API, and the symptom of that is submissions sitting at
+# "queued" with nothing anywhere saying why. It announces itself when it starts
+# polling, so wait for that line rather than trusting the process state.
+for _ in $(seq 1 15); do
+  if journalctl -u gantry-worker --since "-2 min" --no-pager | grep -q "polling"; then
+    echo "  worker: claiming jobs$(journalctl -u gantry-worker --since '-2 min' --no-pager | grep -o 'for \[.*\]' | tail -1 | sed 's/^/ /')"
+    polling=1
+    break
+  fi
+  sleep 2
+done
+if [ -z "${polling:-}" ]; then
+  echo "  worker is up but never started polling. Recent log:" >&2
+  journalctl -u gantry-worker -n 15 --no-pager >&2
+  exit 1
+fi
 REMOTE_SVC
 
 cat <<'NOTE'
