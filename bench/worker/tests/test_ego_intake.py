@@ -20,10 +20,14 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+# The worker's own layout: run.py puts this directory on sys.path and imports
+# `gates` and `ego` as top-level modules. Importing them here as `worker.gates`
+# instead is what let a relative import pass every test and then fail on the
+# box, so these tests now enter through the same door the worker does.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from worker import ego  # noqa: E402
-from worker.gates import intake  # noqa: E402
+import ego  # noqa: E402
+from gates import intake  # noqa: E402
 
 
 def archive(tmp_path: Path, clips, *, files=("a.mp4", "b.mp4"), poses=None, folder="ego") -> Path:
@@ -306,3 +310,46 @@ def test_an_ordinary_recording_says_nothing_about_poses(tmp_path):
     (root / "meta").mkdir(parents=True)
     (root / "meta" / "info.json").write_text(json.dumps({"total_episodes": 2, "fps": 30.0}))
     assert intake.describe(root)["ego"] is None
+
+
+def test_the_conversion_reports_from_where_it_actually_runs(tmp_path, monkeypatch):
+    """fetch.ensure_dataset does the unpacking for every gate, so it has to
+    carry the reporter into it.
+
+    This is where the ego conversion really happens: intake is handed an archive
+    that has already been prepared, so by the time the gate runs the hand
+    tracking is done. `ensure_dataset` called `unpack` without a reporter, so
+    every phase the conversion emitted went to `_quiet`, and the timeline sat on
+    "unpacking the dataset" for twenty minutes. A bar that has not moved is
+    indistinguishable from a worker that has died, which is the one thing the
+    timeline exists to prevent.
+    """
+    import fetch
+
+    seen = []
+    original = fetch.unpack if hasattr(fetch, "unpack") else None
+
+    def spy(archive, into, report=None):
+        # The reporter must arrive, and it must be callable, not None.
+        seen.append(report)
+        if report is not None:
+            report("finding the hands", current=1, total=2)
+        (into / "meta").mkdir(parents=True, exist_ok=True)
+        (into / "meta" / "info.json").write_text(json.dumps({"total_episodes": 1}))
+        return into, []
+
+    monkeypatch.setattr("gates.intake.unpack", spy)
+
+    said = []
+    archive = tmp_path / "dataset.zip"
+    archive.write_bytes(b"PK\x05\x06" + b"\x00" * 18)
+    work = tmp_path / "work"
+    fetch.ensure_dataset(
+        {"archive": str(archive)},
+        work,
+        lambda url, target: target,
+        lambda phase, **kw: said.append(phase),
+    )
+
+    assert seen and seen[0] is not None, "unpack was called without a reporter"
+    assert "finding the hands" in said, "the conversion's phases never reached the worker"

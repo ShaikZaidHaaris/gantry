@@ -89,8 +89,18 @@ def ensure_dataset(
     if unpacked.exists() and any(unpacked.iterdir()):
         return archive
 
+    # The reporter goes in. `unpack` is no longer just a zip: raw egocentric
+    # footage is converted here, which is minutes of hand tracking, and every
+    # phase it reports was being dropped on the floor. The phase then sat on
+    # "unpacking the dataset" for the whole run, which is the exact failure the
+    # timeline exists to prevent: a bar that has not moved is indistinguishable
+    # from a worker that has died.
+    #
+    # This is also where the work happens for *every* gate, not just intake. A
+    # box that only runs the signal check unpacks here too, so this is the one
+    # place the conversion can be reported from.
     report("unpacking the dataset")
-    root, problems = unpack(archive, unpacked)
+    root, problems = unpack(archive, unpacked, report)
     if root is None:
         # Intake already accepted this archive, so a failure here is ours -- a
         # truncated transfer or a full disk, not a bad upload. Raised rather
