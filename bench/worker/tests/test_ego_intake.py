@@ -161,3 +161,86 @@ def test_a_broken_manifest_says_so_rather_than_crashing(tmp_path, payload):
     root, problems = intake.unpack(out, tmp_path / "work")
     assert root is None
     assert codes(problems) & {"ego.manifest_unreadable", "ego.no_clips", "ego.manifest_incomplete"}
+
+
+class TestMixedResolution:
+    """A corpus is not one resolution, and solving as if it were is silent.
+
+    EPIC is mostly 1920x1080 with a few participants at 1280x720. Intrinsics
+    used to be declared once for the whole upload, and a 720p frame solved with
+    1080p intrinsics does not raise: the focal length is wrong by the ratio of
+    the widths, so perspective-n-point puts the hand at a plausible pose the
+    wrong distance away and every action retargeted from it is smoothly wrong.
+    Nothing downstream can detect that, which is why it is pinned here.
+    """
+
+    @staticmethod
+    def _record():
+        built = []
+
+        def build(intrinsics):
+            built.append((intrinsics.width, intrinsics.height, float(intrinsics.fx)))
+
+            class Fake:
+                licence = "test"
+
+                def estimate(self, frames):
+                    class Track:
+                        metadata: dict = {}
+
+                    return Track()
+
+            return Fake()
+
+        return built, build
+
+    def _frames(self, height, width):
+        import numpy as np
+
+        return np.zeros((2, height, width, 3), dtype="uint8")
+
+    def test_each_resolution_gets_its_own_intrinsics(self):
+        built, build = self._record()
+        estimator = ego._per_resolution(build, "gopro_hero5_wide")
+        estimator.estimate(self._frames(1080, 1920))
+        estimator.estimate(self._frames(720, 1280))
+        assert [(w, h) for w, h, _ in built] == [(1920, 1080), (1280, 720)]
+
+    def test_focal_length_scales_with_width(self):
+        """The property that makes this correct rather than merely different.
+
+        Focal length in pixels is the lens's field of view times the width, so
+        the same rig at two resolutions has focal lengths in exactly the ratio
+        of those widths. Anything else means the wrong lens was assumed.
+        """
+        built, build = self._record()
+        estimator = ego._per_resolution(build, "gopro_hero5_wide")
+        estimator.estimate(self._frames(1080, 1920))
+        estimator.estimate(self._frames(720, 1280))
+        wide = next(fx for w, _, fx in built if w == 1920)
+        narrow = next(fx for w, _, fx in built if w == 1280)
+        assert abs(wide / narrow - 1920 / 1280) < 1e-9
+
+    def test_one_estimator_per_resolution_not_per_clip(self):
+        """The detector and hand model are expensive and size-independent."""
+        built, build = self._record()
+        estimator = ego._per_resolution(build, "gopro_hero5_wide")
+        for _ in range(4):
+            estimator.estimate(self._frames(1080, 1920))
+        estimator.estimate(self._frames(720, 1280))
+        assert len(built) == 2
+
+    def test_what_was_solved_is_recorded(self):
+        """So a report can say afterwards which resolution a pose came from."""
+        _, build = self._record()
+        estimator = ego._per_resolution(build, "gopro_hero5_wide")
+        estimator.estimate(self._frames(720, 1280))
+        estimator.estimate(self._frames(1080, 1920))
+        assert estimator.resolutions == ["1280x720", "1920x1080"]
+
+    def test_the_solved_resolution_reaches_the_track(self):
+        _, build = self._record()
+        estimator = ego._per_resolution(build, "gopro_hero5_wide")
+        track = estimator.estimate(self._frames(720, 1280))
+        assert track.metadata["solved_at"] == "1280x720"
+        assert track.metadata["rig"] == "gopro_hero5_wide"

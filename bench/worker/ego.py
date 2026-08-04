@@ -204,6 +204,68 @@ def check(found: dict) -> list[dict]:
     return out
 
 
+def _per_resolution(build, rig: str):
+    """An estimator that reads the frame size instead of being told it.
+
+    Intrinsics were declared once for the whole upload, at one width and height.
+    A corpus is not one resolution: in EPIC a few participants are 1280x720
+    where the rest are 1920x1080, and a 720p frame solved with 1080p intrinsics
+    does not fail. The focal length is wrong by the ratio of the widths, so
+    perspective-n-point returns a hand at a plausible pose the wrong distance
+    away, and every action retargeted from it is smoothly, confidently wrong.
+    Nothing downstream can detect that, which is what makes it worth fixing
+    here rather than warning about.
+
+    Focal length in pixels is the lens's field of view times the width, so the
+    same rig at another resolution is a different `Intrinsics` and `for_rig`
+    already computes it. All that was missing was asking per clip.
+
+    Built once per distinct resolution rather than per clip, because the
+    detector and the hand model behind it are expensive to construct and do not
+    depend on the size.
+
+    One assumption remains and it is recorded rather than hidden: this treats a
+    second resolution as the same lens scaled, not as a crop. A camera that
+    crops to change resolution has a different field of view, and no arithmetic
+    on the frame size can tell the two apart.
+    """
+    from gantry_connector_handpose import for_rig
+
+    cache: dict[tuple[int, int], Any] = {}
+
+    class PerResolution:
+        #: Whatever the underlying estimator declares, resolved on first use.
+        licence = "unknown"
+
+        def estimate(self, frames):
+            import numpy as np
+
+            height, width = np.asarray(frames).shape[1:3]
+            key = (int(width), int(height))
+            if key not in cache:
+                cache[key] = build(for_rig(rig, width=key[0], height=key[1]))
+            estimator = cache[key]
+            self.licence = getattr(estimator, "licence", "unknown")
+            track = estimator.estimate(frames)
+            # Said on the episode, because "solved at 1280x720" and "solved at
+            # 1920x1080" are different measurements and the report should be
+            # able to tell them apart afterwards.
+            metadata = dict(getattr(track, "metadata", {}) or {})
+            metadata["solved_at"] = f"{key[0]}x{key[1]}"
+            metadata["rig"] = rig
+            try:
+                object.__setattr__(track, "metadata", metadata)
+            except Exception:  # noqa: BLE001 - metadata is a nicety, the pose is not
+                pass
+            return track
+
+        @property
+        def resolutions(self) -> list[str]:
+            return [f"{w}x{h}" for (w, h) in sorted(cache)]
+
+    return PerResolution()
+
+
 def _supplied(folder: Path, clips: list[dict]):
     """An estimator that reads the contributor's own poses instead of guessing.
 
@@ -259,8 +321,6 @@ def convert(
     *,
     model_path: str | None = None,
     rig: str = "gopro_hero5_wide",
-    width: int = 1920,
-    height: int = 1080,
 ) -> dict:
     """Run the ego chain and write a LeRobot dataset at ``out``.
 
@@ -271,7 +331,7 @@ def convert(
     """
     from gantry_connector_egoactions import EgoActionConnector
     from gantry_connector_egovideo import EgoVideoConnector
-    from gantry_connector_handpose import HandPoseConnector, for_rig, mediapipe, rtm_with_mediapipe, rtmpose
+    from gantry_connector_handpose import HandPoseConnector, mediapipe, rtm_with_mediapipe, rtmpose
     from gantry_connector_lerobot import LeRobotConnector
     from gantry_retargeter_hands import Hand, HandToArm, Mount, VIPERX_300
 
@@ -279,7 +339,6 @@ def convert(
     report("reading the clip manifest", note=f"{found['clips']} clips")
 
     video = EgoVideoConnector(str(folder), stride=STRIDE)
-    intrinsics = for_rig(rig, width=width, height=height)
 
     if found["poses"] == "yours":
         report("reading the poses you supplied")
@@ -290,10 +349,14 @@ def convert(
         # the result a fault in the footage.
         weights = Path(model_path) if model_path else model_file()
         report("finding the hands", note="this is the slow part")
-        estimator = rtm_with_mediapipe(
-            rtmpose(device="cpu", mode="lightweight"),
-            mediapipe(model_path=str(weights)),
-            intrinsics=intrinsics,
+        # The detector and the hand model are built once and shared; only the
+        # intrinsics vary, and they vary with the frames rather than with a
+        # number written down here.
+        detector = rtmpose(device="cpu", mode="lightweight")
+        shape = mediapipe(model_path=str(weights))
+        estimator = _per_resolution(
+            lambda intrinsics: rtm_with_mediapipe(detector, shape, intrinsics=intrinsics),
+            rig,
         )
 
     hands = HandPoseConnector(video, estimator=estimator, cache=False)
@@ -341,5 +404,10 @@ def convert(
         "dropped": dropped,
         "ours": ours,
         "poses": found["poses"],
+        # The resolutions actually solved, read off the frames. A corpus with
+        # more than one is worth knowing about: this treats a second resolution
+        # as the same lens scaled, and a camera that crops instead has a
+        # different field of view that nothing here can detect.
+        "resolutions": getattr(estimator, "resolutions", []),
         "scenes": len({e.meta.extra.get("scene", "?") for e in episodes}),
     }
