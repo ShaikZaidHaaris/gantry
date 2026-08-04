@@ -260,7 +260,7 @@ def as_gate(row: Gate) -> dict:
     }
 
 
-def as_submission(session: Session, sub: Submission, deep: bool = False) -> dict:
+def as_submission(session: Session, sub: Submission, deep: bool = False, owner: bool = True) -> dict:
     bench = session.get(Benchmark, sub.benchmark_id)
     version = session.scalars(
         select(DatasetVersion).where(DatasetVersion.submission_id == sub.id).order_by(DatasetVersion.version.desc())
@@ -281,11 +281,15 @@ def as_submission(session: Session, sub: Submission, deep: bool = False) -> dict
         #: rather than trusted to be empty in the fixture, because the fixture
         #: is data and this is the invariant.
         "demo": bool(sub.demo),
-        #: Only ever returned to the org that owns the submission: every route
-        #: reaching this function checks that or `demo` first, and `demo` rows
-        #: are blanked directly above. Never in a leaderboard row, which is read
-        #: across visitors.
-        "email": "" if sub.demo else (sub.email or ""),
+        #: Whether the reader owns this. The page uses it the way it already
+        #: uses `demo`: a stranger reading a published result gets the report,
+        #: not the controls, and a control that would only ever answer 404 is
+        #: better absent than present and broken.
+        "mine": bool(owner) and not sub.demo,
+        #: Only ever the owner's to see. Blanked for demos and for strangers
+        #: reading a published result: publishing shares the report, and the
+        #: contact address is not part of the report.
+        "email": "" if (sub.demo or not owner) else (sub.email or ""),
         #: Generated advice, or {} when none was written. Rendered as its own
         #: labelled card; nothing else reads it.
         "coach": json.loads(sub.coach_json or "{}"),
@@ -728,12 +732,22 @@ async def create_submission(body: dict, who=Depends(viewer), session: Session = 
 def readable(sub: Submission | None, who) -> bool:
     """Whether this visitor may *read* this submission.
 
-    Yours, or a seeded example. Nothing else, and reading is as far as it goes:
-    every route that writes keeps comparing orgs directly, and a sample's org is
-    one no visitor is ever given, so those refuse without needing to know
-    samples exist.
+    Yours, a seeded example, or a result its owner published. Reading is as far
+    as any of it goes: every route that writes keeps comparing orgs directly,
+    so those refuse without needing to know demos or publishing exist.
+
+    ``listed`` is here because the leaderboard put it in front of strangers.
+    The first published result produced rows every visitor could see and only
+    the owner could open: click, 404, on the most public screen in the
+    product. A leaderboard whose entries cannot be read is a claim with the
+    evidence withheld, and the whole pitch of this product is that the
+    evidence is the point. Publishing therefore shares the report page itself;
+    what it never shares is the uploader's contact address, which
+    :func:`as_submission` blanks for any reader who is not the owner.
     """
-    return sub is not None and (sub.org_id == who["org_id"] or bool(sub.demo))
+    return sub is not None and (
+        sub.org_id == who["org_id"] or bool(sub.demo) or bool(sub.listed)
+    )
 
 
 @app.get("/api/submissions/{sub_id}")
@@ -742,7 +756,7 @@ def get_submission(sub_id: str, who=Depends(viewer), session: Session = Depends(
     sub = session.get(Submission, sub_id)
     if not readable(sub, who):
         raise HTTPException(404, "no such submission")
-    return as_submission(session, sub, deep=True)
+    return as_submission(session, sub, deep=True, owner=sub.org_id == who["org_id"])
 
 
 #: Largest archive we accept, in bytes.
@@ -969,9 +983,13 @@ def set_listed(sub_id: str, body: dict, who=Depends(viewer), session: Session = 
     withdrawn result is that its owner no longer stands behind it, which is
     information the board is better off not showing.
 
-    Publishing exposes exactly one thing about you: the name you gave the
-    submission, beside its rungs. Never your address, your org id, or anything
-    derived from them.
+    Publishing shares the report page itself: the name you gave the submission,
+    its rungs, the verdict with its evidence, the findings, and any generated
+    advice. It never shares your email, your org id, or anything derived from
+    them. The page had to come with the row: the first published result put an
+    entry on every visitor's leaderboard that none of them could open, and a
+    ranked claim whose evidence is withheld is the thing this product exists
+    not to be.
     """
     sub = session.get(Submission, sub_id)
     if sub is None or sub.org_id != who["org_id"]:

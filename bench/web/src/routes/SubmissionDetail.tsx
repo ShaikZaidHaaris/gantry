@@ -81,6 +81,11 @@ export function SubmissionDetail() {
   //: only place that says so.
   const stillRunning = data.gates.some((g) => g.status === "queued" || g.status === "running");
 
+  //: May this reader act on this page, or only read it? Demos and other
+  //: people's published results both render the report without the controls;
+  //: a Run-again button that can only answer 404 is worse than no button.
+  const mine = data.mine !== false && !data.demo;
+
   //: Rendered above the findings while a check is live and below them after,
   //: rather than duplicated, so the two positions cannot drift apart.
   const progress = (
@@ -90,9 +95,9 @@ export function SubmissionDetail() {
         gates={data.gates}
         currentGate={data.current_gate}
         live={live}
-        onStart={data.demo ? undefined : (gate) => start.mutate({ gate })}
+        onStart={mine ? (gate) => start.mutate({ gate }) : undefined}
         starting={start.isPending}
-        onRetry={data.demo ? undefined : (gate) => retry.mutate(gate)}
+        onRetry={mine ? (gate) => retry.mutate(gate) : undefined}
         retrying={retry.isPending}
       />
     </>
@@ -215,7 +220,7 @@ export function SubmissionDetail() {
             </Link>
           </h2>
           <Verdict gate={robot} />
-          {!data.demo && <Publish submission={data} />}
+          {mine && <Publish submission={data} />}
         </>
       )}
 
@@ -242,7 +247,7 @@ export function SubmissionDetail() {
         </>
       )}
 
-      {!data.demo && sized && report?.status === "passed" && (
+      {mine && sized && report?.status === "passed" && (
         <>
           <h2>
             What to run next
@@ -264,7 +269,7 @@ export function SubmissionDetail() {
       {/* Below the result, not above it. Re-uploading is something you do
           *because* of an answer, so the control for it follows the answer
           rather than sitting between the reader and it. */}
-      {id && !data.demo && <Versions id={id} />}
+      {id && mine && <Versions id={id} />}
 
       {data.events && data.events.length > 0 && (
         <>

@@ -37,9 +37,10 @@ export function Publish({ submission }: { submission: Submission }) {
         <p>
           {on ? (
             <>
-              Anyone comparing this benchmark can see this result and the name you
-              gave it. Nothing else about you is shown: not your address, and no
-              identifier derived from it.
+              Anyone comparing this benchmark can see this result and open its
+              report page: the name you gave it, the rungs, the verdict and its
+              evidence, and any generated advice. Your email address is never
+              shown, and no identifier of yours is.
             </>
           ) : (
             <>

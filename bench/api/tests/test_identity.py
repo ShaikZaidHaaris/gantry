@@ -556,3 +556,78 @@ def test_adoption_cannot_take_an_org_that_already_has_a_cookie(browser):
             "a second visitor from the same address was adopted into an org that "
             "already belonged to a browser, and can read its submissions"
         )
+
+
+# -- publishing opens the report, and only the report ------------------------
+
+
+def test_a_published_result_is_readable_by_a_stranger(browser):
+    """The leaderboard row must open for the audience it was published to.
+
+    The first real publish produced the opposite: an entry every visitor could
+    see and only the owner could load. Click, 404, on the most public screen
+    in the product.
+    """
+    with browser() as owner, browser() as stranger:
+        made = as_ip(owner, "203.0.113.30", "post", "/api/submissions",
+                     json={"name": "published", "benchmark": "pick_dual_bottles",
+                           "email": "owner@lab.edu"}).json()
+        _rankable(made["id"], listed=True)
+
+        seen = as_ip(stranger, "198.51.100.30", path=f"/api/submissions/{made['id']}")
+        assert seen.status_code == 200, "a published result 404s for its audience"
+        body = seen.json()
+
+        assert body["email"] == "", "publishing leaked the owner's contact address"
+        assert body["mine"] is False, "the reader would be shown owner controls"
+
+        # The live stream's guard is the same `readable()` asserted above; it
+        # is not exercised end-to-end here because an SSE body under TestClient
+        # ends only on its idle limit, and closing the client does not cancel
+        # the generator, so the test hangs for the whole of it. Learned twice.
+
+
+def test_the_owner_still_sees_their_own_email_on_a_published_result(browser):
+    with browser() as owner:
+        made = as_ip(owner, "203.0.113.31", "post", "/api/submissions",
+                     json={"name": "published", "benchmark": "pick_dual_bottles",
+                           "email": "owner@lab.edu"}).json()
+        _rankable(made["id"], listed=True)
+        body = as_ip(owner, "203.0.113.31", path=f"/api/submissions/{made['id']}").json()
+        assert body["email"] == "owner@lab.edu"
+        assert body["mine"] is True
+
+
+def test_an_unpublished_result_stays_invisible(browser):
+    """The other half of the rule, so the read cannot have been opened for all."""
+    with browser() as owner, browser() as stranger:
+        made = as_ip(owner, "203.0.113.32", "post", "/api/submissions",
+                     json={"name": "private", "benchmark": "pick_dual_bottles"}).json()
+        _rankable(made["id"], listed=False)
+        seen = as_ip(stranger, "198.51.100.32", path=f"/api/submissions/{made['id']}")
+        assert seen.status_code == 404
+
+
+def test_reading_a_published_result_grants_no_writes(browser):
+    """Published is readable, never touchable. Enumerated over the writing
+    routes because each guards itself, and the failure mode is one of them
+    reaching for readable() as the obvious helper."""
+    with browser() as owner, browser() as stranger:
+        made = as_ip(owner, "203.0.113.33", "post", "/api/submissions",
+                     json={"name": "published", "benchmark": "pick_dual_bottles"}).json()
+        _rankable(made["id"], listed=True)
+        sid = made["id"]
+        writes = [
+            ("post", f"/api/submissions/{sid}/listed", {"json": {"listed": False}}),
+            ("post", f"/api/submissions/{sid}/meaning", {"json": {"meaning": {}}}),
+            ("post", f"/api/submissions/{sid}/gates/g3/start", {"json": {}}),
+            ("post", f"/api/submissions/{sid}/gates/g3/retry", {}),
+            ("post", f"/api/submissions/{sid}/dataset",
+             {"files": {"file": ("d.zip", b"PK\x03\x04", "application/zip")}}),
+        ]
+        for method, path, kw in writes:
+            r = as_ip(stranger, "198.51.100.33", method=method, path=path, **kw)
+            assert r.status_code >= 400, (
+                f"{method.upper()} {path} returned {r.status_code}: reading a "
+                "published result let a stranger change it"
+            )

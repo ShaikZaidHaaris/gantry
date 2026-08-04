@@ -156,6 +156,9 @@ export interface Submission {
    *  belongs to nobody, so every control that would change it is refused by
    *  the server and hidden here. */
   demo?: boolean;
+  /** Whether the reader owns this submission. False on a published result
+   *  somebody else is reading: they get the report, never the controls. */
+  mine?: boolean;
   /** Where to reach the uploader if a check breaks. Empty when not given. */
   email: string;
   /** Generated advice on improving the dataset, {} until the worker writes it.
