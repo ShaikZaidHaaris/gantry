@@ -178,10 +178,33 @@ for p in plugins/*/; do
   [ -f "$p/pyproject.toml" ] && .venv/bin/pip install -q -e "$p" || true
 done
 .venv/bin/pip install -q fastapi "uvicorn[standard]" sqlalchemy python-multipart
+# The hand tracker, for uploads that are raw egocentric video rather than a
+# robot export. Optional to the framework and required by the product: without
+# it every clip fails identically, and while intake now reports that correctly
+# as our fault rather than theirs, a host that cannot do the job at all is not
+# a deployment of this product.
+.venv/bin/pip install -q rtmlib mediapipe onnxruntime || \
+  echo "  note: the hand tracker did not install; raw ego uploads will report ego.tracker_missing"
+# Its weights, to the second path worker/ego.py looks in. Fetched rather than
+# assumed: this worked on the box that happened to have a copy from an earlier
+# experiment, and would have failed on any other with an error naming a file
+# nobody ever put there.
+if [ ! -f /opt/gantry/models/hand_landmarker.task ]; then
+  sudo mkdir -p /opt/gantry/models
+  sudo curl -sSL -o /opt/gantry/models/hand_landmarker.task \
+    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" \
+    && echo "  fetched the hand landmarker weights" \
+    || echo "  note: could not fetch the landmarker weights; set BENCH_HAND_MODEL by hand"
+fi
 .venv/bin/python -c "
 from importlib.metadata import entry_points
 names = sorted(e.name for e in entry_points(group='gantry.feedback'))
-print(f'  {len(names)} feedback checks installed')"
+print(f'  {len(names)} feedback checks installed')
+try:
+    import rtmlib, mediapipe  # noqa: F401
+    print('  hand tracker installed')
+except ImportError:
+    print('  hand tracker NOT installed')"
 REMOTE_VENV
 
 echo "==> environment"
