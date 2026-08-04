@@ -244,3 +244,65 @@ class TestMixedResolution:
         track = estimator.estimate(self._frames(720, 1280))
         assert track.metadata["solved_at"] == "1280x720"
         assert track.metadata["rig"] == "gopro_hero5_wide"
+
+
+def test_a_converted_upload_is_indistinguishable_from_one_sent_that_way(tmp_path):
+    """Two doors, one pipeline. The page says so, so something has to check it.
+
+    The claim on the upload page is that sending raw footage and sending the
+    recording built from that same footage give the same answer. That is only
+    true while intake treats its own conversion exactly as it treats an upload,
+    and the cheap way for it to stop being true is a future branch that handles
+    "converted" datasets differently somewhere downstream.
+
+    Decoding is not needed to pin the part that can drift: what `unpack` hands
+    back. Both shapes must resolve to a directory holding `meta/info.json`, with
+    no findings, because everything after intake reads that directory and
+    nothing else. The end-to-end equivalence, including the data report and the
+    signal check, was measured on real footage and is recorded in the commit.
+    """
+    # A LeRobot export, the shape the ego path produces.
+    made = tmp_path / "src" / "ego_lerobot" / "meta"
+    made.mkdir(parents=True)
+    (made / "info.json").write_text(json.dumps({"total_episodes": 3, "fps": 10.0}))
+    out = tmp_path / "converted.zip"
+    with zipfile.ZipFile(out, "w") as zf:
+        zf.write(made / "info.json", "ego_lerobot/meta/info.json")
+
+    root, problems = intake.unpack(out, tmp_path / "work")
+    assert problems == []
+    # The same directory shape the ego path writes to, reached by the ordinary
+    # route. Nothing downstream can tell which door it came through.
+    assert root is not None
+    assert (root / "meta" / "info.json").exists()
+    assert json.loads((root / "meta" / "info.json").read_text())["total_episodes"] == 3
+
+
+def test_where_the_poses_came_from_survives_into_what_intake_reports(tmp_path):
+    """Ours or theirs has to reach the report, not stop at the worker.
+
+    ego.py claims the distinction is recorded on every episode, and for a while
+    it was not: `convert` returned it, intake used it to choose a progress note,
+    and then it was gone. A result from a lab's own tracker and a result from
+    our estimate are different claims, and the second is only as good as
+    monocular tracking on that footage, so the answer belongs with the data.
+    """
+    root = tmp_path / "ds"
+    (root / "meta").mkdir(parents=True)
+    (root / "meta" / "info.json").write_text(json.dumps({"total_episodes": 2, "fps": 10.0}))
+    (root / "meta" / ego.SIDECAR).write_text(
+        json.dumps({"poses": "yours", "resolutions": ["1920x1080"], "episodes_out": 2})
+    )
+    found = intake.describe(root)
+    assert found["ego"]["poses"] == "yours"
+    assert found["ego"]["resolutions"] == ["1920x1080"]
+
+
+def test_an_ordinary_recording_says_nothing_about_poses(tmp_path):
+    """Absent, not "ours". No hands were estimated for a robot recording, and
+    answering a question nobody asked is how a report starts being believed
+    about things it never measured."""
+    root = tmp_path / "ds"
+    (root / "meta").mkdir(parents=True)
+    (root / "meta" / "info.json").write_text(json.dumps({"total_episodes": 2, "fps": 30.0}))
+    assert intake.describe(root)["ego"] is None

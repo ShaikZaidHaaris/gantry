@@ -59,6 +59,10 @@ MANIFEST = "clips.json"
 #: clip, named after the clip's file.
 POSES = "poses"
 
+#: What the conversion did, left in the dataset it produced. Read back by intake
+#: so the answer reaches the report rather than stopping at the worker.
+SIDECAR = "gantry_ego.json"
+
 #: Frames per second the chain writes. The stride below decimates to it.
 FPS = 10.0
 
@@ -399,6 +403,29 @@ def convert(
 
     report("writing it out", note=f"{len(episodes)} clips")
     LeRobotConnector.write(episodes, str(out), fps=FPS, videos=True, accept_loss=True)
+
+    # Written beside the dataset rather than returned, so it travels with the
+    # data instead of living in a variable intake forgets. Where the poses came
+    # from is not a detail of this run: a number from a lab's own tracker and a
+    # number from our estimate are different claims, and the second one is only
+    # as good as monocular tracking on that footage. Anything reading this
+    # dataset later can see which it was.
+    (out / "meta" / SIDECAR).write_text(
+        json.dumps(
+            {
+                "poses": found["poses"],
+                "resolutions": getattr(estimator, "resolutions", []),
+                "clips_in": found["clips"],
+                "episodes_out": len(episodes),
+                "dropped": len(dropped),
+                "stride": STRIDE,
+                "fps": FPS,
+                "rig": rig,
+            },
+            indent=1,
+        )
+        + "\n"
+    )
     return {
         "episodes": len(episodes),
         "dropped": dropped,

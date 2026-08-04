@@ -210,6 +210,23 @@ def unreadable_videos(root: Path, limit: int = SAMPLE_VIDEOS) -> tuple[list[str]
     return broken, len(chosen)
 
 
+def _ego_sidecar(root: Path) -> dict | None:
+    """What the ego conversion recorded, for a dataset that came from footage.
+
+    None for an ordinary upload, which is the honest answer rather than a set of
+    zeroes: a robot recording had no hand poses estimated for it and saying
+    "ours" or "theirs" about one would be inventing an answer to a question that
+    was never asked.
+    """
+    path = root / "meta" / ego.SIDECAR
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+
+
 def describe(root: Path) -> dict:
     """What the dataset says about itself."""
     info = json.loads((root / "meta" / "info.json").read_text())
@@ -233,6 +250,11 @@ def describe(root: Path) -> dict:
         **dict(zip(("unreadable_videos", "videos_opened"), unreadable_videos(root))),
         "has_stats": (root / "meta" / "episodes_stats.jsonl").exists(),
         "has_sidecar": (root / "meta" / "gantry.jsonl").exists(),
+        # Present only when this dataset was built here from raw footage. Says
+        # whether the poses were the contributor's or our estimate, which is a
+        # difference in what the result claims rather than in how it was made,
+        # so it belongs in what the report is shown rather than in a log line.
+        "ego": _ego_sidecar(root),
         "tasks": [
             json.loads(line).get("task")
             for line in (root / "meta" / "tasks.jsonl").read_text().splitlines()
