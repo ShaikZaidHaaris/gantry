@@ -101,7 +101,14 @@ send() {
 # stderr is not discarded, for the same reason: hiding it is what let the broken
 # version look like it was working.
 if [ -d "$ROOT/bench/web/node_modules" ]; then
-  MODULES_WIN="$( (cd "$ROOT/bench/web/node_modules" && pwd -W) 2>/dev/null )"
+  # `|| true` because `pwd -W` is a Git Bash extension and every other shell
+  # rejects it. Under `set -e` a bare assignment carries the substitution's exit
+  # status, so on macOS and Linux this line ended the script here: no output at
+  # all, not even "==> building the frontend", and exit 1. A deploy that prints
+  # nothing looks like a deploy that did nothing, which is exactly what it was.
+  # An empty value is the correct answer anyway, and means "not Windows" to the
+  # check below.
+  MODULES_WIN="$( (cd "$ROOT/bench/web/node_modules" && pwd -W) 2>/dev/null || true )"
   MODULES_WIN="${MODULES_WIN//\//\\}"   # C:/x/y -> C:\x\y, without tr's backslash warning
   if [ -n "$MODULES_WIN" ] && command -v powershell.exe >/dev/null 2>&1; then
     LOCK_OUT="$(powershell.exe -NoProfile -Command "
