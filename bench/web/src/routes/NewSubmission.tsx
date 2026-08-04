@@ -140,7 +140,7 @@ export function NewSubmission() {
           <b>{file ? file.name : "Drop your dataset (.zip)"}</b>
           {file
             ? `${bytes(file.size)}${tooBig ? `, over the ${bytes(limit)} limit` : ""}`
-            : `LeRobot v2 export with meta/, data/ and videos/ · up to ${bytes(limit)}`}
+            : `A LeRobot v2 export, or your own video with a clips.json · up to ${bytes(limit)}`}
           <input
             type="file"
             accept=".zip"
@@ -149,6 +149,22 @@ export function NewSubmission() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
         </label>
+
+        {/* Said here rather than only inside "How this works". Somebody who
+            came to upload footage of a person has already decided to try, and
+            finding out on this screen that it is accepted is the difference
+            between uploading and leaving. There is no control to set: which of
+            the two an archive is, and whether it carries poses, is answered by
+            what is in it, and a switch that disagreed with the file would only
+            be a way to be wrong. */}
+        <p className="drop-note">
+          Both shapes give the same answer, so send whichever you have.{" "}
+          <b>A robot recording</b> is used as it is. <b>Video of a person</b> needs a{" "}
+          <code>clips.json</code> saying what each clip shows and where it was filmed, and
+          we work out the arm movements from the hands, which takes a few minutes.{" "}
+          <b>If you already track hands</b>, include a <code>poses/</code> folder and we
+          use yours instead of estimating. The result records which it was.
+        </p>
 
         {busy && (
           <div style={{ marginTop: 16 }}>

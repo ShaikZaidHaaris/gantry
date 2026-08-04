@@ -742,3 +742,28 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
   background: var(--surface); color: var(--text); text-decoration: none;
 }
 .contact-links a:hover { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent); }
+
+/* The clip manifest, shown as the file it is. Scrolls in its own box rather
+   than widening the page, since a long instruction is exactly what a real one
+   has. */
+.snippet {
+  margin: 10px 0 14px; padding: 12px 14px; overflow-x: auto;
+  font: 12px/1.6 var(--mono); color: var(--text-2);
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius);
+}
+/* The two kinds of upload, under the one heading that introduces them. */
+.fold h4 { margin: 18px 0 6px; font-size: 14px; font-weight: 600; }
+
+/* The equivalence claim. Set apart because it answers a question a reader has
+   the moment they see two accepted formats, and burying it in a paragraph is
+   how it gets missed. */
+.same-either-way {
+  padding: 12px 14px; margin: 12px 0 18px;
+  border-left: 3px solid var(--accent); border-radius: var(--radius);
+  background: var(--bg-2); color: var(--text-2);
+}
+/* What a sample contains, under its name. */
+.sample-what .fed { color: var(--text-2); font-size: 12px; }
+
+/* Under the drop zone: what is accepted, where the person deciding is looking. */
+.drop-note { margin: 10px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--text-2); }

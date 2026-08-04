@@ -18,6 +18,45 @@ import { Link } from "react-router-dom";
 import { useSamples } from "../api/client";
 import { Fold } from "./ui";
 
+/** The manifest, shown rather than described.
+ *
+ *  Two fields carry the weight and both are refused when blank, so the example
+ *  is the fastest way to say what they look like. Paths are relative to the
+ *  folder the file sits in. */
+const CLIPS_JSON = `[
+  { "path": "morning_01.mp4",
+    "instruction": "take the pan off the hob and rinse it",
+    "scene": "my-kitchen" },
+  { "path": "morning_02.mp4",
+    "instruction": "fill the kettle and switch it on",
+    "scene": "my-kitchen" }
+]`;
+
+/** Mebibytes, labelled MB, because that is what the rest of this product and
+ *  samples/README.md already say for these same two files. Two numbers for one
+ *  file reads as a mistake even when both are defensible. */
+function megabytes(bytes: number): string {
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/** What each sample is, said in full.
+ *
+ *  "Both hands tracked" names the difference between the two and nothing else,
+ *  which left the more important fact off the page: these are robot recordings
+ *  with ego footage mixed in, and the numbers beside them came from training on
+ *  exactly that. A reader deciding what to send should be able to see what was
+ *  sent here. */
+const HAND: Record<string, { title: string; fed: string }> = {
+  two_handed: {
+    title: "Both hands tracked",
+    fed: "50 robot demonstrations plus 8 clips of a person, both hands visible",
+  },
+  one_handed: {
+    title: "One hand mostly absent",
+    fed: "the same 50 demonstrations plus 8 clips where one hand was rarely tracked",
+  },
+};
+
 /** Two ways in: look at a finished one, or take the file and run it yourself.
  *
  *  Looking comes first, and is the primary control. Somebody deciding whether
@@ -30,18 +69,6 @@ import { Fold } from "./ui";
  *  nobody. They are the product's own screen over real numbers, not a mock: the
  *  gates, findings and activity log are exactly what the run produced.
  */
-/** Mebibytes, labelled MB, because that is what the rest of this product and
- *  samples/README.md already say for these same two files. Two numbers for one
- *  file reads as a mistake even when both are defensible. */
-function megabytes(bytes: number): string {
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-const HAND: Record<string, string> = {
-  two_handed: "Both hands tracked",
-  one_handed: "One hand mostly absent",
-};
-
 function SampleCard() {
   const { data } = useSamples();
   // An offer is worth showing if *either* half of it works: a result to read, or
@@ -68,11 +95,15 @@ function SampleCard() {
           {offers.map((s) => (
             <div className="sample-offer" key={s.key}>
               <div className="sample-what">
-                <b>{HAND[s.key] ?? s.what}</b>
+                <b>{HAND[s.key]?.title ?? s.what}</b>
+                {/* What went in, not just how big it was. */}
+                <span className="fed">{HAND[s.key]?.fed ?? s.what}</span>
                 {/* The size is read off the file. When it is not there, the
                     clip count still is, and inventing a number to fill the gap
                     is how the missing file stayed hidden last time. */}
-                <span>58 clips{s.available ? ` · ${megabytes(s.bytes)}` : ""}</span>
+                <span>
+                  LeRobot recording · 58 clips{s.available ? ` · ${megabytes(s.bytes)}` : ""}
+                </span>
               </div>
               {/* Only rendered when the server says a result was seeded. A
                   deployment without the fixture offers the download alone
@@ -192,24 +223,61 @@ export function HowItWorks({ defaultOpen = false }: { defaultOpen?: boolean }) {
           <section>
             <h3>What you upload</h3>
             <p>
-              <b>Annotated video</b>, not video on its own. Every frame of footage has to
-              carry the numbers that go with it: the command that was issued at that frame,
-              and where the arms actually were. Video with no annotations cannot be checked
-              here and cannot be trained on, because there is nothing for a policy to copy.
+              Two kinds of archive are read. <b>A robot recording</b>, where the movements
+              were logged as they happened, or <b>video of a person</b> doing the task
+              wearing a camera, where they were not and we work them out.
+            </p>
+            <p className="same-either-way">
+              <b>Either shape gives the same answer.</b> These are two doors to one
+              pipeline, not two kinds of test. Sending raw footage and sending the
+              recording built from that same footage produce the same episodes and the
+              same verdict; the only difference is who runs the conversion. We check
+              that rather than assume it: the same clips through both doors come back
+              with identical episode and frame counts, an identical data report and an
+              identical signal check.
+            </p>
+
+            <h4>A robot recording</h4>
+            <p>
+              A <b>.zip of a LeRobot v2 recording</b>, the layout <code>lerobot</code>{" "}
+              writes: a <code>meta/</code> folder with <code>info.json</code> and{" "}
+              <code>episodes.jsonl</code>, one parquet file per episode holding the
+              per-frame numbers, and your camera streams as <code>.mp4</code> under{" "}
+              <code>videos/</code>.
             </p>
             <p>
-              In practice that means a <b>.zip of a LeRobot v2 recording</b>, the layout{" "}
-              <code>lerobot</code> writes: a <code>meta/</code> folder with{" "}
-              <code>info.json</code> and <code>episodes.jsonl</code>, one parquet file per
-              episode holding the per-frame numbers, and your camera streams as{" "}
-              <code>.mp4</code> under <code>videos/</code>.
+              Two channels are required by name: <code>action</code> for the command issued
+              at each frame, and <code>observation.state</code> for where the arms were. At
+              least one camera has to be present, and the same camera has to be in every
+              episode, because a stream only some episodes carry cannot be checked across
+              the set.
+            </p>
+
+            <h4>Video of a person</h4>
+            <p>
+              A zip of your clips with a <code>clips.json</code> beside them. There is no{" "}
+              <code>action</code> channel in footage of a person, because no robot was
+              there, so we find the hands in each frame and work out the arm command that
+              would put a gripper where the hand was. That takes a few minutes rather than
+              seconds, and the upload becomes an ordinary recording once it finishes.
             </p>
             <p>
-              The two annotation channels are required by name: <code>action</code> for the
-              command issued at each frame, and <code>observation.state</code> for where the
-              arms were. At least one camera has to be present, and the same camera has to
-              be in every episode, because a stream only some episodes carry cannot be checked
-              across the set.
+              Every clip has to say two things, and neither is filled in for you.{" "}
+              <b>What the person was doing</b>, in words, because a policy trains on that
+              sentence and a made-up one teaches a made-up thing. And <b>where it was
+              filmed</b>, because clips from one room are not independent evidence, and
+              without somewhere to group them nobody can tell forty kitchens from one
+              kitchen forty times.
+            </p>
+            <pre className="snippet">{CLIPS_JSON}</pre>
+            <p>
+              <b>If you already track hands</b>, add a <code>poses/</code> folder with one{" "}
+              <code>.npz</code> per clip and we use yours instead of estimating. Keep the
+              per-frame confidence in it: without it nothing downstream can tell a firm
+              detection from a guess, and monocular tracking is confidently wrong often
+              enough for that to matter. Which was used is recorded on the result, because
+              a number from tracked poses and one from estimated poses are not the same
+              claim.
             </p>
 
             <SampleCard />
