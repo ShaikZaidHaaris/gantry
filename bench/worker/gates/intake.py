@@ -16,7 +16,12 @@ import zipfile
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from .. import ego
+# Flat, because run.py puts bench/worker on sys.path and imports `gates` and
+# `fetch` as top-level modules. A relative `from .. import ego` resolves fine
+# when something imports this as `worker.gates.intake`, which is what the tests
+# used to do, and raises "attempted relative import beyond top-level package"
+# in the worker itself. The tests now import the way the worker does.
+import ego
 
 #: What a gate is handed to say where it is: phase, and optionally how far
 #: through and a note. Typed here so a gate can be run outside a worker -- in a
