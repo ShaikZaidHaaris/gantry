@@ -535,6 +535,25 @@ def evaluate(arm: str, task: str, scenes: int, progress: Path) -> Path:
         raise RuntimeError(
             f"evaluating {arm} failed (exit {code}); no record at {record}. {_why(log)}"[:800]
         )
+
+    # The record's sidecar holds every rollout array and runs 3.5 to 4.5 GB per
+    # arm. It was written to the root volume and left there, which is how three
+    # evaluations filled the 12 GB the checkpoint override had saved and took
+    # the whole product down with ENOSPC -- including the API, whose database
+    # lives on the same disk. The verdict reads only the .json; the arrays are
+    # audit material, so they move to the big ephemeral volume the moment the
+    # record is secure. Losing them on an instance stop loses nothing the
+    # product serves. Best-effort on purpose: a completed evaluation must not
+    # be reported as a failure because archiving hiccuped.
+    sidecar = EGORUN / f"abl_run_{arm}_{task}.npz"
+    archive = Path(os.environ.get("BENCH_ROLLOUT_ARCHIVE", "/opt/dlami/nvme/rollout-archive"))
+    if sidecar.exists():
+        try:
+            archive.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(sidecar), str(archive / sidecar.name))
+            emit(progress, "evaluating", note=f"{arm} · archived {sidecar.name}")
+        except OSError as error:
+            emit(progress, "evaluating", note=f"{arm} · sidecar not archived: {error}")
     return record
 
 
