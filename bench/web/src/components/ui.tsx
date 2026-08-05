@@ -138,17 +138,26 @@ export function ErrorNote({ error }: { error: unknown }) {
  *  about itself. The code still exists for anyone who needs to cite it (hover),
  *  and severity is carried by the *grouping* on every screen that uses this,  *  "what to fix" versus "also noted", which says more than a colored dot did.
  */
-export function FindingRow({ finding, note }: { finding: Finding; note?: string }) {
-  // `note` is the generated one-liner for this finding. When the caller passes
-  // the notes map at all, the canned prescription prose stays hidden even for
-  // findings the model had nothing to say about: the measurement stands alone
-  // rather than falling back to the paragraphs the owner asked to be rid of.
+export function FindingRow({
+  finding,
+  note,
+}: {
+  finding: Finding;
+  note?: { say?: string; do?: string };
+}) {
+  // `note` is the generated pair for this finding: `say` restates the
+  // observation and replaces the gate's summary line, `do` is the action under
+  // it. When the caller passes notes at all, the canned prescription prose
+  // stays hidden even for findings the model had nothing to say about; the
+  // gate's summary is the fallback headline, never the fallback advice. The
+  // machine code stays on hover either way, since the generated line is the
+  // one most worth being able to check.
   const advised = note !== undefined;
   return (
     <div className="finding" title={finding.code}>
-      <div className="what">{sentence(finding.summary)}</div>
+      <div className="what">{sentence(note?.say || finding.summary)}</div>
       {advised
-        ? note && <p className="fix">{sentence(note)}</p>
+        ? note.do && <p className="fix">{sentence(note.do)}</p>
         : finding.prescription && <p className="fix">{finding.prescription}</p>}
     </div>
   );

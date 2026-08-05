@@ -1305,10 +1305,16 @@ def store_coach(sub_id: str, body: dict, session: Session = Depends(db), _=Depen
     raw = body.get("fixes") or {}
     fixes = {}
     if isinstance(raw, dict):
-        for code, say in list(raw.items())[:16]:
-            text = str(say).strip()
-            if text:
-                fixes[str(code)[:64]] = text[:160]
+        for code, entry in list(raw.items())[:16]:
+            if isinstance(entry, dict):
+                say = str(entry.get("say", "")).strip()[:160]
+                do = str(entry.get("do", "")).strip()[:160]
+            else:
+                # A bare string is an older reply shape; it is advice, not a
+                # restatement, so it lands in `do`.
+                say, do = "", str(entry).strip()[:160]
+            if say or do:
+                fixes[str(code)[:64]] = {"say": say, "do": do}
     if not points and not fixes:
         raise HTTPException(422, "nothing to store")
     sub.coach_json = json.dumps(

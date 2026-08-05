@@ -63,7 +63,13 @@ function Fold({ label, children }: { label: string; children: React.ReactNode })
 
 
 
-export function DataReport({ gate, notes = {} }: { gate: Gate; notes?: Record<string, string> }) {
+export function DataReport({
+  gate,
+  notes = {},
+}: {
+  gate: Gate;
+  notes?: Record<string, { say?: string; do?: string }>;
+}) {
   const findings = [...gate.findings].sort(byRank);
   const fix = findings.filter((f) => f.severity === "strong" || f.severity === "moderate");
   const noted = findings.filter((f) => f.severity === "weak" || f.severity === "info");
@@ -84,7 +90,7 @@ export function DataReport({ gate, notes = {} }: { gate: Gate; notes?: Record<st
         {fix.length > 0 ? (
           <div className="card pad">
             {fix.map((f) => (
-              <FindingRow key={f.code + f.module} finding={f} note={notes[f.code] ?? ""} />
+              <FindingRow key={f.code + f.module} finding={f} note={notes[f.code] ?? {}} />
             ))}
           </div>
         ) : (
@@ -103,7 +109,7 @@ export function DataReport({ gate, notes = {} }: { gate: Gate; notes?: Record<st
           <Fold label={`${noted.length} further observation${noted.length === 1 ? "" : "s"}`}>
             <div className="card pad">
               {noted.map((f) => (
-                <FindingRow key={f.code + f.module} finding={f} note={notes[f.code] ?? ""} />
+                <FindingRow key={f.code + f.module} finding={f} note={notes[f.code] ?? {}} />
               ))}
             </div>
           </Fold>

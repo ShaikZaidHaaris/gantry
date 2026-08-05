@@ -187,14 +187,20 @@ def test_the_happy_path_stores_through_the_transport(monkeypatch):
         coach.urllib.request, "urlopen",
         fake_openai(
             ["film the lift slower", "add 30 demos of the handoff"],
-            {"language.one_instruction": "Write one instruction per clip."},
+            {"language.one_instruction": {
+                "say": "One instruction is reused across all 58 clips.",
+                "do": "Write a distinct instruction for each clip.",
+            }},
         ),
     )
     got = coach.maybe_coach("http://api", "sub_x", transport)
     assert got == "coach: stored 2 point(s), 1 finding note(s)"
     payload = stored["/api/submissions/sub_x/coach"]
     assert payload["points"] == ["film the lift slower", "add 30 demos of the handoff"]
-    assert payload["fixes"] == {"language.one_instruction": "Write one instruction per clip."}
+    assert payload["fixes"] == {"language.one_instruction": {
+        "say": "One instruction is reused across all 58 clips.",
+        "do": "Write a distinct instruction for each clip.",
+    }}
 
 
 # -- the guardrails on the per-finding lines ---------------------------------
@@ -210,8 +216,8 @@ def test_a_code_we_never_sent_is_refused(monkeypatch):
     monkeypatch.setattr(
         coach.urllib.request, "urlopen",
         fake_openai(["p"], {
-            "language.one_instruction": "Write one instruction per clip.",
-            "invented.by_the_model": "Buy a better robot.",
+            "language.one_instruction": {"say": "One instruction reused.", "do": ""},
+            "invented.by_the_model": {"say": "Made up.", "do": "Buy a better robot."},
         }),
     )
     got = coach.ask(facts, key="k")
@@ -226,7 +232,7 @@ def test_a_blank_line_means_nothing_to_say_and_is_dropped(monkeypatch):
     facts = coach.digest(record())
     monkeypatch.setattr(
         coach.urllib.request, "urlopen",
-        fake_openai(["p"], {"language.one_instruction": "   "}),
+        fake_openai(["p"], {"language.one_instruction": {"say": "   ", "do": ""}}),
     )
     assert coach.ask(facts, key="k")["fixes"] == {}
 
@@ -235,7 +241,34 @@ def test_length_is_a_slice_here_too(monkeypatch):
     facts = coach.digest(record())
     monkeypatch.setattr(
         coach.urllib.request, "urlopen",
-        fake_openai(["p"], {"language.one_instruction": "x" * 500}),
+        fake_openai(["p"], {"language.one_instruction": {"say": "y" * 500, "do": "x" * 500}}),
     )
     got = coach.ask(facts, key="k")
-    assert len(got["fixes"]["language.one_instruction"]) == coach.MAX_SAY
+    entry = got["fixes"]["language.one_instruction"]
+    assert len(entry["say"]) == coach.MAX_SAY
+    assert len(entry["do"]) == coach.MAX_SAY
+
+
+def test_a_bare_string_from_an_older_reply_still_lands_as_advice(monkeypatch):
+    """The schema asks for pairs; a model that answers with a string anyway is
+    kept as do-only rather than thrown away, because the failure mode of strict
+    parsing here is silence on a page that had something worth saying."""
+    facts = coach.digest(record())
+    monkeypatch.setattr(
+        coach.urllib.request, "urlopen",
+        fake_openai(["p"], {"language.one_instruction": "Write one instruction per clip."}),
+    )
+    got = coach.ask(facts, key="k")
+    assert got["fixes"]["language.one_instruction"] == {
+        "say": "",
+        "do": "Write one instruction per clip.",
+    }
+
+
+def test_severity_travels_so_the_model_can_tell_observation_from_defect():
+    facts = coach.digest(record())
+    finding = facts["data report"]["findings"][0]
+    assert "severity" in finding, (
+        "without severity the model cannot follow the rule that info findings "
+        "get no action line, which is half the inversion defence"
+    )

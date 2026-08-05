@@ -121,9 +121,13 @@ def test_finding_notes_round_trip_with_their_caps(client):
         json={
             "points": ["p1"],
             "fixes": {
-                "language.one_instruction": "Write one instruction per clip.",
-                "too.long": "x" * 500,
-                "blank.means.silence": "   ",
+                "language.one_instruction": {
+                    "say": "One instruction is reused across 58 clips.",
+                    "do": "Write one instruction per clip.",
+                },
+                "older.reply.shape": "A bare string is advice.",
+                "too.long": {"say": "y" * 500, "do": "x" * 500},
+                "blank.means.silence": {"say": "   ", "do": ""},
             },
         },
     )
@@ -131,6 +135,11 @@ def test_finding_notes_round_trip_with_their_caps(client):
 
     body = as_ip(client, "198.51.100.60", path=f"/api/submissions/{sub}").json()
     fixes = body["coach"]["fixes"]
-    assert fixes["language.one_instruction"] == "Write one instruction per clip."
-    assert len(fixes["too.long"]) == 160, "the door did not cap a wall of text"
-    assert "blank.means.silence" not in fixes, "a blank line was stored as advice"
+    assert fixes["language.one_instruction"] == {
+        "say": "One instruction is reused across 58 clips.",
+        "do": "Write one instruction per clip.",
+    }
+    assert fixes["older.reply.shape"] == {"say": "", "do": "A bare string is advice."}
+    assert len(fixes["too.long"]["say"]) == 160, "the door did not cap a wall of text"
+    assert len(fixes["too.long"]["do"]) == 160
+    assert "blank.means.silence" not in fixes, "a blank pair was stored as advice"

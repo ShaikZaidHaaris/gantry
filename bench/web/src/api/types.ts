@@ -163,8 +163,13 @@ export interface Submission {
   email: string;
   /** Generated advice on improving the dataset, {} until the worker writes it.
    *  Interpretation of the measurements, not a measurement itself. `fixes` is
-   *  one short line per finding code, shown in place of the canned prose. */
-  coach?: { points?: string[]; fixes?: Record<string, string>; model?: string };
+   *  one entry per finding code: `say` restates the finding and stands in for
+   *  the gate's summary line, `do` is the action under it. */
+  coach?: {
+    points?: string[];
+    fixes?: Record<string, { say?: string; do?: string }>;
+    model?: string;
+  };
   created_at: string;
   benchmark: { key: string; name: string; simulator: string } | null;
   gates: Gate[];

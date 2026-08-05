@@ -43,22 +43,27 @@ MODEL = os.environ.get("BENCH_FEEDBACK_MODEL", "gpt-5-nano")
 MAX_POINTS = 4
 
 SYSTEM = (
-    "You turn robot-dataset evaluation measurements into advice for the uploader. "
-    "Input: intake facts, findings (each with a code), check verdicts, and a "
-    "robot-test ladder comparing their data against a shuffled control and a "
-    "baseline.\n"
+    "You turn robot-dataset evaluation measurements into short text for the "
+    "uploader. Input: intake facts, findings (each with a code, a severity and "
+    "a summary), check verdicts, and a robot-test ladder comparing their data "
+    "against a shuffled control and a baseline.\n"
     "Hard rules, all of them:\n"
-    "- points: at most 4. Each is ONE imperative sentence, at most 18 words.\n"
-    "- Every sentence must reuse a number or a named stage from the input. Never "
-    "invent a number, a cause, or a fact that is not in the input.\n"
-    "- Say what to DO: add footage, refilm, fix the export. Name the failing "
-    "stage when the ladder shows one. If hand tracking was estimated or dropped, "
-    "say how to film so it tracks.\n"
-    "- No hedging, no praise, no preamble, no 'consider', no 'ensure'.\n"
-    "- fixes: one entry per finding code. ONE imperative sentence, at most 14 "
-    "words, grounded only in that finding. Use \"\" when the finding is "
-    "informational and needs no action.\n"
-    'Output JSON only: {"points": ["..."], "fixes": {"<code>": "<sentence>"}}'
+    "- points: at most 4. Each is ONE imperative sentence, at most 18 words, "
+    "reusing a number or a named stage from the input.\n"
+    '- fixes: one entry per finding code: {"say": ..., "do": ...}.\n'
+    "- say: restate the finding in at most 14 words. Keep its exact meaning, "
+    "direction and numbers. Never soften it and never flip it.\n"
+    "- do: ONE imperative sentence, at most 14 words, only when the finding "
+    'calls for a change. Otherwise "".\n'
+    "- NEVER invert a finding. If it reports something complete, present, "
+    "licensed, moving, or above its floor, that is good news: say so and leave "
+    'do as "". Advising someone to add what the finding says they already have '
+    "is the worst failure available here.\n"
+    "- severity info or weak usually means do is empty.\n"
+    "- Never invent a number, a cause, or a fact that is not in the input. No "
+    "hedging, no praise words, no 'consider', no 'ensure'.\n"
+    "Output JSON only: "
+    '{"points": ["..."], "fixes": {"<code>": {"say": "...", "do": "..."}}}'
 )
 
 #: The longest sentence the UI will show, enforced here and again at the API.
@@ -95,7 +100,11 @@ def digest(record: dict) -> dict:
             # in, the code is the handle the reply keys its per-finding line to,
             # and the allow-list below refuses any code we did not send.
             "findings": [
-                {"code": f.get("code", ""), "summary": f.get("summary", "")}
+                {
+                    "code": f.get("code", ""),
+                    "severity": f.get("severity", ""),
+                    "summary": f.get("summary", ""),
+                }
                 for f in (gate.get("findings") or [])[:8]
                 if f.get("summary")
             ],
@@ -138,10 +147,14 @@ def ask(facts: dict, *, key: str, model: str = "") -> dict:
     freely by default: a trivial probe spent 704 tokens thinking before its
     one-line reply, and the real digest blew the whole budget on thought and
     returned empty content, which parsed as "Expecting value: line 1 column
-    0". So the effort is pinned to minimal -- this is a summarisation of
-    measurements, not a puzzle -- with a retry without the field for any model
-    that refuses it, and an empty reply names the budget as the cause instead
-    of failing as a JSON error three layers up.
+    0". So the effort is pinned low, with a retry without the field for any
+    model that refuses it, and an empty reply names the budget as the cause
+    instead of failing as a JSON error three layers up.
+
+    Low rather than minimal, and that is a lesson too: at minimal the model
+    twice inverted a finding, advising someone to add the thing the finding
+    said they already had. Restating meaning faithfully turns out to need a
+    little thought after all.
     """
     body = {
         "model": model or MODEL,
@@ -150,7 +163,7 @@ def ask(facts: dict, *, key: str, model: str = "") -> dict:
             {"role": "user", "content": json.dumps(facts, ensure_ascii=False)},
         ],
         "response_format": {"type": "json_object"},
-        "reasoning_effort": "minimal",
+        "reasoning_effort": "low",
         # `max_tokens` is the old name and these models refuse it.
         "max_completion_tokens": 4000,
     }
@@ -189,18 +202,28 @@ def ask(facts: dict, *, key: str, model: str = "") -> dict:
         if str(p).strip()
     ][:MAX_POINTS]
 
-    # The guardrails on the per-finding lines are structural, not stylistic:
-    # only codes we sent survive, blanks mean "nothing to say" and are dropped,
-    # and length is capped because the prompt's word limit is a request while a
-    # slice is a rule.
+    # The guardrails on the per-finding entries are structural, not stylistic:
+    # only codes we sent survive (the whole defence against the model writing
+    # beside a finding it invented), blanks mean nothing-to-say and are
+    # dropped, and length is capped because the prompt's word limit is a
+    # request while a slice is a rule. Semantic fidelity -- not flipping the
+    # meaning of a finding -- cannot be checked structurally; it is what the
+    # prompt's inversion rules and the reasoning bump are for, and why the
+    # gate's own summary remains in the record.
     allowed = known_codes(facts)
     raw = reply_body.get("fixes", {})
     fixes = {}
     if isinstance(raw, dict):
-        for code, say in raw.items():
-            text_say = str(say).strip()
-            if code in allowed and text_say:
-                fixes[code] = text_say[:MAX_SAY]
+        for code, entry in raw.items():
+            if code not in allowed:
+                continue
+            if isinstance(entry, dict):
+                say = str(entry.get("say", "")).strip()[:MAX_SAY]
+                do = str(entry.get("do", "")).strip()[:MAX_SAY]
+            else:
+                say, do = "", str(entry).strip()[:MAX_SAY]
+            if say or do:
+                fixes[code] = {"say": say, "do": do}
     return {"points": points, "fixes": fixes}
 
 
