@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-connector-so101"
+version = "0.1.0.dev0"
+description = "Gantry connector for SO-ARM101 corpus-factory recordings: LeRobot data bound to a declared embodiment, with calibration provenance and the per-episode design metadata"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+
+# gantry-connector-lerobot is a dependency rather than a vendored copy: this
+# package adds description and refusals on top of that reader and reimplements
+# none of its parquet indexing, video resolution or selective reads.
+#
+# gantry-evaluator-so101 is a dependency because it owns the embodiment. The
+# joint order, the frames, the meaning tags and the discriminator keys are
+# imported from it. A hand-copied joint list is the hand-sync failure that
+# module exists to prevent, and a corpus described against a second opinion of
+# an embodiment is a corpus that cannot be checked against the first.
+dependencies = [
+  "gantry-core",
+  "gantry-connector-lerobot",
+  "gantry-evaluator-so101",
+  "numpy>=1.24",
+  "pyarrow>=14",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "gantry-feedback-core"]
+
+[project.entry-points."gantry.connectors"]
+so101 = "gantry_connector_so101:SO101Connector"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
