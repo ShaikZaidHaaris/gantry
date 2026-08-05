@@ -87,8 +87,8 @@ def test_the_worker_writes_and_the_owner_reads_it_back(client):
     assert body["coach"]["model"] == "gpt-5-nano"
 
 
-def test_four_is_enforced_at_the_door_too(client):
-    """The generator slices to four, but this is the door and the generator is
+def test_three_is_enforced_at_the_door_too(client):
+    """The generator slices to three, but this is the door and the generator is
     merely one caller of it."""
     sub = a_submission(client)
     w = client.post(f"/api/submissions/{sub}/coach",
@@ -96,7 +96,7 @@ def test_four_is_enforced_at_the_door_too(client):
                     json={"points": ["1", "2", "3", "4", "5", "6"]})
     assert w.status_code == 200
     body = as_ip(client, "93.184.216.34", path=f"/api/submissions/{sub}").json()
-    assert len(body["coach"]["points"]) == 4
+    assert len(body["coach"]["points"]) == 3
 
 
 def test_nothing_is_not_an_update(client):

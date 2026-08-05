@@ -115,11 +115,11 @@ def fake_openai(points, fixes=None):
     return lambda request, timeout: Response(json.dumps(reply).encode())
 
 
-def test_four_is_a_slice_not_a_request(monkeypatch):
-    """The prompt asks for four; the code enforces it. A prompt is a request."""
+def test_three_is_a_slice_not_a_request(monkeypatch):
+    """The prompt asks for exactly three; the code enforces it either way."""
     monkeypatch.setattr(coach.urllib.request, "urlopen", fake_openai(["a", "b", "c", "d", "e", "f"]))
     got = coach.ask({"x": 1}, key="k")
-    assert len(got["points"]) == coach.MAX_POINTS == 4
+    assert len(got["points"]) == coach.MAX_POINTS == 3
     assert got["points"][0] == {"title": "a", "detail": ""}, (
         "a flat sentence from an older reply is a title with no depth, kept"
     )
@@ -322,3 +322,69 @@ def test_the_models_dashes_become_house_style(monkeypatch):
     got = coach.ask(facts, key="k")["points"][0]
     assert "—" not in got["title"] and "–" not in got["detail"]
     assert got["title"] == "Add clips, thirty at least"
+
+
+def test_skipped_findings_get_a_second_focused_ask(monkeypatch):
+    """Coverage is a rule. The model covers a varying subset of findings per
+    call, and every skipped code used to fall back to the gate's line, so the
+    section read as untouched by the layer meant to write it. The follow-up
+    must ask only for what was skipped, and its answers merge in."""
+    facts = coach.digest(record())
+    calls = []
+
+    def sequenced(request, timeout):
+        body = json.loads(request.data)
+        calls.append(body)
+        if len(calls) == 1:
+            payload = {"points": [{"title": "t", "detail": "d"}],
+                       "fixes": {"language.one_instruction": {"say": "One instruction reused.", "do": ""}}}
+        else:
+            payload = {"points": [],
+                       "fixes": {"ladder.bottleneck": {"say": "All scenes lost between moved and lifted.", "do": "Film the lift."}}}
+        reply = {"choices": [{"message": {"content": json.dumps(payload)}}]}
+
+        class Response(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        return Response(json.dumps(reply).encode())
+
+    monkeypatch.setattr(coach.urllib.request, "urlopen", sequenced)
+    got = coach.ask(facts, key="k")
+
+    assert set(got["fixes"]) == {"language.one_instruction", "ladder.bottleneck"}
+    assert len(calls) == 2
+    followup_user = json.loads(calls[1]["messages"][1]["content"])
+    codes_asked = {f["code"] for f in followup_user["findings"]}
+    assert codes_asked == {"ladder.bottleneck"}, (
+        "the follow-up re-asked for findings the first call already covered"
+    )
+
+
+def test_full_coverage_means_no_second_call(monkeypatch):
+    facts = coach.digest(record())
+    calls = []
+
+    def counting(request, timeout):
+        calls.append(1)
+        payload = {"points": [], "fixes": {
+            "language.one_instruction": {"say": "a", "do": ""},
+            "ladder.bottleneck": {"say": "b", "do": ""},
+        }}
+        reply = {"choices": [{"message": {"content": json.dumps(payload)}}]}
+
+        class Response(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        return Response(json.dumps(reply).encode())
+
+    monkeypatch.setattr(coach.urllib.request, "urlopen", counting)
+    coach.ask(facts, key="k")
+    assert len(calls) == 1, "a complete first reply must not pay for a second call"

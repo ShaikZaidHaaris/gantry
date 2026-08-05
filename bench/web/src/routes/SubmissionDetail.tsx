@@ -159,13 +159,10 @@ export function SubmissionDetail() {
           truth it must be checked against. */}
       {(data.coach?.points?.length ?? 0) > 0 && (
         <>
-          <h2>
-            How to improve this dataset
-            <span className="h2-sub">read from the results below, by a language model</span>
-          </h2>
+          <h2>How to improve this dataset</h2>
           <div className="card pad">
             <ul className="coach-list">
-              {data.coach!.points!.slice(0, 4).map((point, i) =>
+              {data.coach!.points!.slice(0, 3).map((point, i) =>
                 typeof point === "string" ? (
                   <li key={i}>{point}</li>
                 ) : (

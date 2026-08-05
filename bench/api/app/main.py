@@ -1307,7 +1307,7 @@ def store_coach(sub_id: str, body: dict, session: Session = Depends(db), _=Depen
             title, detail = str(p).strip()[:120], ""
         if title:
             points.append({"title": title, "detail": detail})
-        if len(points) == 4:
+        if len(points) == 3:
             break
     # Per-finding one-liners, keyed by finding code. Same posture as points:
     # caps are enforced at this door because the generator is one caller of it,

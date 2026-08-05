@@ -38,9 +38,9 @@ OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 #: deploy, because "latest cheapest" is a fact about their price list, not ours.
 MODEL = os.environ.get("BENCH_FEEDBACK_MODEL", "gpt-5-nano")
 
-#: Four, exactly as specified. The truncation is enforced here rather than
+#: Three, exactly as specified. The truncation is enforced here rather than
 #: trusted to the prompt, because a prompt is a request and a slice is a rule.
-MAX_POINTS = 4
+MAX_POINTS = 3
 
 SYSTEM = (
     "You turn robot-dataset evaluation measurements into short text for the "
@@ -48,7 +48,7 @@ SYSTEM = (
     "a summary), check verdicts, and a robot-test ladder comparing their data "
     "against a shuffled control and a baseline.\n"
     "Hard rules, all of them:\n"
-    '- points: at most 4 objects {"title": ..., "detail": ...}. These are the '
+    '- points: EXACTLY 3 objects {"title": ..., "detail": ...}. These are the '
     "main takeaway, so they carry the depth.\n"
     "- title: ONE imperative sentence, at most 12 words, naming the change.\n"
     "- detail: 2 to 4 sentences, 30 to 80 words, written directly to the "
@@ -166,6 +166,55 @@ def _tidy(text: str) -> str:
     )
 
 
+def _content(reply: dict) -> str:
+    """The message text, or a named failure when the budget ate it."""
+    choice = reply["choices"][0]
+    text = choice["message"].get("content") or ""
+    if not text.strip():
+        reason = choice.get("finish_reason", "?")
+        raise RuntimeError(
+            f"the model returned no content (finish_reason={reason}); with a "
+            "gpt-5-family model that usually means reasoning consumed the whole "
+            "completion budget"
+        )
+    return text
+
+
+def _parse_fixes(raw, allowed: set[str]) -> dict:
+    """The structural guardrails on per-finding entries, in one place.
+
+    Only codes in ``allowed`` survive (the whole defence against the model
+    writing beside a finding it invented), blanks mean nothing-to-say and are
+    dropped, both halves are tidied and sliced. Semantic fidelity cannot be
+    checked structurally; that is what the prompt's inversion rules, the hint
+    and the reasoning bump are for, and why the gate's own summary remains in
+    the record.
+    """
+    fixes: dict = {}
+    if isinstance(raw, dict):
+        for code, entry in raw.items():
+            if code not in allowed:
+                continue
+            if isinstance(entry, dict):
+                say = _tidy(str(entry.get("say", "")))[:MAX_SAY]
+                do = _tidy(str(entry.get("do", "")))[:MAX_SAY]
+            else:
+                say, do = "", _tidy(str(entry))[:MAX_SAY]
+            if say or do:
+                fixes[code] = {"say": say, "do": do}
+    return fixes
+
+
+def _findings_for(facts: dict, codes: set[str]) -> list[dict]:
+    out = []
+    for section in facts.values():
+        if isinstance(section, dict):
+            for finding in section.get("findings", []):
+                if isinstance(finding, dict) and finding.get("code") in codes:
+                    out.append(finding)
+    return out
+
+
 def known_codes(facts: dict) -> set[str]:
     """The finding codes that actually travelled, and therefore the only keys a
     reply may use. Anything else in the reply is the model free-associating."""
@@ -228,16 +277,7 @@ def ask(facts: dict, *, key: str, model: str = "") -> dict:
         else:
             raise urllib.error.HTTPError(error.url, error.code, detail, error.hdrs, None)
 
-    choice = reply["choices"][0]
-    text = choice["message"].get("content") or ""
-    if not text.strip():
-        reason = choice.get("finish_reason", "?")
-        raise RuntimeError(
-            f"the model returned no content (finish_reason={reason}); with a "
-            "gpt-5-family model that usually means reasoning consumed the whole "
-            "completion budget"
-        )
-    reply_body = json.loads(text)
+    reply_body = json.loads(_content(reply))
     points = []
     for p in reply_body.get("points", []):
         if isinstance(p, dict):
@@ -253,28 +293,38 @@ def ask(facts: dict, *, key: str, model: str = "") -> dict:
         if len(points) == MAX_POINTS:
             break
 
-    # The guardrails on the per-finding entries are structural, not stylistic:
-    # only codes we sent survive (the whole defence against the model writing
-    # beside a finding it invented), blanks mean nothing-to-say and are
-    # dropped, and length is capped because the prompt's word limit is a
-    # request while a slice is a rule. Semantic fidelity -- not flipping the
-    # meaning of a finding -- cannot be checked structurally; it is what the
-    # prompt's inversion rules and the reasoning bump are for, and why the
-    # gate's own summary remains in the record.
     allowed = known_codes(facts)
-    raw = reply_body.get("fixes", {})
-    fixes = {}
-    if isinstance(raw, dict):
-        for code, entry in raw.items():
-            if code not in allowed:
-                continue
-            if isinstance(entry, dict):
-                say = _tidy(str(entry.get("say", "")))[:MAX_SAY]
-                do = _tidy(str(entry.get("do", "")))[:MAX_SAY]
-            else:
-                say, do = "", _tidy(str(entry))[:MAX_SAY]
-            if say or do:
-                fixes[code] = {"say": say, "do": do}
+    fixes = _parse_fixes(reply_body.get("fixes", {}), allowed)
+
+    # Coverage is a rule, not a request. The model reliably covers a subset of
+    # the findings per call, and which subset varies call to call, so every
+    # skipped code fell back to the gate's line and the section read as
+    # untouched by the layer that was supposed to write it. One focused
+    # follow-up asks for exactly the codes the first reply skipped; anything
+    # still missing after that falls back as before, but the common case now
+    # lands complete.
+    missing = allowed - set(fixes)
+    if missing:
+        follow = dict(body)
+        follow["messages"] = [
+            {"role": "system", "content": SYSTEM},
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "findings": _findings_for(facts, missing),
+                        "instruction": "Return a fixes entry for EVERY code "
+                        'above. Set points to [].',
+                    },
+                    ensure_ascii=False,
+                ),
+            },
+        ]
+        try:
+            more = json.loads(_content(post(follow)))
+            fixes.update(_parse_fixes(more.get("fixes", {}), missing))
+        except Exception:  # noqa: BLE001 - partial coverage beats no advice
+            pass
     return {"points": points, "fixes": fixes}
 
 
