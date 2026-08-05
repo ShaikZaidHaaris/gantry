@@ -59,6 +59,8 @@ SYSTEM = (
     "licensed, moving, or above its floor, that is good news: say so and leave "
     'do as "". Advising someone to add what the finding says they already have '
     "is the worst failure available here.\n"
+    "- When a finding carries a hint, the hint states the direction of the "
+    "fix. Compress it, follow its direction exactly, never contradict it.\n"
     "- severity info or weak usually means do is empty.\n"
     "- Never invent a number, a cause, or a fact that is not in the input. No "
     "hedging, no praise words, no 'consider', no 'ensure'.\n"
@@ -99,11 +101,18 @@ def digest(record: dict) -> dict:
             # Code and summary both: the summary is what the advice is grounded
             # in, the code is the handle the reply keys its per-finding line to,
             # and the allow-list below refuses any code we did not send.
+            # The hint is the gate's own prescription. It no longer renders on
+            # the page, but it is the one text that states which DIRECTION the
+            # fix runs, and without it the model inverted the same finding
+            # three times: "1 distinct instruction across 58 clips" reads as a
+            # target to a reader who does not know language conditioning, and
+            # only the prescription says it is a defect.
             "findings": [
                 {
                     "code": f.get("code", ""),
                     "severity": f.get("severity", ""),
                     "summary": f.get("summary", ""),
+                    "hint": str(f.get("prescription", "") or "")[:220],
                 }
                 for f in (gate.get("findings") or [])[:8]
                 if f.get("summary")

@@ -272,3 +272,21 @@ def test_severity_travels_so_the_model_can_tell_observation_from_defect():
         "without severity the model cannot follow the rule that info findings "
         "get no action line, which is half the inversion defence"
     )
+
+
+def test_the_gates_prescription_travels_as_the_hint():
+    """The prescription is the one text stating which direction the fix runs.
+
+    Without it the model inverted the same finding three times, because "1
+    distinct instruction across 58 clips" reads as a target to anyone who does
+    not know language conditioning. It left the page; it must not leave the
+    digest.
+    """
+    rec = record()
+    rec["gates"][0]["findings"][0]["prescription"] = (
+        "Describe each clip by what was actually done in it, rather than "
+        "reusing one sentence for the whole upload."
+    )
+    facts = coach.digest(rec)
+    hint = facts["data report"]["findings"][0]["hint"]
+    assert "rather than reusing one sentence" in hint
