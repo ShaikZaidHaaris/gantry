@@ -126,11 +126,11 @@ def test_finding_notes_round_trip_with_their_caps(client):
             "fixes": {
                 "language.one_instruction": {
                     "say": "One instruction is reused across 58 clips.",
-                    "do": "Write one instruction per clip.",
+                    "detail": "Write one instruction per clip.",
                 },
-                "older.reply.shape": "A bare string is advice.",
-                "too.long": {"say": "y" * 500, "do": "x" * 500},
-                "blank.means.silence": {"say": "   ", "do": ""},
+                "older.reply.shape": {"say": "Old shape.", "do": "The do key still lands."},
+                "too.long": {"say": "y" * 500, "detail": "x" * 800},
+                "blank.means.silence": {"say": "   ", "detail": ""},
             },
         },
     )
@@ -140,9 +140,9 @@ def test_finding_notes_round_trip_with_their_caps(client):
     fixes = body["coach"]["fixes"]
     assert fixes["language.one_instruction"] == {
         "say": "One instruction is reused across 58 clips.",
-        "do": "Write one instruction per clip.",
+        "detail": "Write one instruction per clip.",
     }
-    assert fixes["older.reply.shape"] == {"say": "", "do": "A bare string is advice."}
+    assert fixes["older.reply.shape"]["detail"] == "The do key still lands."
     assert len(fixes["too.long"]["say"]) == 160, "the door did not cap a wall of text"
-    assert len(fixes["too.long"]["do"]) == 160
+    assert len(fixes["too.long"]["detail"]) == 400
     assert "blank.means.silence" not in fixes, "a blank pair was stored as advice"

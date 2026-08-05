@@ -167,7 +167,7 @@ export interface Submission {
    *  the gate's summary line, `do` is the action under it. */
   coach?: {
     points?: (string | { title?: string; detail?: string })[];
-    fixes?: Record<string, { say?: string; do?: string }>;
+    fixes?: Record<string, { say?: string; detail?: string; do?: string }>;
     model?: string;
   };
   created_at: string;

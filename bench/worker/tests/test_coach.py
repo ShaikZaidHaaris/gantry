@@ -204,7 +204,7 @@ def test_the_happy_path_stores_through_the_transport(monkeypatch):
             ["film the lift slower", "add 30 demos of the handoff"],
             {"language.one_instruction": {
                 "say": "One instruction is reused across all 58 clips.",
-                "do": "Write a distinct instruction for each clip.",
+                "detail": "Write a distinct instruction for each clip.",
             }},
         ),
     )
@@ -217,7 +217,7 @@ def test_the_happy_path_stores_through_the_transport(monkeypatch):
     ]
     assert payload["fixes"] == {"language.one_instruction": {
         "say": "One instruction is reused across all 58 clips.",
-        "do": "Write a distinct instruction for each clip.",
+        "detail": "Write a distinct instruction for each clip.",
     }}
 
 
@@ -234,8 +234,8 @@ def test_a_code_we_never_sent_is_refused(monkeypatch):
     monkeypatch.setattr(
         coach.urllib.request, "urlopen",
         fake_openai(["p"], {
-            "language.one_instruction": {"say": "One instruction reused.", "do": ""},
-            "invented.by_the_model": {"say": "Made up.", "do": "Buy a better robot."},
+            "language.one_instruction": {"say": "One instruction reused.", "detail": ""},
+            "invented.by_the_model": {"say": "Made up.", "detail": "Buy a better robot."},
         }),
     )
     got = coach.ask(facts, key="k")
@@ -250,7 +250,7 @@ def test_a_blank_line_means_nothing_to_say_and_is_dropped(monkeypatch):
     facts = coach.digest(record())
     monkeypatch.setattr(
         coach.urllib.request, "urlopen",
-        fake_openai(["p"], {"language.one_instruction": {"say": "   ", "do": ""}}),
+        fake_openai(["p"], {"language.one_instruction": {"say": "   ", "detail": ""}}),
     )
     assert coach.ask(facts, key="k")["fixes"] == {}
 
@@ -259,12 +259,12 @@ def test_length_is_a_slice_here_too(monkeypatch):
     facts = coach.digest(record())
     monkeypatch.setattr(
         coach.urllib.request, "urlopen",
-        fake_openai(["p"], {"language.one_instruction": {"say": "y" * 500, "do": "x" * 500}}),
+        fake_openai(["p"], {"language.one_instruction": {"say": "y" * 500, "detail": "x" * 500}}),
     )
     got = coach.ask(facts, key="k")
     entry = got["fixes"]["language.one_instruction"]
     assert len(entry["say"]) == coach.MAX_SAY
-    assert len(entry["do"]) == coach.MAX_SAY
+    assert len(entry["detail"]) == coach.MAX_NOTE
 
 
 def test_a_bare_string_from_an_older_reply_still_lands_as_advice(monkeypatch):
@@ -279,7 +279,7 @@ def test_a_bare_string_from_an_older_reply_still_lands_as_advice(monkeypatch):
     got = coach.ask(facts, key="k")
     assert got["fixes"]["language.one_instruction"] == {
         "say": "",
-        "do": "Write one instruction per clip.",
+        "detail": "Write one instruction per clip.",
     }
 
 
@@ -349,10 +349,10 @@ def test_skipped_findings_get_a_second_focused_ask(monkeypatch):
         calls.append(body)
         if len(calls) == 1:
             payload = {"points": [{"title": "t", "detail": "d"}],
-                       "fixes": {"language.one_instruction": {"say": "One instruction reused.", "do": ""}}}
+                       "fixes": {"language.one_instruction": {"say": "One instruction reused.", "detail": ""}}}
         else:
             payload = {"points": [],
-                       "fixes": {"ladder.bottleneck": {"say": "All scenes lost between moved and lifted.", "do": "Film the lift."}}}
+                       "fixes": {"ladder.bottleneck": {"say": "All scenes lost between moved and lifted.", "detail": "Film the lift."}}}
         reply = {"choices": [{"message": {"content": json.dumps(payload)}}]}
 
         class Response(io.BytesIO):
@@ -383,8 +383,8 @@ def test_full_coverage_means_no_second_call(monkeypatch):
     def counting(request, timeout):
         calls.append(1)
         payload = {"points": [], "fixes": {
-            "language.one_instruction": {"say": "a", "do": ""},
-            "ladder.bottleneck": {"say": "b", "do": ""},
+            "language.one_instruction": {"say": "a", "detail": ""},
+            "ladder.bottleneck": {"say": "b", "detail": ""},
         }}
         reply = {"choices": [{"message": {"content": json.dumps(payload)}}]}
 

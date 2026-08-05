@@ -68,7 +68,7 @@ export function DataReport({
   notes = {},
 }: {
   gate: Gate;
-  notes?: Record<string, { say?: string; do?: string }>;
+  notes?: Record<string, { say?: string; detail?: string; do?: string }>;
 }) {
   const findings = [...gate.findings].sort(byRank);
   const fix = findings.filter((f) => f.severity === "strong" || f.severity === "moderate");

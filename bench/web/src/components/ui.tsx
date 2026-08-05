@@ -143,7 +143,7 @@ export function FindingRow({
   note,
 }: {
   finding: Finding;
-  note?: { say?: string; do?: string };
+  note?: { say?: string; detail?: string; do?: string };
 }) {
   // `note` is the generated pair for this finding: `say` restates the
   // observation and replaces the gate's summary line, `do` is the action under
@@ -157,7 +157,9 @@ export function FindingRow({
     <div className="finding" title={finding.code}>
       <div className="what">{sentence(note?.say || finding.summary)}</div>
       {advised
-        ? note.do && <p className="fix">{sentence(note.do)}</p>
+        ? (note.detail || note.do) && (
+            <p className="fix">{sentence(note.detail || note.do || "")}</p>
+          )
         : finding.prescription && <p className="fix">{finding.prescription}</p>}
     </div>
   );

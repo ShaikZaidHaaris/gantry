@@ -62,28 +62,34 @@ SYSTEM = (
     "- Never mention finding codes, severity labels, JSON keys, or the words "
     "'finding' or 'input' in any text. Cite the measurement itself, the way a "
     "person would say it.\n"
-    '- fixes: one entry per finding code: {"say": ..., "do": ...}.\n'
-    "- say: restate the finding in at most 14 words. Keep its exact meaning, "
-    "direction and numbers. Never soften it and never flip it.\n"
-    "- do: ONE imperative sentence, at most 14 words, only when the finding "
-    'calls for a change. Otherwise "".\n'
+    "- fixes: one entry per finding code, ALL of them; omitting a code is a "
+    'failure. Each entry: {"say": ..., "detail": ...}.\n'
+    "- say: restate the finding in at most 14 words, keeping its exact "
+    "meaning, direction and numbers. Never soften it and never flip it.\n"
+    "- detail: 1 to 3 sentences, 20 to 50 words, written to the uploader. What "
+    "this measurement means for the result, and when it calls for a change, "
+    "exactly what to change with quantities. For good news, one sentence on "
+    "what it enables, and no action.\n"
     "- NEVER invert a finding. If it reports something complete, present, "
-    "licensed, moving, or above its floor, that is good news: say so and leave "
-    'do as "". Advising someone to add what the finding says they already have '
-    "is the worst failure available here.\n"
+    "licensed, moving, or above its floor, that is good news: say so, and the "
+    "detail must not advise adding what is already there. That is the worst "
+    "failure available here.\n"
     "- When a finding carries a hint, the hint states the direction of the "
     "fix. Compress it, follow its direction exactly, never contradict it.\n"
-    "- severity info or weak usually means do is empty.\n"
     "- Never invent a number, a cause, or a fact that is not in the input. No "
     "hedging, no praise words, no 'consider', no 'ensure'.\n"
     "Output JSON only: "
     '{"points": [{"title": "...", "detail": "..."}], '
-    '"fixes": {"<code>": {"say": "...", "do": "..."}}}'
+    '"fixes": {"<code>": {"say": "...", "detail": "..."}}}'
 )
 
 #: The longest sentence the UI will show, enforced here and again at the API.
 #: A cap is a rule; the prompt's word limit is a request.
 MAX_SAY = 160
+
+#: The finding's explanatory line: paragraph-shaped like a point's detail but
+#: shorter, because up to nine of them share one screen.
+MAX_NOTE = 400
 
 #: The points carry the depth, so their caps are paragraph-sized: a title that
 #: stays a headline and a detail long enough for measurement, consequence and
@@ -210,11 +216,13 @@ def _parse_fixes(raw, allowed: set[str]) -> dict:
                 continue
             if isinstance(entry, dict):
                 say = _tidy(str(entry.get("say", "")))[:MAX_SAY]
-                do = _tidy(str(entry.get("do", "")))[:MAX_SAY]
+                # `do` was this schema's previous name for the second line; a
+                # model or a cache answering in the old shape still lands.
+                detail = _tidy(str(entry.get("detail", "") or entry.get("do", "")))[:MAX_NOTE]
             else:
-                say, do = "", _tidy(str(entry))[:MAX_SAY]
-            if say or do:
-                fixes[code] = {"say": say, "do": do}
+                say, detail = "", _tidy(str(entry))[:MAX_NOTE]
+            if say or detail:
+                fixes[code] = {"say": say, "detail": detail}
     return fixes
 
 
