@@ -10,6 +10,19 @@ not make, because the moment it imports one of them the framework has a
 favourite model and "no preference to any specific model" stops being true. The
 gate invokes an executable, hands it a JSON job, and reads run records back.
 
+## What this cannot do yet
+
+It trains on the upload and nothing else, so a contributor's own egocentric
+footage produces two arms that both score zero: a policy that has only seen a
+person's hands in a kitchen cannot drive an aloha-agilex. The two samples that
+pass today only pass because the benchmark's demonstrations were mixed into them
+outside the product, by hand, in `experiments/robotwin_ego/build_ab.py`.
+
+`DESIGN.md` beside this file is the shape that fixes it: the upload becomes
+pretraining and the benchmark's demonstrations become a fixed finetune every arm
+receives identically. Not implemented. Read it before changing the training
+sequence here.
+
 ## The contract
 
     run.sh <job.json>
