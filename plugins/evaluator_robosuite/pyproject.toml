@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-evaluator-robosuite"
+version = "0.1.0.dev0"
+description = "Rolls a policy out in the robosuite world a robomimic dataset was recorded in"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# No simulator and no reader. The world recipe and the starting states are
+# passed in, so this installs on a laptop and needs neither MuJoCo nor h5py.
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+# robosuite alone is enough (see build_native_env). robomimic is the
+# documented default factory and an optional convenience — its 0.3 line pins
+# mujoco_py, which robosuite 1.4 replaced, so the two cannot share an install.
+sim = ["robosuite"]
+sim-robomimic = ["robosuite", "robomimic"]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.evaluators"]
+robosuite = "gantry_evaluator_robosuite:RobosuiteEvaluator"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

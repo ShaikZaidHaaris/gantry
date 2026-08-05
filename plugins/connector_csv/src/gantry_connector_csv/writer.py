@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 import numpy as np
+
 from gantry.spine import EpisodeRecord
 
 from .connector import EPISODE_COLUMN, STAGE_PREFIX, STEP_COLUMN, SUCCESS_COLUMN

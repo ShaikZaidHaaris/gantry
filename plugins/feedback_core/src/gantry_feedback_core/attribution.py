@@ -29,10 +29,11 @@ from __future__ import annotations
 from typing import Sequence
 
 from gantry.contracts.feedback import Cohort, FeedbackModule, Finding, Report, feedback_descriptor
-from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement
+from gantry.resolve import Requirement
+from gantry.spine import Descriptor, Measurement, count_of
 
-from . import metrics, statistics as st
+from . import metrics
+from . import statistics as st
 from .metrics import HIGHER, LOWER, get_statistic, known_statistics, tabulate
 
 VERSION = "0.1.0.dev0"
@@ -61,14 +62,19 @@ class Attribution(FeedbackModule):
         findings, measurements, notes = [], {}, []
         for cohort in cohorts:
             findings.extend(self._one(cohort, measurements, notes))
-        return Report("attribution", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "attribution",
+            tuple(findings),
+            measurements,
+            tuple(notes),
+            tuple(c.name for c in cohorts),
+        )
 
     def _one(self, cohort: Cohort, measurements: dict, notes: list) -> list[Finding]:
         episodes = [e for e in cohort.episodes if e.labels.success is not None]
         if len(episodes) != len(cohort.episodes):
             notes.append(
-                f"{cohort.name}: {len(cohort.episodes) - len(episodes)} episode(s) "
+                f"{cohort.name}: {count_of(len(cohort.episodes) - len(episodes), 'episode')} "
                 "had no outcome and were excluded"
             )
         succeeded = [e for e in episodes if e.labels.success]
@@ -99,17 +105,20 @@ class Attribution(FeedbackModule):
             with_duration = st.spearman(column.get(name, lengths), lengths)
 
             measurements[f"{cohort.name}.{name}"] = Measurement(
-                delta, n=len(episodes), method="cliffs_delta",
+                delta,
+                n=len(episodes),
+                method="cliffs_delta",
                 detail={"p": corrected.p, "q": corrected.q},
             )
             findings.append(
                 Finding(
-                    code="attribution.associated" if statistic.prescribable
+                    code="attribution.associated"
+                    if statistic.prescribable
                     else "attribution.context",
                     summary=(
                         f"{cohort.name}: {name} separates success from failure "
                         f"(delta={delta:+.2f}, q={corrected.q:.3g})"
-                        + ("" if statistic.prescribable else " — context only")
+                        + ("" if statistic.prescribable else " (context only)")
                     ),
                     severity=_severity(delta, statistic.prescribable),
                     measurements={name: measurements[f"{cohort.name}.{name}"]},

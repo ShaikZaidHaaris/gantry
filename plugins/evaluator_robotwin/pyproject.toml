@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-evaluator-robotwin"
+version = "0.1.0.dev0"
+description = "Runs a policy over RoboTwin 2.0's dual-arm tasks, including in end-effector space"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# The simulator is not a hard dependency. This plugin installs on a laptop and
+# its task list can be planned against with nothing heavier than numpy present.
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+# RoboTwin is MIT and brings SAPIEN, mplib and a multi-gigabyte object dataset.
+sim = ["sapien", "mplib"]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.evaluators"]
+robotwin = "gantry_evaluator_robotwin:RoboTwinEvaluator"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

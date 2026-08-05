@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-feedback-rank"
+version = "0.1.0.dev0"
+description = "Rank policies across many tasks without letting one easy task decide"
+requires-python = ">=3.10"
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.feedback"]
+rank = "gantry_feedback_rank:MatrixRanking"
+
+[tool.setuptools.packages.find]
+where = ["src"]

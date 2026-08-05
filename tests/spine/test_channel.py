@@ -66,9 +66,11 @@ def test_rejects_wrong_kind_of_dtype():
 
 
 def test_wildcard_width_accepts_anything():
-    assert ChannelSpec("img", "image", (None, None, 3), "uint8").accepts(
-        np.zeros((4, 64, 48, 3), dtype="uint8")
-    ).ok
+    assert (
+        ChannelSpec("img", "image", (None, None, 3), "uint8")
+        .accepts(np.zeros((4, 64, 48, 3), dtype="uint8"))
+        .ok
+    )
 
 
 # -- compatibility ---------------------------------------------------------

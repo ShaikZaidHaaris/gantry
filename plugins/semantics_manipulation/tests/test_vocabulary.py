@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from gantry.spine import ChannelSpec, compatible, get_semantics
-
 from gantry_semantics_manipulation import (
     action_channel,
     control_mode_of,
@@ -12,6 +10,7 @@ from gantry_semantics_manipulation import (
     state_channel,
 )
 
+from gantry.spine import ChannelSpec, compatible, get_semantics
 
 # -- the silent failures this vocabulary exists to make loud ---------------
 
@@ -54,12 +53,8 @@ def test_millimetres_and_metres_are_caught_on_proprioception():
 def test_the_same_joints_in_a_different_order_are_refused():
     """Identical widths, identical names, opposite order: compatible on every
     other axis and produces garbage."""
-    left_first = action_channel(
-        "action", "joint_pos", width=2, dim_labels=["left_j0", "right_j0"]
-    )
-    right_first = action_channel(
-        "action", "joint_pos", width=2, dim_labels=["right_j0", "left_j0"]
-    )
+    left_first = action_channel("action", "joint_pos", width=2, dim_labels=["left_j0", "right_j0"])
+    right_first = action_channel("action", "joint_pos", width=2, dim_labels=["right_j0", "left_j0"])
     verdict = compatible(left_first, right_first)
     assert "dim_labels.order" in verdict.codes()
     assert "permutation, not a rename" in verdict.because("dim_labels.order")[0].hint
@@ -142,10 +137,7 @@ def test_core_stays_neutral_until_this_is_installed():
     import subprocess
     import sys
 
-    probe = (
-        "from gantry.spine import known_semantics;"
-        "print(','.join(known_semantics()))"
-    )
+    probe = "from gantry.spine import known_semantics;print(','.join(known_semantics()))"
     out = subprocess.run(
         [sys.executable, "-c", probe], capture_output=True, text=True, check=True
     ).stdout

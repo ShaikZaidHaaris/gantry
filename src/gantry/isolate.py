@@ -8,7 +8,7 @@ of interface design makes them share an interpreter.
 So a descriptor declares ``isolation``, and this module honours it. A component
 marked ``venv`` or ``container`` is built in its own process, which discovers its
 *own* installed plugins and imports its *own* dependencies. The host never
-imports the stack it was avoiding, which is the whole point — an isolation
+imports the stack it was avoiding, which is the whole point -- an isolation
 mechanism that still imports the plugin has isolated nothing.
 
 The proxy speaks the connector contract, so nothing downstream can tell the
@@ -19,7 +19,7 @@ the boundary too.
 What is deliberately *not* here: a general RPC for every plane. Connectors have a
 small, data-shaped interface that proxies faithfully. A policy called at control
 rate, or an evaluator holding a simulator, would need a different design, and a
-half-working version of that is worse than a clear refusal — so
+half-working version of that is worse than a clear refusal -- so
 :func:`isolated_or_refuse` refuses those by name instead.
 """
 
@@ -41,6 +41,7 @@ from .spine import ChannelSpec, Descriptor, EpisodeRecord, Verdict
 
 #: Isolation levels that mean "not in this interpreter".
 ISOLATED = ("venv", "container")
+
 
 def PROXYABLE() -> tuple[str, ...]:
     """Planes that declared themselves proxyable. Others are refused."""
@@ -165,9 +166,7 @@ class RemoteConnector(Connector):
         python: str | os.PathLike[str] | None = None,
     ):
         self._worker = Worker(python)
-        reply = self._worker.ask(
-            op="build", plane="dataset", name=name, config=dict(config or {})
-        )
+        reply = self._worker.ask(op="build", plane="dataset", name=name, config=dict(config or {}))
         self._descriptor = Descriptor.from_dict(reply["descriptor"])
         self._ids: tuple[str, ...] | None = None
 

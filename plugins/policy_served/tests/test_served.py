@@ -311,8 +311,12 @@ def test_a_load_bearing_key_survives_being_declared_as_json():
     from gantry.serial import spec_to_dict
 
     quaternion = ChannelSpec(
-        "action", "vector", (4,), "float32",
-        discriminators=("rotation_repr",), metadata={"rotation_repr": "quat_xyzw"},
+        "action",
+        "vector",
+        (4,),
+        "float32",
+        discriminators=("rotation_repr",),
+        metadata={"rotation_repr": "quat_xyzw"},
     )
     served = ServedPolicy(
         URL, spec_to_dict(quaternion), transport=transport_returning({"action": [[0, 0, 0, 1]]})

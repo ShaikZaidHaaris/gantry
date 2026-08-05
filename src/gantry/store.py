@@ -10,13 +10,13 @@ Two guarantees:
 this reader does not know it. A newer file failing with a sentence beats a newer
 file being half-understood.
 
-**Round-trip.** What comes back equals what went out — provenance, labels,
+**Round-trip.** What comes back equals what went out -- provenance, labels,
 milestones, measurements, and the arrays. :func:`same_run` is what the golden
 test compares with, because "we serialise it" and "we can read it back" are
 different claims and only the second one matters.
 
-Layout: one JSON file for everything describable, and — only when the episodes
-carry channels — a sibling ``.npz`` for the arrays. Step data is bulky and
+Layout: one JSON file for everything describable, and -- only when the episodes
+carry channels -- a sibling ``.npz`` for the arrays. Step data is bulky and
 belongs in a format built for it; the JSON stays readable, diffable and
 greppable, which is what a record is for. Label-only records write no sidecar at
 all, so an evaluation log stays a single small file.
@@ -142,8 +142,7 @@ def read_run(path: str | os.PathLike[str]) -> RunRecord:
 
     episodes = tuple(_episode_from_dict(entry, stored) for entry in payload.get("episodes") or ())
     metrics = {
-        name: measurement_from_dict(value)
-        for name, value in (payload.get("metrics") or {}).items()
+        name: measurement_from_dict(value) for name, value in (payload.get("metrics") or {}).items()
     }
     return RunRecord(provenance_from_dict(payload.get("provenance") or {}), episodes, metrics)
 

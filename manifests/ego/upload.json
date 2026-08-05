@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "name": "ego-upload",
+  "varies": "dataset",
+  "cohorts": {
+    "ego": {
+      "chain": [
+        {
+          "name": "egovideo",
+          "config": { "path": "/home/ubuntu/egorun/epic_v2", "stride": 6 }
+        },
+        {
+          "name": "handpose",
+          "config": {
+            "estimator": {
+              "wire": "rtm+mediapipe",
+              "model_path": "/home/ubuntu/egorun/models/hand_landmarker.task",
+              "rig": "gopro_hero5_wide",
+              "width": 1920,
+              "height": 1080
+            },
+            "cache": false
+          }
+        },
+        {
+          "name": "egoactions",
+          "config": {
+            "retargeter": {
+              "mount": "aligned",
+              "hand": { "closed": 0.02, "open": 0.10, "span": 0.19,
+                        "measured_by": "adult average (stand-in)" },
+              "reach": "viperx_300"
+            },
+            "hold_missing": true,
+            "size": [224, 224],
+            "cache": false
+          }
+        },
+        {
+          "name": "worldframe",
+          "optional": true,
+          "config": { "trajectories": {} }
+        }
+      ]
+    }
+  },
+  "feedback": [
+    { "name": "provenance", "config": { "intent": "commercial" } },
+    { "name": "extraction" },
+    { "name": "capture" }
+  ],
+  "metadata": {
+    "what": "Raw egocentric video to robot state/action, as one declarative chain.",
+    "why_a_chain": [
+      "Three connectors stacked is what this pipeline is. Until a manifest could",
+      "say so it lived in hand-written scripts rsynced to a box — declarative in",
+      "principle and bespoke in practice, which meant no upload was reproducible",
+      "and no two runs were guaranteed to be the same pipeline."
+    ],
+    "the_optional_link": [
+      "worldframe needs a camera trajectory and half of real uploads have none.",
+      "Marked optional: the run continues in the camera frame and the record",
+      "says the stage was skipped, rather than a shorter chain quietly wearing",
+      "the same name."
+    ]
+  }
+}

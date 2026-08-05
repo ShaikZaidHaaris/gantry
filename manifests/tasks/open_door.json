@@ -1,0 +1,32 @@
+{
+  "name": "open_door",
+  "instruction": "open the door",
+  "surfaces": [
+    "table"
+  ],
+  "objects": [
+    {
+      "id": "door",
+      "kind": "hinged_door"
+    }
+  ],
+  "success": [
+    {
+      "check": "opened",
+      "args": {
+        "object": "door",
+        "angle": 0.3
+      },
+      "rubric": "The door has swung open by roughly 17 degrees or more from closed. A door that is merely unlatched but still shut does not count."
+    }
+  ],
+  "horizon": 300,
+  "trials": 20,
+  "staging": {
+    "robosuite": {
+      "env_name": "Door",
+      "places": {}
+    }
+  },
+  "metadata": {}
+}

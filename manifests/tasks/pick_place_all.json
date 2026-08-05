@@ -1,0 +1,99 @@
+{
+  "name": "pick_place_all",
+  "instruction": "put each object in its own bin",
+  "surfaces": [
+    "table"
+  ],
+  "objects": [
+    {
+      "id": "milk",
+      "kind": "milk_carton",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.03,
+          0.03
+        ],
+        "y": [
+          -0.03,
+          0.03
+        ]
+      }
+    },
+    {
+      "id": "bread",
+      "kind": "bread_carton",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.03,
+          0.03
+        ],
+        "y": [
+          -0.03,
+          0.03
+        ]
+      }
+    },
+    {
+      "id": "cereal",
+      "kind": "cereal_carton",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.03,
+          0.03
+        ],
+        "y": [
+          -0.03,
+          0.03
+        ]
+      }
+    },
+    {
+      "id": "can",
+      "kind": "can_carton",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.03,
+          0.03
+        ],
+        "y": [
+          -0.03,
+          0.03
+        ]
+      }
+    },
+    {
+      "id": "bins",
+      "kind": "four_bins"
+    }
+  ],
+  "success": [
+    {
+      "check": "all_in_bins",
+      "args": {
+        "objects": [
+          "milk",
+          "bread",
+          "cereal",
+          "can"
+        ]
+      },
+      "rubric": "All four objects are resting in their own bins, with the gripper released. Any object still on the table, or in the wrong bin, means the task is not done."
+    }
+  ],
+  "horizon": 2000,
+  "trials": 20,
+  "staging": {
+    "robosuite": {
+      "env_name": "PickPlace",
+      "places": {}
+    }
+  },
+  "metadata": {
+    "note": "The four-object form of the single pick_place tasks, scored all-or-nothing. Long horizon: this is a sequence, not one reach.",
+    "placement": "This environment builds its own object layout and discards any given to it, so the start regions here describe the task for a real bench and do not drive the simulator. Runs in it are noted accordingly."
+  }
+}

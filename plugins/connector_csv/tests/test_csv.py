@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from gantry_connector_csv import CsvConnector, write_episodes
+
 from gantry.fixtures import make_clean, make_defective
 from gantry.spine import compatible
-from gantry_connector_csv import CsvConnector, write_episodes
 
 
 @pytest.fixture
@@ -28,9 +29,9 @@ def test_numbers_survive_the_round_trip(round_trip):
         restored = connector.open(original.meta.id)
         assert len(restored) == len(original)
         for spec in original.schema:
-            assert np.allclose(
-                restored.array(spec.name), original.array(spec.name), atol=1e-6
-            ), spec.name
+            assert np.allclose(restored.array(spec.name), original.array(spec.name), atol=1e-6), (
+                spec.name
+            )
 
 
 def test_meaning_survives_only_with_the_sidecar(round_trip):

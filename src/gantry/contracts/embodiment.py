@@ -6,7 +6,7 @@ That separation is what lets a machine nobody has built yet participate: writing
 a descriptor is a config file, not a plugin.
 
 Retargeting is the hard half, and it is deliberately not hidden. There is no
-universal robot space to convert into — the mapping from a seven-jointed arm to
+universal robot space to convert into -- the mapping from a seven-jointed arm to
 a six-jointed one, or from joint angles to an end-effector pose, throws
 information away, and which information depends on the pair. So a
 :class:`Retargeter` is a declared, named transform between two specific
@@ -58,7 +58,7 @@ class EmbodimentDescriptor:
     #: Where the kinematics live (a URDF, an MJCF, a vendor file). A reference,
     #: never a parsed model: core has no business knowing these formats.
     kinematics: str | None = None
-    #: Free-form operating notes — joint layout, gripper polarity, workspace
+    #: Free-form operating notes -- joint layout, gripper polarity, workspace
     #: limits. Written for a human or a policy that reads text, and carried
     #: verbatim rather than parsed.
     notes: str | None = None
@@ -154,9 +154,7 @@ class Retargeter(ABC):
         """
 
     @abstractmethod
-    def apply(
-        self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec
-    ) -> np.ndarray:
+    def apply(self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.ndarray:
         """Transform an array of shape ``(steps, *source.shape)``."""
 
     def check(self, source: ChannelSpec, target: ChannelSpec) -> Verdict:
@@ -167,8 +165,7 @@ class Retargeter(ABC):
         if source.width != target.width and not self.losses(source, target):
             return Verdict.no(
                 "retarget.undeclared_loss",
-                f"{self.name} maps {source.width} values to {target.width} "
-                "but declares no loss",
+                f"{self.name} maps {source.width} values to {target.width} but declares no loss",
                 hint="a width change discards or invents information; say which",
             )
         return verdict

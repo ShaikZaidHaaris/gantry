@@ -1,0 +1,28 @@
+{
+  "checkpoint": "mh",
+  "arm": "panda",
+  "task": "assemble_round_nut",
+  "trials": 1,
+  "execute": 16,
+  "horizon": 8,
+  "smoke": "horizon cut from 500 to 8 and 1 trial(s): this cell proves the path runs, it does not measure the policy",
+  "retargeter": "gripper_aperture:PandaGripper->PandaGripper",
+  "retargeter_losses": [
+    "reads PandaGripper as a fraction of its own travel and rebuilds that fraction on PandaGripper",
+    "keeps only how far open the hand is; finger count, finger kinematics and the geometry of where it contacts an object do not cross",
+    "grip force and contact state are not represented at either end"
+  ],
+  "status": "ran",
+  "solved": 0,
+  "scored": 1,
+  "success_rate": 0.0,
+  "ci": [
+    0.0,
+    0.7935
+  ],
+  "n": 1,
+  "method": "wilson",
+  "errors": [],
+  "n_errors": 0,
+  "seconds": 1.1
+}

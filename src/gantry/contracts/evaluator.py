@@ -45,15 +45,39 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
+from ..errors import ConfigError
 from ..resolve.requirement import Requirement
 from ..spine import Descriptor, RunRecord, Verdict
 
 #: 1.1 made ``task_for`` a required method. It had been a duck-typed hook the
 #: runner probed for, which meant an evaluator could pass every conformance
-#: check and still be unusable from a manifest — the kit said yes and the runner
+#: check and still be unusable from a manifest -- the kit said yes and the runner
 #: refused. A minor bump is the right shape: an evaluator predating it is
 #: refused by name with ``contract.minor`` rather than failing later.
 EVALUATOR_CONTRACT = "evaluator@1.1"
+
+#: This evaluator's world comes from the data under test rather than from its
+#: own configuration, so it must be bound to a cohort before it can run.
+#:
+#: The distinction is real and not a convenience. A simulator brings its own
+#: scenes and is the same world whichever dataset you point at it. An offline
+#: replay's world *is* the recording, and a sim rebuilt from a dataset's own
+#: ``env_args`` is the world that dataset came from. Without somewhere to say
+#: which kind it is, a manifest cannot build the second kind at all -- every
+#: plane is constructed independently, so an evaluator that needs the dataset
+#: would have to reach for it, and reaching across planes is the thing this
+#: design exists to prevent.
+CAP_NEEDS_DATASET = "needs_dataset"
+
+#: This evaluator can host different bodies -- the same task, run on a different
+#: robot, without a different evaluator.
+#:
+#: Distinct from merely naming an embodiment. Most evaluators have one body
+#: welded in: a recording has whatever arm recorded it, a gym env is whatever it
+#: was written as. An evaluator that says yes here can be handed a machine
+#: description and rebuild its world around it, which is what makes "vary the
+#: embodiment" a real axis rather than a manifest key nothing reads.
+CAP_HOSTS_EMBODIMENT = "hosts_embodiment"
 
 #: Emits milestones, so a funnel diagnosis is possible.
 CAP_STAGE_EVENTS = "stage_events"
@@ -98,9 +122,7 @@ class TaskSpec:
     def validate(self) -> Verdict:
         checks = []
         if not self.scenes:
-            checks.append(
-                Verdict.no("task.no_scenes", f"task {self.name!r} defines no scenes")
-            )
+            checks.append(Verdict.no("task.no_scenes", f"task {self.name!r} defines no scenes"))
         ids = [scene.id for scene in self.scenes]
         duplicates = {i for i in ids if ids.count(i) > 1}
         if duplicates:
@@ -156,7 +178,7 @@ class Protocol:
         checks = []
         # Both counts take the finiteness check for the same reason as horizon:
         # NaN passes `< 1` and then loses every later comparison too, so it does
-        # not fail loudly anywhere. `execute` is the more dangerous of the two —
+        # not fail loudly anywhere. `execute` is the more dangerous of the two:
         # it decides how many actions of each predicted chunk are carried out,
         # and a NaN silently falls through to the fully closed-loop path, which
         # is a different experiment reported under the same protocol.
@@ -177,6 +199,8 @@ def evaluator_descriptor(
     outcomes: bool,
     seedable: bool,
     closed_loop: bool,
+    needs_dataset: bool = False,
+    hosts_embodiment: bool = False,
     isolation: str = "in-process",
     **metadata: Any,
 ) -> Descriptor:
@@ -190,6 +214,8 @@ def evaluator_descriptor(
             CAP_OUTCOMES: outcomes,
             CAP_SEEDABLE: seedable,
             CAP_CLOSED_LOOP: closed_loop,
+            CAP_NEEDS_DATASET: needs_dataset,
+            CAP_HOSTS_EMBODIMENT: hosts_embodiment,
         },
         isolation=isolation,
         metadata=metadata,
@@ -219,7 +245,7 @@ class Evaluator(ABC):
         Required rather than optional because a runner has no other way to start
         a run. When this was a hook the runner probed for, an evaluator could
         satisfy every check in the conformance kit and still be unusable from a
-        manifest — which is the exact gap between "conforms" and "works" that
+        manifest -- which is the exact gap between "conforms" and "works" that
         contracts exist to close.
         """
 
@@ -233,8 +259,63 @@ class Evaluator(ABC):
     def name(self) -> str:
         return self.descriptor().name
 
+    @property
+    def needs_dataset(self) -> bool:
+        return bool(self.descriptor().provides.get(CAP_NEEDS_DATASET, False))
+
+    def bind(self, episodes: Sequence[Any]) -> "Evaluator":
+        """Return an evaluator for *this* cohort's data.
+
+        Only meaningful when the descriptor says ``needs_dataset``. The default
+        returns ``self``, because a simulator is the same world whichever
+        dataset is under test and rebinding it would be a lie.
+
+        Returns a new evaluator rather than mutating: a run compares cohorts, so
+        two bound evaluators exist at once, and an evaluator that quietly
+        rebound itself would score the second cohort against the first one's
+        answer key.
+        """
+        return self
+
+    @property
+    def hosts_embodiment(self) -> bool:
+        return bool(self.descriptor().provides.get(CAP_HOSTS_EMBODIMENT, False))
+
+    def for_embodiment(self, embodiment: Any) -> "Evaluator":
+        """Return an evaluator whose world is built around this machine.
+
+        The default returns ``self``, because most worlds have one body welded
+        in and quietly accepting a different one would be a lie: the run would
+        report the machine it was handed and simulate the one it already had.
+
+        Returns a new evaluator rather than mutating, for the same reason
+        :meth:`bind` does: a cross-embodiment run holds several at once.
+        """
+        if not self.hosts_embodiment:
+            raise ConfigError(
+                f"{self.name} has one body welded into it and cannot host "
+                f"{getattr(embodiment, 'name', embodiment)!r}; an evaluator that can "
+                "declares hosts_embodiment"
+            )
+        return self
+
     def check_inputs(self, task: TaskSpec, protocol: Protocol) -> Verdict:
-        return Verdict.all([task.validate(), protocol.validate()])
+        checks = [task.validate(), protocol.validate()]
+        if self.needs_dataset and not self.bound:
+            checks.append(
+                Verdict.no(
+                    "evaluator.unbound",
+                    f"{self.name} takes its world from the data under test and has "
+                    "not been bound to any",
+                    hint="call bind(episodes) first; a runner does this per cohort",
+                )
+            )
+        return Verdict.all(checks)
+
+    @property
+    def bound(self) -> bool:
+        """Whether this instance has the data it needs. True unless overridden."""
+        return True
 
     def evaluate(self, policy: Any, task: TaskSpec, protocol: Protocol | None = None) -> RunRecord:
         """Check, then run. The path callers should use."""

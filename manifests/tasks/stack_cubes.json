@@ -1,0 +1,63 @@
+{
+  "name": "stack_cubes",
+  "instruction": "stack the red cube on the green cube",
+  "surfaces": [
+    "table"
+  ],
+  "objects": [
+    {
+      "id": "cube_a",
+      "kind": "cube_red",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.08,
+          0.08
+        ],
+        "y": [
+          -0.08,
+          0.08
+        ]
+      }
+    },
+    {
+      "id": "cube_b",
+      "kind": "cube_green",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.08,
+          0.08
+        ],
+        "y": [
+          -0.08,
+          0.08
+        ]
+      }
+    }
+  ],
+  "success": [
+    {
+      "check": "stacked",
+      "args": {
+        "object": "cube_a",
+        "target": "cube_b"
+      },
+      "rubric": "The red cube rests on top of the green cube, is not touching the table, and the gripper has let go of it. Still being held does not count."
+    }
+  ],
+  "horizon": 300,
+  "trials": 20,
+  "staging": {
+    "robosuite": {
+      "env_name": "Stack",
+      "places": {
+        "cube_a": "cubeA",
+        "cube_b": "cubeB"
+      }
+    }
+  },
+  "metadata": {
+    "placement": "Both cubes share one region and are kept apart by the world's own overlap rejection, which is how robosuite's Stack lays them out. Read off its sampler rather than chosen: a tighter region cannot hold two cubes."
+  }
+}

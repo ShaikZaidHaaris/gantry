@@ -2,7 +2,7 @@
 
 A fixture whose ground truth is merely asserted is worse than no fixture: it
 turns a silent generator bug into a green test suite. So a
-:class:`FixtureSuite` can be asked to verify itself — for every planted defect,
+:class:`FixtureSuite` can be asked to verify itself -- for every planted defect,
 the statistic that should have moved is checked against the clean half of the
 same suite, and for schema defects the compatibility refusal is checked for the
 exact code it should raise.
@@ -121,8 +121,10 @@ class FixtureSuite:
         assert defect.statistic is not None
         hurt = _stdlib_statistics.median(defect.statistic(e) for e in affected)
         well = _stdlib_statistics.median(defect.statistic(e) for e in clean)
-        moved = (hurt < well - defect.margin) if defect.direction == "lower" else (
-            hurt > well + defect.margin
+        moved = (
+            (hurt < well - defect.margin)
+            if defect.direction == "lower"
+            else (hurt > well + defect.margin)
         )
         if not moved:
             return Verdict.no(

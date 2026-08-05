@@ -35,10 +35,11 @@ protocol lever exists to expose.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Mapping, Sequence
 
 import numpy as np
+
 from gantry.contracts.evaluator import (
     Evaluator,
     Protocol,
@@ -51,13 +52,13 @@ from gantry.errors import ComponentError
 from gantry.resolve import Requirement, requires_channels
 from gantry.spine import (
     ChannelSpec,
-    ComponentRef,
     Descriptor,
     EpisodeLabels,
     EpisodeRecord,
     Measurement,
     Provenance,
     RunRecord,
+    episode_from_arrays,
     episode_from_labels,
 )
 
@@ -85,8 +86,17 @@ def score_episode(
     execute: int | None,
     horizon: int,
     seed: int | None = None,
-) -> Errors:
-    """Replay one episode past the policy and measure how far off it was."""
+) -> tuple[Errors, np.ndarray]:
+    """Replay one episode past the policy, and return both the error and what
+    the policy actually predicted.
+
+    The predictions are returned, not discarded, because a run record should
+    contain what the policy *did*. Emitting only a score leaves the feedback
+    plane with nothing to read: every trajectory module refuses, and the only
+    thing anyone can do with the run is compare one number. The behaviour is
+    the interesting part -- a policy can score respectably and still be visibly
+    jittery, and that is exactly what a screen would catch.
+    """
     truth = np.asarray(episode.array(action_name), dtype=float)
     observed = episode.read()
     steps = min(len(truth), horizon)
@@ -102,6 +112,7 @@ def score_episode(
     )
 
     residuals: list[np.ndarray] = []
+    predicted: list[np.ndarray] = []
     step = 0
     while step < steps:
         window = Observation(step, {name: values[step] for name, values in observed.items()})
@@ -114,14 +125,19 @@ def score_episode(
         played = len(chunk) if execute is None else min(execute, len(chunk))
         played = max(1, min(played, steps - step))
         residuals.append(chunk[:played] - truth[step : step + played])
+        predicted.append(chunk[:played])
         step += played
 
     stacked = np.concatenate(residuals, axis=0)
-    return Errors(
-        mse=float(np.mean(stacked**2)),
-        mae=float(np.mean(np.abs(stacked))),
-        max_abs=float(np.max(np.abs(stacked))),
-        steps=int(len(stacked)),
+    predictions = np.concatenate(predicted, axis=0)
+    return (
+        Errors(
+            mse=float(np.mean(stacked**2)),
+            mae=float(np.mean(np.abs(stacked))),
+            max_abs=float(np.max(np.abs(stacked))),
+            steps=int(len(stacked)),
+        ),
+        predictions,
     )
 
 
@@ -130,16 +146,32 @@ class OfflineEvaluator(Evaluator):
 
     def __init__(
         self,
-        episodes: Sequence[EpisodeRecord],
-        action_name: str,
+        episodes: Sequence[EpisodeRecord] = (),
+        action_name: str = "action",
         *,
         action_spec: ChannelSpec | None = None,
     ):
-        if not episodes:
-            raise ValueError("the offline evaluator needs at least one held-out episode")
+        """``episodes`` may be empty at construction.
+
+        A manifest builds every plane independently and cannot hand this one a
+        dataset at that point, so an unbound evaluator is a legitimate object:
+        it can be described, resolved and planned against. It refuses to *run*
+        until :meth:`bind` gives it the cohort under test, which is what
+        ``needs_dataset`` announces.
+        """
         self._episodes = {episode.meta.id: episode for episode in episodes}
         self._action_name = action_name
-        self._action_spec = action_spec or episodes[0].channel(action_name)
+        self._action_spec = action_spec or (episodes[0].channel(action_name) if episodes else None)
+
+    @property
+    def bound(self) -> bool:
+        return bool(self._episodes)
+
+    def bind(self, episodes: Sequence[EpisodeRecord]) -> "OfflineEvaluator":
+        """A new evaluator whose answer key is this cohort."""
+        if not episodes:
+            raise ValueError("the offline evaluator needs at least one held-out episode")
+        return OfflineEvaluator(episodes, self._action_name, action_spec=self._action_spec)
 
     # -- contract ----------------------------------------------------------
 
@@ -153,15 +185,26 @@ class OfflineEvaluator(Evaluator):
             outcomes=False,
             seedable=True,
             closed_loop=False,
+            # The answer key is the recording, so this evaluator is only
+            # meaningful once bound to the cohort under test.
+            needs_dataset=True,
             held_out=len(self._episodes),
             action=self._action_name,
         )
 
     def requires(self) -> Requirement:
+        """What a policy must emit.
+
+        Before binding, the width is not known -- it is a property of the data
+        that has not arrived yet -- so the requirement is declared with a
+        wildcard shape rather than guessed at. Binding narrows it to the
+        recorded channel's actual spec.
+        """
+        spec = self._action_spec or ChannelSpec(self._action_name, "vector", (None,), "float32")
         return requires_channels(
             "offline",
             "evaluation",
-            self._action_spec,
+            spec,
             description="a policy emitting the recorded action channel",
         )
 
@@ -197,8 +240,9 @@ class OfflineEvaluator(Evaluator):
                     f"the held-out episodes ({len(self._episodes)} available)"
                 )
             annotations: dict[str, object] = {"epoch": epoch, "scene": scene.id}
+            predictions = None
             try:
-                measured = score_episode(
+                measured, predictions = score_episode(
                     policy,
                     recorded,
                     self._action_name,
@@ -216,16 +260,31 @@ class OfflineEvaluator(Evaluator):
                 errors.append(measured)
                 annotations.update(measured.as_dict())
 
-            episodes.append(
-                episode_from_labels(
-                    id=f"{scene.id}#{epoch}" if protocol.epochs > 1 else scene.id,
-                    source=task.name,
-                    labels=EpisodeLabels(success=None, annotations=annotations),
-                    steps=len(recorded),
-                    embodiment=recorded.meta.embodiment,
-                    task=recorded.meta.task,
+            episode_id = f"{scene.id}#{epoch}" if protocol.epochs > 1 else scene.id
+            labels = EpisodeLabels(success=None, annotations=annotations)
+            if predictions is None:
+                episodes.append(
+                    episode_from_labels(
+                        id=episode_id,
+                        source=task.name,
+                        labels=labels,
+                        steps=len(recorded),
+                        embodiment=recorded.meta.embodiment,
+                        task=recorded.meta.task,
+                    )
                 )
-            )
+            else:
+                episodes.append(
+                    episode_from_arrays(
+                        {self._action_name: predictions.astype("float32")},
+                        (replace(self._action_spec, name=self._action_name),),
+                        id=episode_id,
+                        source=task.name,
+                        labels=labels,
+                        embodiment=recorded.meta.embodiment,
+                        task=recorded.meta.task,
+                    )
+                )
 
         return RunRecord(
             provenance=self._provenance(policy, task, protocol, failures),

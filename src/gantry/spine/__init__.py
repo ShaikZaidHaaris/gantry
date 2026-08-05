@@ -1,7 +1,7 @@
 """The Gantry spine: the only vocabulary all five planes share.
 
 Nothing here knows about a specific dataset format, robot, policy, simulator,
-or metric. That is not an accident of the current implementation — it is the
+or metric. That is not an accident of the current implementation -- it is the
 invariant the whole design rests on, and ``tests/test_neutrality.py`` fails the
 build if it is ever broken.
 
@@ -24,6 +24,17 @@ from .channel import (
     register_semantics,
 )
 from .descriptor import ContractVersion, Descriptor
+from .episode import (
+    ArraySource,
+    EmptySource,
+    EpisodeLabels,
+    EpisodeMeta,
+    EpisodeRecord,
+    StageEvent,
+    StepSource,
+    episode_from_arrays,
+    episode_from_labels,
+)
 from .plane import (
     CORE_PLANES,
     MANY,
@@ -37,29 +48,33 @@ from .plane import (
     proxyable_planes,
     register_plane,
 )
-from .episode import (
-    ArraySource,
-    EmptySource,
-    EpisodeLabels,
-    EpisodeMeta,
-    EpisodeRecord,
-    StageEvent,
-    StepSource,
-    episode_from_arrays,
-    episode_from_labels,
+from .provenance import (
+    PLANES,
+    AdapterStep,
+    ComponentRef,
+    Measurement,
+    Provenance,
+    digest_of,
+    mcnemar,
+    proportion,
+    seed_from,
 )
-from .provenance import PLANES, AdapterStep, ComponentRef, Measurement, Provenance, digest_of
 from .run import RunRecord, RunSet, describe, runset
 from .verdict import IncompatibleError, Reason, Verdict
+from .text import count_of, plural, readable, without_codes
 
 #: Version of the spine contract itself. Plugins pin against this.
 #: 1.1 added ChannelSpec.discriminators: metadata keys a plugin declares to be
 #: load-bearing, which core then enforces without knowing what they mean. Added
 #: because a quaternion stored scalar-first and one stored scalar-last were
 #: indistinguishable to every check the spine had.
-SPINE_CONTRACT = "spine@1.1"
+SPINE_CONTRACT = "spine@1.2"
 
 __all__ = [
+    "count_of",
+    "plural",
+    "readable",
+    "without_codes",
     "SPINE_CONTRACT",
     "CORE_PLANES",
     "MANY",
@@ -105,6 +120,9 @@ __all__ = [
     "Measurement",
     "Provenance",
     "digest_of",
+    "mcnemar",
+    "proportion",
+    "seed_from",
     # descriptors
     "ContractVersion",
     "Descriptor",

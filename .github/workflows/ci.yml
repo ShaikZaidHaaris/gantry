@@ -31,34 +31,39 @@ jobs:
         run: python -m pytest tests/test_neutrality.py -q
       - name: the frozen surface is unbroken
         run: python -m pytest tests/test_frozen_v1.py -q
-      - run: python -m pytest -q
+      - name: everything that does not need a plugin
+        # tests/integration/ imports plugins by design and is run by the
+        # integration job. Running it here would not test core-alone, it would
+        # break it — which is exactly what it did.
+        run: python -m pytest tests --ignore=tests/integration -q
+
+  # The plugin list, read off disk rather than kept by hand. A matrix that has
+  # to be edited when a plugin is added is a matrix that silently stops covering
+  # the newest plugin, which is the one most likely to lean on a sibling.
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.find.outputs.plugins }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: find
+        run: |
+          printf 'plugins=' >> "$GITHUB_OUTPUT"
+          ls -d plugins/*/ | xargs -n1 basename | sort \
+            | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().split()))' \
+            >> "$GITHUB_OUTPUT"
 
   # Every plugin, in its own interpreter, with only core and what it declares.
   # This is the modularity claim made mechanical: a plugin that leans on a
   # sibling it never mentioned fails here and nowhere else, because a shared
   # environment satisfies undeclared imports silently.
   plugins-alone:
+    needs: discover
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        plugin:
-          - adapters_core
-          - adapters_rotation
-          - connector_csv
-          - connector_evallog
-          - connector_lerobot
-          - connector_robomimic
-          - evaluator_gym
-          - evaluator_offline
-          - evaluator_waypoint
-          - feedback_core
-          - feedback_protocol
-          - policy_basic
-          - policy_gr00t
-          - policy_served
-          - retargeters_core
-          - semantics_manipulation
+        plugin: ${{ fromJSON(needs.discover.outputs.plugins) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -79,8 +84,14 @@ jobs:
           python-version: "3.12"
       - name: install core and every plugin
         run: |
-          pip install -e ".[dev]"
-          for plugin in plugins/*/; do pip install -e "$plugin"; done
+          # [dev] on each: a plugin's test dependencies are declared there,
+          # and without them collection fails on an import the package never
+          # claimed to need at runtime.
+          # One command, not a loop. Installed one at a time and
+          # alphabetically, connector_robomimic asks for
+          # gantry-semantics-manipulation before it exists and pip goes looking
+          # on PyPI, where none of these are published.
+          pip install -e ".[dev]" $(for plugin in plugins/*/; do printf -- "-e %s[dev] " "$plugin"; done)
       - run: python -m pytest -q
       - name: every plugin passes its own conformance kit
         run: python -m pytest plugins/*/tests -q

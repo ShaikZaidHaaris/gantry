@@ -28,14 +28,16 @@ fitted, never as facts.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Sequence
 
 import numpy as np
-from gantry.contracts.feedback import Cohort, FeedbackModule, Finding, Report, feedback_descriptor
-from gantry.resolve import Requirement, requires_channels
-from gantry.spine import Descriptor, Measurement
 
-from . import metrics, statistics as st
+from gantry.contracts.feedback import Cohort, FeedbackModule, Finding, Report, feedback_descriptor
+from gantry.resolve import Requirement
+from gantry.spine import Descriptor, Measurement, count_of
+
+from . import metrics
+from . import statistics as st
 from .metrics import HIGHER, LOWER, Statistic, known_statistics, outcomes_of, tabulate
 
 VERSION = "0.1.0.dev0"
@@ -80,6 +82,11 @@ class Screen(FeedbackModule):
             VERSION,
             min_cohorts=2 if self.mode in {"comparative", "reference"} else 1,
             prescribes=True,
+            # Comparing cohorts is only a statement about the *data* if
+            # everything downstream of it was the same. Held only in the modes
+            # that actually compare: a single-cohort screen has nothing to hold
+            # fixed against.
+            holds=("policy", "evaluation") if self.mode in {"comparative", "reference"} else (),
             mode=self.mode,
         )
 
@@ -102,10 +109,14 @@ class Screen(FeedbackModule):
     # -- absolute ----------------------------------------------------------
 
     def _absolute(self, cohorts: Sequence[Cohort]) -> Report:
-        findings, measurements, notes = [], {}, [
-            "absolute mode reports only the success fraction; every other "
-            "threshold would be a constant fitted on some other task"
-        ]
+        findings, measurements, notes = (
+            [],
+            {},
+            [
+                "absolute mode reports only the success fraction; every other "
+                "threshold would be a constant fitted on some other task"
+            ],
+        )
         for cohort in cohorts:
             outcomes, unlabelled = outcomes_of(cohort.episodes)
             if not outcomes:
@@ -118,14 +129,13 @@ class Screen(FeedbackModule):
             )
             measurements[f"{cohort.name}.success_rate"] = measurement
             if unlabelled:
-                notes.append(f"{cohort.name}: {unlabelled} episode(s) had no outcome label")
+                notes.append(f"{cohort.name}: {count_of(unlabelled, 'episode')} had no outcome label")
             if measurement.ci[1] < 0.95:
                 findings.append(
                     Finding(
                         code="screen.low_success",
                         summary=(
-                            f"{cohort.name}: {rate:.0%} of demonstrations succeed "
-                            f"({successes}/{n})"
+                            f"{cohort.name}: {rate:.0%} of demonstrations succeed ({successes}/{n})"
                         ),
                         severity="strong" if rate < 0.5 else "weak",
                         measurements={"success_rate": measurement},
@@ -136,8 +146,9 @@ class Screen(FeedbackModule):
                         cohorts=(cohort.name,),
                     )
                 )
-        return Report("screen", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "screen", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
+        )
 
     # -- reference ---------------------------------------------------------
 
@@ -176,8 +187,7 @@ class Screen(FeedbackModule):
                     continue
                 centre = float(np.median(values))
                 measurement = Measurement(
-                    centre, n=len(values), ci=st.bootstrap_ci(values, np.median),
-                    method="median"
+                    centre, n=len(values), ci=st.bootstrap_ci(values, np.median), method="median"
                 )
                 measurements[f"{cohort.name}.{name}"] = measurement
                 if threshold.holds(centre):
@@ -188,7 +198,7 @@ class Screen(FeedbackModule):
                         code="screen.outside_reference",
                         summary=(
                             f"{cohort.name}: {name} is {centre:.4g}, outside the "
-                            f"{threshold.low:.4g}–{threshold.high:.4g} band fitted from "
+                            f"{threshold.low:.4g}-{threshold.high:.4g} band fitted from "
                             f"{threshold.fitted_from}"
                         ),
                         severity="weak",
@@ -202,8 +212,9 @@ class Screen(FeedbackModule):
                         cohorts=(cohort.name, threshold.fitted_from),
                     )
                 )
-        return Report("screen", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "screen", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
+        )
 
     # -- comparative -------------------------------------------------------
 
@@ -219,8 +230,10 @@ class Screen(FeedbackModule):
             groups = {cohort: tables[cohort][name] for cohort in tables}
             for cohort, values in groups.items():
                 measurements[f"{cohort}.{name}"] = Measurement(
-                    float(np.median(values)), n=len(values),
-                    ci=st.bootstrap_ci(values, np.median), method="median"
+                    float(np.median(values)),
+                    n=len(values),
+                    ci=st.bootstrap_ci(values, np.median),
+                    method="median",
                 )
             statistic = next(s for s in known_statistics() if s.name == name)
             # Which end is "best" depends on the statistic, not on the sort.
@@ -255,8 +268,12 @@ class Screen(FeedbackModule):
                         f"(q={corrected.q:.3g}, delta={detail['delta']:+.2f})"
                     ),
                     severity="strong" if abs(detail["delta"]) >= 0.474 else "weak",
-                    evidence={**detail, "p": corrected.p, "q": corrected.q,
-                              "prescribable": statistic.prescribable},
+                    evidence={
+                        **detail,
+                        "p": corrected.p,
+                        "q": corrected.q,
+                        "prescribable": statistic.prescribable,
+                    },
                     prescription=(
                         f"Collect more demonstrations resembling {detail['best']!r}, "
                         f"which is the better cohort on {corrected.name}."
@@ -268,8 +285,9 @@ class Screen(FeedbackModule):
             )
         if not findings and shared:
             notes.append("no statistic separates these cohorts after FDR correction")
-        return Report("screen", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "screen", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
+        )
 
 
 def _prescribe(statistic: Statistic, value: float, threshold: Threshold) -> str | None:

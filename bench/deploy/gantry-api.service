@@ -1,0 +1,14 @@
+[Unit]
+Description=Gantry Bench API
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/gantry_bench/api
+EnvironmentFile=/home/ubuntu/gantry_bench/env
+ExecStart=/home/ubuntu/gantry/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8090
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

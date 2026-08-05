@@ -1,7 +1,7 @@
 """Generated episodes with known flaws, for testing everything above the spine.
 
 The trajectories are abstract on purpose. An agent moves through space, engages
-with something, transports it, and lets go — a shape shared by a gripper, a
+with something, transports it, and lets go -- a shape shared by a gripper, a
 winch, a suction tool, or a surgical instrument. Stage names default to
 ``approach / engage / transport / release`` and are overridable, because core
 must not decide that any particular robot's vocabulary is the canonical one.
@@ -10,7 +10,7 @@ Everything is seeded and reproducible: the same seed yields byte-identical
 arrays, so a fixture failure is always a real regression and never noise.
 
 Costs nothing to run, needs no GPU, no simulator, no checkpoint. That is the
-whole point — the feedback stack stays testable in CI on a laptop.
+whole point -- the feedback stack stays testable in CI on a laptop.
 """
 
 from __future__ import annotations
@@ -53,9 +53,7 @@ class Trajectory:
         self.engagement = self.engagement[:steps]
         self.action = self.action[:steps]
         self.extra = {name: array[:steps] for name, array in self.extra.items()}
-        self.stage_steps = {
-            name: step for name, step in self.stage_steps.items() if step < steps
-        }
+        self.stage_steps = {name: step for name, step in self.stage_steps.items() if step < steps}
 
     def refresh_action(self) -> None:
         """Recompute the action from the motion it would produce."""
@@ -81,7 +79,7 @@ def _draft(
 
     Steps and reach are stretched together by the caller, so per-step speed
     stays constant. A longer episode is one that travels further, not one that
-    dawdles — otherwise "duration" would silently mean "worse signal-to-noise"
+    dawdles -- otherwise "duration" would silently mean "worse signal-to-noise"
     and the decoy would be a defect after all.
     """
     start = rng.uniform([-0.30, -0.30, 0.20], [0.30, 0.30, 0.40]) * reach
@@ -103,7 +101,9 @@ def _draft(
     engagement = np.zeros(len(position), dtype="float32")
     engagement[stage_steps[stages[1]] : stage_steps[stages[3]]] = 1.0
 
-    trajectory = Trajectory(position, engagement, np.zeros((len(position), 4), "float32"), stage_steps)
+    trajectory = Trajectory(
+        position, engagement, np.zeros((len(position), 4), "float32"), stage_steps
+    )
     trajectory.refresh_action()
 
     if include_view:
@@ -121,18 +121,31 @@ def _schema(
 ) -> tuple[ChannelSpec, ...]:
     specs = [
         ChannelSpec(
-            "position", "vector", (3,), "float32",
-            units=units, frame=frame, rate_hz=rate_hz, semantics="position",
+            "position",
+            "vector",
+            (3,),
+            "float32",
+            units=units,
+            frame=frame,
+            rate_hz=rate_hz,
+            semantics="position",
         ),
         ChannelSpec(
-            "engagement", "scalar", (), "float32",
-            units="fraction", rate_hz=rate_hz, semantics="actuation",
+            "engagement",
+            "scalar",
+            (),
+            "float32",
+            units="fraction",
+            rate_hz=rate_hz,
+            semantics="actuation",
         ),
         ChannelSpec("action", "vector", (4,), "float32", rate_hz=rate_hz, semantics="actuation"),
     ]
     if include_view:
         specs.append(
-            ChannelSpec("view", "image", (8, 8, 3), "uint8", rate_hz=rate_hz, semantics="observation")
+            ChannelSpec(
+                "view", "image", (8, 8, 3), "uint8", rate_hz=rate_hz, semantics="observation"
+            )
         )
     return tuple(specs)
 
@@ -153,7 +166,8 @@ def _record(
     labels = EpisodeLabels(
         success=trajectory.success,
         stage_events=tuple(
-            StageEvent(name, step) for name, step in sorted(trajectory.stage_steps.items(), key=lambda kv: kv[1])
+            StageEvent(name, step)
+            for name, step in sorted(trajectory.stage_steps.items(), key=lambda kv: kv[1])
         ),
     )
     return episode_from_arrays(

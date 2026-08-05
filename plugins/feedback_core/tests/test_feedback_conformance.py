@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import pytest
+from gantry_feedback_core import Attribution, Funnel, Harden, Screen
+
 from gantry.conformance import check_feedback, feedback_checks
 from gantry.contracts.feedback import Cohort, Finding, Report, feedback_descriptor
 from gantry.fixtures import make_clean, make_defective
-from gantry.resolve import requires_channels
 from gantry.spine import Measurement
-
-from gantry_feedback_core import Attribution, Funnel, Harden, Screen
 
 A = Cohort("a", make_defective("never_completes", n=30, fraction=0.5, seed=1).episodes)
 B = Cohort("b", make_defective("never_completes", n=30, fraction=0.5, seed=2).episodes)
@@ -18,10 +17,22 @@ CLEAN = Cohort("clean", make_clean(n=30, seed=4).episodes)
 
 @pytest.mark.parametrize(
     "module",
-    [Screen("comparative"), Screen("reference", reference="a"), Screen("absolute"),
-     Funnel(), Attribution(), Harden()],
-    ids=["screen-comparative", "screen-reference", "screen-absolute",
-         "funnel", "attribution", "harden"],
+    [
+        Screen("comparative"),
+        Screen("reference", reference="a"),
+        Screen("absolute"),
+        Funnel(),
+        Attribution(),
+        Harden(),
+    ],
+    ids=[
+        "screen-comparative",
+        "screen-reference",
+        "screen-absolute",
+        "funnel",
+        "attribution",
+        "harden",
+    ],
 )
 def test_conforms_strictly(module):
     verdict = check_feedback(module, [A, B], strict=True)
@@ -52,8 +63,12 @@ class _Drifts(_Base):
 
     def analyse(self, cohorts):
         _Drifts._count += 1
-        return Report("broken", (), {"drift": Measurement(float(_Drifts._count), n=1)},
-                      cohorts=tuple(c.name for c in cohorts))
+        return Report(
+            "broken",
+            (),
+            {"drift": Measurement(float(_Drifts._count), n=1)},
+            cohorts=tuple(c.name for c in cohorts),
+        )
 
 
 class _BareNumber(_Base):

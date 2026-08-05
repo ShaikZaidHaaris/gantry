@@ -1,0 +1,802 @@
+@import url("https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800&display=swap");
+
+/* The design system's whole vocabulary. Nothing is added until a screen
+   forces it, and every colour here means a state -- never decoration.
+   ---------------------------------------------------------------------------
+   The palette is RoboArena's, read off its stylesheet rather than guessed at:
+   a white and warm-grey base, soft near-black text instead of true black, and
+   teal doing the work blue used to. Only the values move; every class below is
+   untouched, which is the point of having had tokens in the first place.
+
+   Teal rather than the old blue is the one substantive choice. Blue at
+   #2456d6 is the colour of a link and a submit button on every SaaS product;
+   teal reads as instrumentation, which is what this is. The accent is also
+   used for "running", so it needs to sit calmly next to green, amber and red
+   without competing -- a saturated blue did not. */
+:root {
+  --canvas: #f5f5f5;
+  --surface: #ffffff;
+  --border: #e9e9e9;
+  --border-2: #d8dcdc;
+  --text: #23323a;
+  --text-2: #5b6a71;
+  --text-3: #8f9ea5;
+
+  --accent: #166f73;
+  --accent-bg: #eaf6f5;
+  --accent-border: #c7e6e3;
+
+  /* Warm, and deliberately so. RoboArena's own pills are pastel rather than
+     alarm-coloured, and this product says "we could not tell" far more often
+     than it says "this is broken" -- a screen of saturated red and amber would
+     misrepresent how often anything is actually wrong. */
+  --danger: #a33a2a;
+  --danger-bg: #fdefec;
+  --warn: #9a6420;
+  --warn-bg: #fff3d8;
+  --ok: #1c7a5e;
+  --ok-bg: #dff7e9;
+  --neutral-bg: #f2f3f3;
+
+  /* Urbanist at 800 for headings is RoboArena's wordmark face; the body stack
+     is theirs too. Loaded with display=swap and a full fallback chain, so a
+     machine with no network renders in Helvetica and looks intentional rather
+     than broken. Delete the @import below to drop the external request. */
+  --sans: Urbanist, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --display: Urbanist, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --shadow: 0 1px 2px rgba(35, 50, 58, 0.04);
+  --shadow-lg: 0 6px 20px rgba(35, 50, 58, 0.07);
+  /* Rounder. The reference leans on generous radii and soft borders rather
+     than heavy rules, which is most of why it reads as calm. */
+  --radius: 14px;
+  --row: 48px;
+}
+
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--canvas);
+  color: var(--text);
+  font: 14px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, .brand { font-family: var(--display); letter-spacing: -0.01em; }
+a { color: var(--accent); text-decoration: none; }
+button { font: inherit; cursor: pointer; }
+.mono { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* layout ------------------------------------------------------------------ */
+.shell { min-height: 100vh; }
+.topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 20;
+}
+.topbar-inner {
+  max-width: 1080px; margin: 0 auto; padding: 0 24px; height: 52px;
+  display: flex; align-items: center; gap: 28px;
+}
+.brand { font-weight: 800; font-size: 17px; letter-spacing: -0.1px; display: flex; gap: 8px; align-items: center; }
+.brand .tag {
+  font: 500 10.5px var(--mono); color: var(--text-2); background: var(--neutral-bg);
+  border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
+}
+.topnav { display: flex; gap: 2px; height: 100%; }
+.topnav a {
+  display: flex; align-items: center; padding: 0 12px; color: var(--text-2);
+  font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.topnav a:hover { color: var(--text); }
+.topnav a.on { color: var(--text); border-bottom-color: var(--accent); }
+.topbar-right { margin-left: auto; font: 11.5px var(--mono); color: var(--text-3); }
+
+.page { max-width: 1080px; margin: 0 auto; padding: 28px 24px 96px; }
+.page-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 22px; }
+.page-head h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.4px; }
+.page-head p { color: var(--text-2); margin-top: 4px; max-width: 62ch; }
+.page-head .spacer { margin-left: auto; }
+h2 { font-size: 17px; font-weight: 700; margin: 30px 0 11px; letter-spacing: -0.2px; }
+
+/* buttons ------------------------------------------------------------------ */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; border-radius: 999px;
+  padding: 9px 18px; font-weight: 600; font-size: 13.5px; border: 1px solid var(--border-2);
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow);
+}
+.btn:hover { background: #fbfbfc; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: #0f5457; }  /* teal, darkened -- was the old blue */
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* surfaces ----------------------------------------------------------------- */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.card.pad { padding: 18px 20px; }
+
+.table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+         box-shadow: var(--shadow); overflow: hidden; }
+.table .thead {
+  display: grid; gap: 16px; padding: 0 16px; height: 36px; align-items: center;
+  font: 600 11px var(--sans); letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-3); border-bottom: 1px solid var(--border);
+}
+.table .trow {
+  display: grid; gap: 16px; padding: 0 16px; min-height: var(--row); align-items: center;
+  border-bottom: 1px solid var(--border); color: inherit;
+}
+.table .trow:last-child { border-bottom: 0; }
+.table a.trow:hover { background: #fbfbfc; }
+
+.empty { padding: 48px 24px; text-align: center; color: var(--text-3); }
+.empty h3 { color: var(--text); font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.empty p { max-width: 46ch; margin: 0 auto 16px; font-size: 13px; }
+
+.skeleton { background: linear-gradient(90deg, var(--neutral-bg), #e4e7e7, var(--neutral-bg));
+            background-size: 200% 100%; animation: sweep 1.2s ease-in-out infinite;
+            border-radius: 4px; height: 12px; }
+@keyframes sweep { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none } }
+
+/* status ------------------------------------------------------------------- */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 20px;
+  padding: 2px 9px 2px 7px; font-size: 11.5px; font-weight: 550; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.pill .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.pill.queued  { background: var(--neutral-bg); color: var(--text-2); }
+.pill.queued .dot { background: var(--text-3); }
+.pill.running { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-border); }
+.pill.running .dot { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+.pill.passed  { background: var(--ok-bg); color: var(--ok); }
+.pill.passed .dot { background: var(--ok); }
+.pill.refused { background: var(--danger-bg); color: var(--danger); }
+.pill.refused .dot { background: var(--danger); }
+.pill.abstained { background: var(--warn-bg); color: var(--warn); }
+.pill.abstained .dot { background: var(--warn); }
+.pill.failed { background: var(--neutral-bg); color: var(--text-2); border-color: var(--border-2); }
+.pill.failed .dot { background: var(--text-2); }
+@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+@media (prefers-reduced-motion: reduce) { .pill.running .dot { animation: none } }
+
+/* gates -------------------------------------------------------------------- */
+.gate {
+  display: grid; grid-template-columns: 26px 1fr auto; gap: 14px;
+  padding: 16px; border-bottom: 1px solid var(--border); align-items: start;
+}
+.gate:last-child { border-bottom: 0; }
+.gate.future { opacity: 0.45; }
+.gate .mark {
+  width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 11px; font-weight: 700; color: #fff;
+  background: var(--border-2); flex: none;
+}
+.gate.passed .mark { background: var(--ok); }
+.gate.running .mark { background: var(--accent); }
+.gate.refused .mark { background: var(--danger); }
+.gate.abstained .mark { background: var(--warn); }
+.gate .name { font-weight: 600; font-size: 13.5px; }
+.gate .question { color: var(--text-3); font-size: 12px; margin-top: 1px; }
+.gate .result { margin-top: 8px; font-size: 13px; color: var(--text-2); }
+.gate .meta { text-align: right; font: 11.5px var(--mono); color: var(--text-3); white-space: nowrap; }
+
+/* A finding is two sentences: what was found, in medium weight, and what to do,
+   in quiet prose underneath. No machine code as a heading, no severity dot, no
+   tinted callout box. Grouping ("what to fix" vs "also noted") already carries
+   the urgency, and everything else was the system talking about itself. The
+   code survives as the row's hover title for anyone who needs to cite it. */
+.finding { border-top: 1px solid var(--border); padding: 14px 0; }
+.finding:first-child { border-top: 0; padding-top: 2px; }
+.finding:last-child { padding-bottom: 2px; }
+.finding .what { font-size: 13.5px; font-weight: 550; line-height: 1.5; max-width: 78ch; }
+.fix { margin-top: 5px; font-size: 12.5px; line-height: 1.6; color: var(--text-2);
+       max-width: 78ch; }
+
+
+/* wizard ------------------------------------------------------------------- */
+.steps { display: flex; gap: 8px; margin-bottom: 24px; }
+.steps .s { flex: 1; padding-top: 8px; border-top: 3px solid var(--border); font-size: 12px; color: var(--text-3); }
+.steps .s.on { border-top-color: var(--accent); color: var(--text); font-weight: 600; }
+.steps .s.done { border-top-color: var(--ok); color: var(--text-2); }
+
+.drop {
+  /* `display` is the load-bearing line here. This is a <label>, which is inline
+     by default, and an inline box does not grow to fit vertical padding -- so
+     the 40px top and bottom spilled out of the line box and the dashed border
+     was drawn straight through the heading above it. It read as a z-index or
+     positioning bug and was neither. */
+  display: block;
+  border: 1.5px dashed var(--border-2); border-radius: var(--radius); background: var(--surface);
+  padding: 40px 24px; text-align: center; color: var(--text-2); cursor: pointer;
+}
+.drop.over, .drop:hover { border-color: var(--accent); background: var(--accent-bg); }
+.drop b { color: var(--text); display: block; margin-bottom: 4px; font-size: 14px; }
+
+input[type=text], select {
+  width: 100%; padding: 8px 11px; border: 1px solid var(--border-2); border-radius: 6px;
+  font: 13px var(--sans); background: var(--surface); color: var(--text);
+}
+label.field { display: block; margin-bottom: 16px; }
+label.field .lab { display: block; font-weight: 600; font-size: 12.5px; margin-bottom: 5px; }
+label.field .hint { color: var(--text-3); font-size: 12px; margin-top: 4px; }
+
+.kv { display: grid; grid-template-columns: 200px 1fr; gap: 5px 16px; font-size: 12.5px; }
+.kv .k { color: var(--text-3); }
+.kv .v { font: 12px var(--mono); font-variant-numeric: tabular-nums; }
+
+.bar { height: 6px; background: var(--neutral-bg); border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 3px;
+           transition: width 0.2s ease; }
+.note { border: 1px solid var(--border); border-left: 3px solid var(--border-2);
+        background: var(--surface); border-radius: 0 var(--radius) var(--radius) 0;
+        padding: 12px 16px; font-size: 13px; color: var(--text-2); }
+.note.warn { border-left-color: var(--warn); }
+.note.danger { border-left-color: var(--danger); background: var(--danger-bg); }
+.note b { color: var(--text); }
+
+/* the data report ---------------------------------------------------------- */
+/* Laid out as an argument in numbered steps. The numbers are load-bearing:
+   they encode "read this first, then that", which is the whole difference
+   between a report and a dump. */
+.report { display: grid; gap: 30px; }
+.report-step-head { margin-bottom: 12px; }
+.report-step-head h3 { font-size: 14.5px; font-weight: 620; letter-spacing: -0.15px; }
+.report-step-head p { color: var(--text-3); font-size: 12.5px; margin-top: 2px; max-width: 68ch; }
+h2 .h2-sub { font: 400 12px var(--sans); color: var(--text-3); margin-left: 10px; letter-spacing: 0; }
+
+/* tally chips in the timeline */
+.tally { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+.chip {
+  font: 550 11.5px var(--sans); padding: 2px 8px; border-radius: 4px;
+  background: var(--neutral-bg); color: var(--text-2); border: 1px solid var(--border);
+}
+.chip.strong { background: var(--danger-bg); color: var(--danger); border-color: #fecdca; }
+.chip.warn { background: var(--warn-bg); color: var(--warn); border-color: #fedf89; }
+
+/* disclosure */
+.fold-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; font: 550 12.5px var(--sans); color: var(--text-2); cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.fold-head:hover { color: var(--text); background: #fbfbfc; }
+.fold-head .chev { display: inline-block; transition: transform 0.12s ease; color: var(--text-3); }
+.fold-head .chev[data-open="true"] { transform: rotate(90deg); }
+.fold-body { margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { .fold-head .chev { transition: none } }
+
+/* measurements: value, interval, n, never a bare float */
+.table-lite .mrow {
+  display: grid; grid-template-columns: minmax(0, 1fr) 52px 132px 46px; gap: 14px;
+  align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--border);
+}
+.table-lite .mrow:last-child { border-bottom: 0; }
+/* One line, always. A key long enough to wrap takes the value and the interval
+   out of alignment with the rows above it, and a column of numbers that does
+   not line up is the one thing a table has to get right. */
+.mkey { color: var(--text-2); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap; }
+.mval { text-align: right; font-weight: 600; font-size: 12.5px; }
+.mn { color: var(--text-3); font-size: 11px; text-align: right; }
+.measure-bar .track {
+  position: relative; display: block; height: 4px; background: var(--neutral-bg);
+  border-radius: 2px;
+}
+.measure-bar .ci { position: absolute; top: 0; height: 4px; background: var(--accent-border);
+                   border-radius: 2px; }
+.measure-bar .dot { position: absolute; top: -2px; width: 8px; height: 8px; margin-left: -4px;
+                    border-radius: 50%; background: var(--accent); }
+
+.abstain { display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border);
+           font-size: 12.5px; color: var(--text-2); }
+.abstain:first-child { border-top: 0; }
+.abstain .mod { color: var(--text-3); min-width: 84px; flex: none; }
+
+/* a running gate ----------------------------------------------------------- */
+/* The only place in the product where motion is allowed to be continuous, and
+   only because "is this still alive?" is a real question during a four-hour
+   run. Everything else animates on state change or not at all. */
+.running { margin-top: 9px; max-width: 520px; }
+.running .phase { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px;
+                  margin-bottom: 6px; }
+.running .what { font-weight: 550; color: var(--text); }
+.running .note-i { color: var(--text-3); font: 11.5px var(--mono); overflow: hidden;
+                   text-overflow: ellipsis; white-space: nowrap; }
+.running .spacer { margin-left: auto; }
+.running .count { color: var(--text-3); font-size: 11.5px; flex: none; }
+
+/* An indeterminate bar says "working, and we do not know how long". Distinct
+   from a bar sitting at 0%, which says "nothing has happened", and inventing
+   a denominator so the bar could move would be a lie the user cannot check. */
+.bar.indeterminate { position: relative; }
+.bar.indeterminate > i {
+  position: absolute; width: 32%; animation: slide 1.5s ease-in-out infinite;
+}
+@keyframes slide { 0% { left: -32% } 100% { left: 100% } }
+@media (prefers-reduced-motion: reduce) {
+  .bar.indeterminate > i { animation: none; left: 0; width: 100%; opacity: 0.35 }
+}
+
+/* the budget panel --------------------------------------------------------- */
+/* The headline is what the run can conclude. The price is underneath it, in
+   the same weight as the duration, because the number that decides whether
+   this experiment is worth doing is the first one, not the second. */
+.budget-head h3 { font-size: 14.5px; font-weight: 620; letter-spacing: -0.15px; }
+.budget-head p { color: var(--text-2); font-size: 12.5px; margin-top: 3px; max-width: 64ch; }
+.budget-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 18px 0 4px; }
+@media (max-width: 720px) { .budget-controls { grid-template-columns: 1fr } }
+
+.segmented { display: flex; border: 1px solid var(--border-2); border-radius: 6px;
+             overflow: hidden; background: var(--surface); }
+.segmented button {
+  flex: 1; padding: 7px 4px; font: 550 12px var(--mono); color: var(--text-2);
+  background: transparent; border: 0; border-right: 1px solid var(--border);
+  cursor: pointer; white-space: nowrap;
+}
+.segmented button:last-child { border-right: 0 }
+.segmented button:hover { background: #fbfbfc; color: var(--text) }
+.segmented button.on { background: var(--accent); color: #fff }
+.segmented button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px }
+
+.verdict { border-radius: var(--radius); padding: 13px 15px; margin: 16px 0 14px;
+           border: 1px solid var(--border); background: var(--neutral-bg); }
+.verdict b { display: block; font-size: 14px; margin-bottom: 3px }
+.verdict span { font-size: 12.5px; color: var(--text-2) }
+.verdict.ok { background: var(--ok-bg); border-color: #abefc6 }
+.verdict.ok b { color: var(--ok) }
+/* A budget that cannot answer its question is a warning, never a green tick
+   with a smaller number in it. */
+.verdict.short { background: var(--warn-bg); border-color: #fedf89 }
+.verdict.short b { color: var(--warn) }
+
+.budget-facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+                padding: 14px 0; border-top: 1px solid var(--border); }
+@media (max-width: 720px) { .budget-facts { grid-template-columns: repeat(2, 1fr) } }
+.budget-facts .k { display: block; color: var(--text-3); font-size: 11px;
+                   text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px }
+.budget-facts .v { font: 12.5px var(--mono); font-variant-numeric: tabular-nums }
+.budget-facts .v.big { font-size: 19px; font-weight: 600; letter-spacing: -0.3px }
+.budget-reasons { display: grid; gap: 8px; margin-bottom: 12px }
+.budget-foot { font-size: 12px; color: var(--text-3); line-height: 1.6; max-width: 76ch;
+               border-top: 1px solid var(--border); padding-top: 12px }
+
+/* the verdict -------------------------------------------------------------- */
+/* Built as a document, not a dashboard. One statement, the evidence under it,
+   the limits under that. */
+.statement { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; }
+.statement .eyebrow { display: block; font: 600 10.5px var(--sans); letter-spacing: 0.08em;
+                      text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.statement p { font-size: 19px; line-height: 1.45; letter-spacing: -0.2px; max-width: 40ch;
+               text-wrap: balance; }
+
+/* Wide content scrolls inside its own box. The page body must never scroll
+   sideways. A table that pushes the whole document off-screen is unusable in
+   a narrow pane, which is where a lab lead reads it. */
+.scroll-x { overflow-x: auto; }
+.ladder { padding: 4px 0; min-width: 560px; }
+.lrow {
+  display: grid; grid-template-columns: 112px 68px minmax(80px, 1fr) 68px 112px;
+  gap: 12px; align-items: center; padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.lrow:last-child { border-bottom: 0 }
+.lrow.head { font: 600 10.5px var(--sans); letter-spacing: 0.05em; text-transform: uppercase;
+             color: var(--text-3); background: #fbfbfc; padding-top: 8px; padding-bottom: 8px; }
+.lrow .right { text-align: right }
+.rung-name { font-size: 12.5px; font-weight: 550 }
+.rung-num { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums }
+.rung-num b { font: 600 13.5px var(--mono) }
+.rung-num .of { font: 11px var(--mono); color: var(--text-3) }
+/* Absent is not zero, and it must not look like a bar at 0%. */
+.rung-num.none, .none { color: var(--text-3); font-style: italic; font-size: 11.5px }
+.rung-bar { position: relative; display: block; height: 6px; background: var(--neutral-bg);
+            border-radius: 3px; }
+.rung-bar .ci { position: absolute; top: 0; height: 6px; background: var(--accent-border);
+                border-radius: 3px }
+.rung-bar .fill { position: absolute; top: 0; left: 0; height: 6px; background: var(--accent);
+                  border-radius: 3px }
+.rung-bar.empty { background: transparent; height: auto; color: var(--text-3);
+                  font: italic 11.5px var(--sans) }
+.paired { display: flex; flex-direction: column; gap: 1px; align-items: flex-end;
+          font-size: 11.5px; color: var(--text-3) }
+.paired .sep { color: var(--ok); font-weight: 650 }
+.paired .disagree { font-size: 10.5px; opacity: 0.8 }
+
+/* buying a gate ------------------------------------------------------------ */
+/* The one irreversible control in the product, so it says what it will do and
+   what it costs on the button itself, never just "Run". */
+.budget-buy { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+              padding: 4px 0 14px; }
+.budget-buy-note { font-size: 12px; color: var(--text-3); max-width: 46ch }
+
+/* the leaderboard ---------------------------------------------------------- */
+.rungbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.rungbar .lab { font-weight: 600; font-size: 12.5px; color: var(--text-2); flex: none; }
+.rungbar .segmented { flex: 1; max-width: 560px; }
+
+.board { min-width: 640px; }
+.brow {
+  display: grid; grid-template-columns: 54px minmax(180px, 1fr) 64px 56px minmax(140px, 220px);
+  gap: 14px; align-items: center; padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.brow:last-child { border-bottom: 0 }
+.brow.head { font: 600 10.5px var(--sans); letter-spacing: 0.05em; text-transform: uppercase;
+             color: var(--text-3); background: #fbfbfc; }
+.brow .right { text-align: right }
+/* The letter is the most important cell on this screen, so it looks like a
+   value rather than an annotation. */
+.group { font: 650 13px var(--mono); color: var(--accent); background: var(--accent-bg);
+         border: 1px solid var(--accent-border); border-radius: 5px; text-align: center;
+         padding: 2px 0; }
+.bname { font-weight: 550; font-size: 13px; color: var(--text); }
+.bname:hover { color: var(--accent) }
+.brow .rate { font-weight: 650; font-size: 13.5px }
+.brow .dim { color: var(--text-3); font-size: 11.5px }
+.interval { position: relative; display: block; height: 6px; background: var(--neutral-bg);
+            border-radius: 3px; }
+.interval .span { position: absolute; top: 0; height: 6px; background: var(--accent-border);
+                  border-radius: 3px }
+.interval .point { position: absolute; top: -2px; width: 8px; height: 8px; margin-left: -4px;
+                   border-radius: 50%; background: var(--accent) }
+
+.headtohead { border-top: 1px solid var(--border); padding: 13px 0 }
+.headtohead:first-child { border-top: 0 }
+.headtohead .who { font-weight: 600; font-size: 13px }
+.headtohead .who .v { color: var(--text-3); font-weight: 400; margin: 0 4px }
+.headtohead .numbers { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11.5px;
+                       color: var(--text-2); margin: 5px 0 6px }
+.headtohead .numbers .dim { color: var(--text-3) }
+.headtohead .numbers .sep { color: var(--ok); font-weight: 650 }
+.headtohead .reading { font-size: 12.5px; color: var(--text-2); line-height: 1.55; max-width: 76ch }
+.board-foot { font-size: 12px; color: var(--text-3); line-height: 1.6; max-width: 78ch;
+              border-top: 1px solid var(--border); padding-top: 12px; margin-top: 18px }
+
+/* the verdict as a document ------------------------------------------------ */
+.doc { max-width: 860px; }
+.doc-actions { display: flex; align-items: center; margin-bottom: 24px; }
+.doc-actions .spacer { margin-left: auto; }
+.doc-head { border-bottom: 2px solid var(--text); padding-bottom: 16px; margin-bottom: 28px; }
+.doc-brand { font-weight: 650; font-size: 13px; letter-spacing: -0.1px; margin-bottom: 12px;
+             display: flex; gap: 8px; align-items: center; }
+.doc-head h1 { font-size: 24px; font-weight: 650; letter-spacing: -0.4px; margin-bottom: 10px;
+               text-wrap: balance; }
+.doc-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 4px 20px; font-size: 12px; color: var(--text-2); }
+.doc-meta b { color: var(--text-3); font-weight: 600; text-transform: uppercase;
+              letter-spacing: 0.05em; font-size: 10px; margin-right: 6px; }
+.doc-foot { margin-top: 32px; padding-top: 14px; border-top: 1px solid var(--border);
+            font-size: 11.5px; line-height: 1.6; color: var(--text-3); }
+h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
+
+/* print -------------------------------------------------------------------- */
+/* The browser is the renderer. A server-side PDF would be a second layout that
+   drifts from this one, and what drifts out is whatever was added last, which
+   is usually a caveat. */
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root { --canvas: #fff; --shadow: none; --shadow-lg: none; }
+  body { background: #fff; font-size: 10.5pt; }
+  .topbar, .no-print, .fold-head, .h2-link { display: none !important; }
+  .page { max-width: none; padding: 0; }
+  .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+
+  /* A finding must not be split across a page, and a heading must not be
+     orphaned from what it introduces. Both matter more here than the page
+     count: half a caveat reads as no caveat. */
+  .finding, .lrow, .headtohead, .statement { break-inside: avoid; }
+  .report-step { break-inside: avoid-page; }
+  .report-step-head, h2, h3 { break-after: avoid; }
+
+  /* Folded sections are open on paper. Nothing on a printed verdict should
+     require a click to reveal, least of all the part listing what was not
+     measured. */
+  .fold-body { display: block !important; }
+
+  /* Colour is not guaranteed on paper, so every bar keeps an outline and every
+     rate keeps its digits. A greyscale print of this page still says the same
+     thing. */
+  .rung-bar, .interval, .measure-bar .track { border: 1px solid #999; }
+  .rung-bar .fill, .interval .point, .measure-bar .dot { background: #333 !important; }
+  .rung-bar .ci, .interval .span, .measure-bar .ci { background: #ccc !important; }
+  a { text-decoration: none; color: inherit; }
+}
+
+/* what changed between uploads --------------------------------------------- */
+.changes { display: grid; gap: 12px; }
+.change-head { display: flex; align-items: baseline; gap: 14px; padding-bottom: 10px;
+               border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.vpair { font: 650 14px var(--mono); }
+.vpair .arrow { color: var(--text-3); margin: 0 2px; font-weight: 400 }
+.change .dim { color: var(--text-3); font-size: 11.5px; margin-left: auto }
+.change-group { padding: 8px 0 }
+.change-group b { display: block; font-size: 11px; text-transform: uppercase;
+                  letter-spacing: 0.06em; margin-bottom: 6px }
+/* Gone is the headline; it is the thing the contributor actually did. */
+.change-group.fixed b { color: var(--ok) }
+.change-group.remaining b { color: var(--text-3) }
+.change-group.appeared b { color: var(--warn) }
+.change-group .line { font-size: 12.5px; color: var(--text-2); padding: 3px 0;
+                      max-width: 78ch }
+.change-group .aside { font-size: 11.5px; color: var(--text-3); margin-top: 6px;
+                       line-height: 1.55; max-width: 72ch }
+
+.resubmit { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.resubmit-note { font-size: 12px; color: var(--text-3); max-width: 58ch; line-height: 1.5 }
+
+/* what is in the upload ---------------------------------------------------- */
+/* Readable names, with the real column name on hover. The width rides along as
+   a small superscript rather than "(16)", which read as a code fragment. */
+.channels { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.chan { font: 12.5px var(--sans); color: var(--text); background: var(--neutral-bg);
+        border: 1px solid var(--border); border-radius: 5px; padding: 2px 8px;
+        white-space: nowrap; cursor: default; }
+.chan .w { font: 10.5px var(--mono); color: var(--text-3); margin-left: 5px;
+           vertical-align: super; }
+.chan.quiet { background: transparent; border-style: dashed; color: var(--text-3); }
+
+/* choosing which two to compare -------------------------------------------- */
+.picker { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+          padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.picker select { width: auto; min-width: 200px; max-width: 320px; font-weight: 550; }
+/* "against" is the label and the swap in one control, because a separate swap
+   button is a second thing to explain for an action nobody needs twice. */
+.picker .swap { background: none; border: 0; padding: 4px 2px; cursor: pointer;
+                font: 12.5px var(--sans); color: var(--text-3); }
+.picker .swap:hover { color: var(--accent); text-decoration: underline; }
+
+/* The head to head block, when it stands on its own rather than in a list. */
+.headtohead.bare { border-top: 0; padding-top: 0; }
+
+/* the answer ---------------------------------------------------------------
+   One sentence at the top of a submission, answering the question the page was
+   opened to settle. Bordered on the left rather than filled: a full-bleed
+   colour block reads as an alert, and three of the five states here are not
+   alarming -- "we could not tell" is a normal, honest outcome and must not look
+   like a failure. */
+.answer {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--border-2); border-radius: var(--radius);
+  padding: 16px 18px; margin-bottom: 18px; box-shadow: var(--shadow);
+}
+.answer h2 { font-size: 16.5px; font-weight: 650; letter-spacing: -0.15px; margin: 0; }
+.answer p { color: var(--text-2); margin-top: 5px; max-width: 68ch; }
+.answer .next {
+  margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--border);
+  color: var(--text); font-weight: 500;
+}
+.answer.passed    { border-left-color: var(--ok); }
+.answer.refused   { border-left-color: var(--danger); }
+.answer.abstained { border-left-color: var(--warn); }
+.answer.failed    { border-left-color: var(--text-3); }
+.answer.running   { border-left-color: var(--accent); }
+.answer-link { font-weight: 500; }
+
+/* a gate's outcome: the sentence first, the arithmetic folded under it -------- */
+.outcome { margin-top: 7px; }
+.outcome-head { font-weight: 600; color: var(--text); font-size: 13.5px; }
+.outcome-detail { color: var(--text-2); margin-top: 3px; max-width: 64ch; }
+.outcome .fold { margin-top: 9px; }
+.outcome .fold-head { padding: 6px 10px; font-size: 11.5px; box-shadow: none; }
+.evidence {
+  padding: 10px 13px; background: var(--neutral-bg); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-2); font-size: 12.5px; max-width: 70ch;
+}
+
+/* how this works ------------------------------------------------------------
+   Folded by default once a user has submissions, so it explains without ever
+   becoming the thing they have to scroll past on every visit. */
+.howto { margin-bottom: 18px; }
+.howto .fold-head { font-size: 13px; font-weight: 600; color: var(--text); }
+.howto-body {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow);
+  display: grid; gap: 22px;
+}
+.howto-body h3 { font-size: 13.5px; font-weight: 650; margin-bottom: 6px; }
+.howto-body p { color: var(--text-2); max-width: 72ch; }
+.howto-body p + p { margin-top: 7px; }
+.howto-body code {
+  font: 11.5px var(--mono); background: var(--neutral-bg);
+  border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px;
+}
+.howto-note { color: var(--text-3) !important; margin-top: 10px !important; }
+
+.checks { list-style: none; margin-top: 10px; display: grid; gap: 13px; }
+.checks > li { padding-left: 0; }
+.checks-head { display: flex; align-items: baseline; gap: 8px; }
+.checks-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; background: var(--neutral-bg);
+  border: 1px solid var(--border-2); font: 600 10.5px var(--mono);
+  color: var(--text-2); flex: none; align-self: center;
+}
+.checks-asks { color: var(--text-3); }
+.checks-takes { color: var(--text-3); font: 11.5px var(--mono); }
+.checks > li p { margin-top: 4px; margin-left: 26px; }
+
+.answers { display: grid; gap: 10px; margin-top: 10px; }
+.answers-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; }
+.answers-row dt {
+  font-weight: 600; font-size: 12.5px; padding-left: 9px;
+  border-left: 3px solid var(--border-2); height: fit-content;
+}
+.answers-row.passed dt { border-left-color: var(--ok); }
+.answers-row.refused dt { border-left-color: var(--danger); }
+.answers-row.abstained dt { border-left-color: var(--warn); }
+.answers-row.failed dt { border-left-color: var(--text-3); }
+.answers-row dd { color: var(--text-2); }
+
+/* the downloadable example -------------------------------------------------
+   Sat inside "What you upload" rather than at the end, because the moment a
+   person wonders what the format looks like is the moment they are reading the
+   format, not four sections later. */
+.sample {
+  display: flex; align-items: center; gap: 18px; margin-top: 14px;
+  padding: 14px 16px; background: var(--accent-bg);
+  border: 1px solid var(--accent-border); border-radius: var(--radius);
+}
+.sample > div { flex: 1; }
+.sample b { font-size: 12.5px; }
+.sample p { margin-top: 3px; color: var(--text-2); max-width: 62ch; }
+.sample .btn { flex: none; }
+@media (max-width: 640px) { .sample { flex-direction: column; align-items: flex-start; } }
+
+/* publish to the leaderboard ------------------------------------------------
+   Neutral until it is on. An unpublished result is the normal state, not a
+   warning, so the control that turns it on must not look like an unresolved
+   problem sitting on the page. */
+.publish {
+  display: flex; align-items: center; gap: 18px; margin-top: 12px;
+  padding: 14px 16px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border);
+}
+.publish.on { background: var(--ok-bg); border-color: #b6e7cf; }
+.publish > div { flex: 1; }
+.publish b { font-size: 12.5px; }
+.publish p { margin-top: 3px; color: var(--text-2); max-width: 66ch; }
+.publish .btn { flex: none; }
+
+.sample-links { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+/* Two offers side by side, each a result to open and a file to take. */
+.sample-offers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.sample-offer {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  padding: 14px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--bg);
+}
+.sample-what { display: flex; flex-direction: column; gap: 2px; }
+.sample-what span { color: var(--text-3); font-size: 12px; }
+.sample-dl { font-size: 12px; color: var(--text-2); text-decoration: underline; }
+.sample-none { font-size: 12px; color: var(--text-3); }
+@media (max-width: 700px) { .sample-offers { grid-template-columns: 1fr; } }
+
+/* A worked example, said once at the top of the page it applies to. */
+.demo-note {
+  display: flex; gap: 10px; align-items: baseline;
+  padding: 12px 14px; margin-bottom: 16px;
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: var(--radius); background: var(--bg-2);
+}
+.demo-note b { white-space: nowrap; }
+.demo-note span { color: var(--text-2); font-size: 13px; }
+
+/* hero ----------------------------------------------------------------------
+   Two columns on a wide screen, stacked on a narrow one. The image is given a
+   fixed aspect ratio so the page does not reflow when it arrives -- a hero that
+   jumps on load is the most visible layout shift a site can have. */
+.hero {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 34px; align-items: center; margin: 8px 0 30px;
+}
+.hero-copy p { color: var(--text-2); max-width: 54ch; font-size: 16px; line-height: 1.55; }
+.hero-cta { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+.hero-shot { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-lg); }
+.hero-shot img { display: block; width: 100%; height: auto; aspect-ratio: 900 / 506; object-fit: cover; }
+
+.strip { margin: 26px auto 4px; max-width: 760px; }
+.strip img {
+  display: block; width: 100%; height: auto; aspect-ratio: 1600 / 1529;
+  object-fit: contain; border-radius: var(--radius); box-shadow: var(--shadow);
+}
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; gap: 22px; }
+  }
+/* "optional" beside a field label: quiet, so the label still reads as a label */
+.field .lab .opt {
+  font-weight: 500; font-size: 11px; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-left: 6px;
+}
+
+/* Contact, in the footer of every page. Sits on the canvas rather than on a
+   surface card: it is not part of the working table, it is the edge of it. */
+.contact {
+  border-top: 1px solid var(--border);
+  margin-top: 56px;
+  background: var(--surface);
+}
+.contact-inner {
+  max-width: 1080px; margin: 0 auto; padding: 28px 24px 36px;
+  display: flex; flex-wrap: wrap; gap: 20px 40px;
+  align-items: baseline; justify-content: space-between;
+}
+.contact h2 {
+  font-family: var(--display); font-weight: 800; font-size: 16px;
+  margin: 0 0 6px;
+}
+.contact p { margin: 0; font-size: 13.5px; color: var(--muted, #5d6b73); max-width: 46ch; }
+.contact-links {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 8px 10px;
+}
+.contact-links a {
+  display: inline-flex; align-items: center; border-radius: 999px;
+  padding: 7px 15px; font-size: 13.5px; font-weight: 600;
+  border: 1px solid var(--border-2, var(--border));
+  background: var(--surface); color: var(--text); text-decoration: none;
+}
+.contact-links a:hover { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent); }
+
+/* The clip manifest, shown as the file it is. Scrolls in its own box rather
+   than widening the page, since a long instruction is exactly what a real one
+   has. */
+.snippet {
+  margin: 10px 0 14px; padding: 12px 14px; overflow-x: auto;
+  font: 12px/1.6 var(--mono); color: var(--text-2);
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius);
+}
+/* The two kinds of upload, under the one heading that introduces them. */
+.fold h4 { margin: 18px 0 6px; font-size: 14px; font-weight: 600; }
+
+/* The equivalence claim. Set apart because it answers a question a reader has
+   the moment they see two accepted formats, and burying it in a paragraph is
+   how it gets missed. */
+.same-either-way {
+  padding: 12px 14px; margin: 12px 0 18px;
+  border-left: 3px solid var(--accent); border-radius: var(--radius);
+  background: var(--bg-2); color: var(--text-2);
+}
+/* What a sample contains, under its name. */
+.sample-what .fed { color: var(--text-2); font-size: 12px; }
+
+/* Under the drop zone: what is accepted, where the person deciding is looking. */
+.drop-note { margin: 10px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--text-2); }
+
+/* Generated advice: a list a person acts on, and a label that says a model
+   wrote it. Kept visually quieter than the findings above it. */
+.coach-list { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+.coach-list li { font-size: 13.5px; line-height: 1.55; max-width: 78ch; }
+.coach-note { margin-top: 12px; font-size: 12px; color: var(--text-3, #8a949a); }
+
+/* Stat tiles: what intake detected, as numbers a person scans rather than a
+   key-value list they read. Value semibold in the body sans, proportional
+   figures (tabular is for columns), label in sentence case above it. */
+.stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 10px;
+}
+.stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 12px 14px 10px;
+}
+.stat-label { display: block; font-size: 12px; color: var(--text-3, #8a949a); }
+.stat-value {
+  display: block; margin-top: 2px;
+  font-weight: 600; font-size: 22px; line-height: 1.2; color: var(--text);
+}
+.stat-unit { font-size: 12.5px; font-weight: 600; color: var(--text-3, #8a949a); margin-left: 4px; }
+
+/* Detailed advice points: an action as the headline, the measurement and the
+   quantity under it. */
+.coach-list b { display: block; font-weight: 600; color: var(--text); }
+.coach-list li p {
+  margin: 3px 0 0; font-size: 13px; line-height: 1.55;
+  color: var(--text-2, #4b5960); max-width: 78ch;
+}

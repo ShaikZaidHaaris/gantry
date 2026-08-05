@@ -2,7 +2,7 @@
 
 Adapters and retargeters are different things and must stay different: one has a
 single correct answer, the other encodes a judgement about what to discard. But
-by the time a plan is being executed, the difference has already been made — the
+by the time a plan is being executed, the difference has already been made -- the
 decision is taken, and what remains is a list of transforms to run in order.
 
 :class:`Step` is that residue. Both kinds produce one, and neither is disguised
@@ -10,8 +10,7 @@ as the other: a step records which kind it came from, so provenance and a reader
 can still tell a rescaling from a reduction.
 
 The alternative, wrapping a retargeter in an adapter so a chain could hold it,
-would be the framework coercing one concept into another to make a type fit —
-the precise move this design exists to refuse.
+would be the framework coercing one concept into another to make a type fit -- the precise move this design exists to refuse.
 """
 
 from __future__ import annotations
@@ -98,9 +97,7 @@ class Chain:
     def then(self, step: Step) -> "Chain":
         return Chain(self.steps + (step,))
 
-    def run(
-        self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec
-    ) -> np.ndarray:
+    def run(self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.ndarray:
         """Apply every step in planned order."""
         for step in self.steps:
             values = step.apply(values, source, target)

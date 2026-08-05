@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-connector-egovideo"
+version = "0.1.0.dev0"
+description = "Reads a folder of egocentric clips plus its manifest as episodes"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# The ego vocabulary is a real dependency rather than an optional one: a
+# connector that cannot describe what an ego channel means would be producing
+# episodes nothing downstream can safely read.
+dependencies = ["gantry-core", "gantry-semantics-ego", "numpy>=1.24"]
+
+[project.optional-dependencies]
+video = ["av>=10"]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.connectors"]
+egovideo = "gantry_connector_egovideo:EgoVideoConnector"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

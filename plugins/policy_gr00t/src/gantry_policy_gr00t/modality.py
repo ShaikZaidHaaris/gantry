@@ -2,7 +2,7 @@
 
 Neither side knows the whole thing:
 
-**The server** knows what the model wants — which state, video and language keys
+**The server** knows what the model wants -- which state, video and language keys
 it reads, and how many timesteps of each. It does not know how wide any of them
 are, because that is a property of the data it was trained on.
 
@@ -39,7 +39,7 @@ VIDEO, STATE, ACTION, LANGUAGE = "video", "state", "action", "language"
 ANNOTATION = "annotation"
 
 
-@dataclass(frozen=True)
+@dataclass
 class Field:
     """One named slice of a flat vector."""
 
@@ -72,6 +72,34 @@ class Layout:
     #: and this file is where the two names are written down together.
     video: Mapping[str, str] = field(default_factory=dict)
     annotation: Mapping[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def from_schema(
+        cls,
+        schema: Sequence[Any],
+        *,
+        state: str = "observation.state",
+        action: str = "action",
+        video: Sequence[str] = (),
+    ) -> "Layout":
+        """Build from channel specs, which any connector already provides.
+
+        The preferred path, and the one that keeps this plugin on its own plane.
+        Reading ``modality.json`` directly means a *policy* knows a *dataset*
+        format -- it works, and it is a leak: two plugins on two planes end up
+        parsing the same file, and the third format to arrive has to teach both.
+
+        A connector's job is to describe its data, and a described channel
+        already carries ``dim_labels`` -- one name per element. That is the same
+        information the sidecar holds, in the vocabulary the framework already
+        speaks, so it is what this reads.
+        """
+        by_name = {spec.name: spec for spec in schema}
+        return cls(
+            state=_from_labels(by_name.get(state), STATE),
+            action=_from_labels(by_name.get(action), ACTION),
+            video={key: key for key in video},
+        )
 
     @classmethod
     def from_json(cls, path: str | Path) -> "Layout":
@@ -157,6 +185,33 @@ def _fields(payload: Mapping[str, Any], modality: str) -> tuple[Field, ...]:
     return fields
 
 
+def _from_labels(spec: Any, modality: str) -> tuple[Field, ...]:
+    """Dimension labels back to spans, collapsing ``gripper.0``/``gripper.1``.
+
+    The inverse of what a connector does when it reads a sidecar, so a channel
+    labelled by any reader -- from a sidecar, from a feature list, or declared by
+    hand -- describes the same fields to the model.
+    """
+    if spec is None:
+        return ()
+    labels = getattr(spec, "dim_labels", None)
+    if not labels:
+        raise ConfigError(
+            f"channel {getattr(spec, 'name', modality)!r} has no dimension labels, so "
+            f"there is no way to know which of its numbers are which {modality} field. "
+            "Use a connector that labels its channels, or pass a Layout built by hand"
+        )
+    fields: list[Field] = []
+    for position, label in enumerate(labels):
+        head, _, tail = label.rpartition(".")
+        base = head if head and tail.isdigit() else label
+        if fields and fields[-1].key == base:
+            fields[-1] = Field(base, fields[-1].start, position + 1)
+        else:
+            fields.append(Field(base, position, position + 1))
+    return tuple(fields)
+
+
 def _originals(payload: Mapping[str, Any]) -> dict[str, str]:
     """``{model key: dataset column}``, falling back to the key itself."""
     return {
@@ -204,8 +259,7 @@ class Wants:
 def _as_mapping(entry: Any, modality: str) -> Mapping[str, Any]:
     if isinstance(entry, Mapping):
         return {
-            (key.decode() if isinstance(key, bytes) else key): value
-            for key, value in entry.items()
+            (key.decode() if isinstance(key, bytes) else key): value for key, value in entry.items()
         }
     raise ConfigError(
         f"the server described {modality!r} as {type(entry).__name__}, expected an object "
@@ -232,8 +286,7 @@ def check(layout: Layout, wants: Wants) -> Verdict:
             checks.append(
                 Verdict.no(
                     "gr00t.language_key",
-                    f"the model reads {language!r} and the dataset annotates "
-                    f"{sorted(available)}",
+                    f"the model reads {language!r} and the dataset annotates {sorted(available)}",
                     hint="pass instruction= to send the text yourself",
                 )
             )

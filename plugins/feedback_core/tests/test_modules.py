@@ -8,11 +8,6 @@ reported, and the clean and decoy suites must produce nothing.
 from __future__ import annotations
 
 import pytest
-from gantry.contracts.feedback import Cohort
-from gantry.fixtures import make_clean, make_defective, make_duration_confound
-from gantry.spine import IncompatibleError
-from gantry_feedback_core.harden import PerCohort
-
 from gantry_feedback_core import (
     ATTRIBUTABLE,
     INCONSISTENT,
@@ -28,14 +23,20 @@ from gantry_feedback_core import (
     stage_order,
     uplift,
 )
+from gantry_feedback_core.harden import PerCohort
+
+from gantry.contracts.feedback import Cohort
+from gantry.fixtures import make_clean, make_defective, make_duration_confound
+from gantry.spine import IncompatibleError
 
 
 def cohort(name: str, suite) -> Cohort:
     return Cohort(name, suite.episodes)
 
 
-def mixed(defect: str, n: int = 40, fraction: float = 0.5, seed: int = 0,
-          name: str | None = None) -> Cohort:
+def mixed(
+    defect: str, n: int = 40, fraction: float = 0.5, seed: int = 0, name: str | None = None
+) -> Cohort:
     return cohort(name or defect, make_defective(defect, n=n, fraction=fraction, seed=seed))
 
 
@@ -53,8 +54,10 @@ def test_comparative_mode_asserts_no_thresholds():
 
 def test_comparative_mode_finds_the_statistic_that_separates():
     report = Screen("comparative").run(
-        [cohort("clean", make_clean(n=30, seed=1)),
-         cohort("detoured", make_defective("path_detour", n=30, fraction=1.0, seed=1))]
+        [
+            cohort("clean", make_clean(n=30, seed=1)),
+            cohort("detoured", make_defective("path_detour", n=30, fraction=1.0, seed=1)),
+        ]
     )
     separating = {f.evidence["ranking"][-1]: f for f in report.by_code("screen.separates")}
     assert "clean" in separating
@@ -80,8 +83,10 @@ def test_reference_mode_says_its_thresholds_are_fitted_not_universal():
 
 def test_reference_mode_flags_a_cohort_outside_the_band():
     report = Screen("reference", reference="good").run(
-        [cohort("good", make_clean(n=30, seed=1)),
-         cohort("jerky", make_defective("actuation_jerk", n=30, fraction=1.0, seed=1))]
+        [
+            cohort("good", make_clean(n=30, seed=1)),
+            cohort("jerky", make_defective("actuation_jerk", n=30, fraction=1.0, seed=1)),
+        ]
     )
     assert any(
         f.code == "screen.outside_reference" and "actuation_jerk" in f.summary
@@ -196,8 +201,9 @@ def test_the_funnel_prescription_warns_against_collecting_for_a_universal_weakne
 
 
 def test_the_funnel_refuses_records_with_no_stage_events():
-    stripped = [e.with_labels(type(e.labels)(success=e.labels.success))
-                for e in make_clean(n=10).episodes]
+    stripped = [
+        e.with_labels(type(e.labels)(success=e.labels.success)) for e in make_clean(n=10).episodes
+    ]
     report = Funnel().run([Cohort("outcome_only", tuple(stripped))])
     assert report.findings == ()
     assert "no stage events, so there is no funnel to build" in report.notes[0]
@@ -210,7 +216,7 @@ def test_the_funnel_works_on_a_vocabulary_it_has_never_seen():
 
 
 # ==========================================================================
-# attribution — including what it must NOT say
+# attribution -- including what it must NOT say
 # ==========================================================================
 
 
@@ -279,10 +285,12 @@ def test_harden_refuses_a_single_cohort():
 
 
 def test_an_effect_present_everywhere_is_universal_and_is_not_actionable():
-    report = Harden().run([
-        mixed("never_completes", n=60, fraction=0.5, seed=1, name="run_a"),
-        mixed("never_completes", n=60, fraction=0.5, seed=2, name="run_b"),
-    ])
+    report = Harden().run(
+        [
+            mixed("never_completes", n=60, fraction=0.5, seed=1, name="run_a"),
+            mixed("never_completes", n=60, fraction=0.5, seed=2, name="run_b"),
+        ]
+    )
     universal = report.by_code(f"harden.{UNIVERSAL}")
     assert universal, report.explain()
     for finding in universal:
@@ -297,10 +305,12 @@ def test_when_two_cohorts_fail_the_same_way_everything_reads_universal():
     statistic at once. Handed either cohort alone, attribution would produce a
     page of confident advice. Seen together, none of it is about the data.
     """
-    report = Harden().run([
-        mixed("never_completes", n=60, fraction=0.5, seed=1, name="run_a"),
-        mixed("never_completes", n=60, fraction=0.5, seed=2, name="run_b"),
-    ])
+    report = Harden().run(
+        [
+            mixed("never_completes", n=60, fraction=0.5, seed=1, name="run_a"),
+            mixed("never_completes", n=60, fraction=0.5, seed=2, name="run_b"),
+        ]
+    )
     assert report.by_code(f"harden.{ATTRIBUTABLE}") == ()
     assert len(report.by_code(f"harden.{UNIVERSAL}")) >= 4
 
@@ -362,10 +372,12 @@ def test_classify_says_nothing_when_nothing_fires():
 
 
 def test_a_cohort_with_no_outcome_variation_is_excluded_and_said_so():
-    report = Harden().run([
-        cohort("constant", make_clean(n=30)),
-        mixed("never_completes", n=40, fraction=0.5),
-    ])
+    report = Harden().run(
+        [
+            cohort("constant", make_clean(n=30)),
+            mixed("never_completes", n=40, fraction=0.5),
+        ]
+    )
     assert any("outcomes do not vary" in note for note in report.notes)
     assert any("cannot be told apart" in note for note in report.notes)
 
@@ -389,8 +401,9 @@ def test_every_number_in_a_report_carries_its_own_n():
 
 def test_a_duplicate_cohort_name_is_refused():
     with pytest.raises(IncompatibleError, match="more than once"):
-        Screen("comparative").run([cohort("same", make_clean(n=5)),
-                                   cohort("same", make_clean(n=5, seed=2))])
+        Screen("comparative").run(
+            [cohort("same", make_clean(n=5)), cohort("same", make_clean(n=5, seed=2))]
+        )
 
 
 def test_an_empty_cohort_is_refused():
@@ -405,8 +418,9 @@ def test_an_empty_cohort_is_refused():
 
 def _run_that_always_stops_at_stage_two():
     """A run where no episode ever reaches the second milestone."""
-    from gantry.spine import EpisodeLabels, Provenance, StageEvent, episode_from_arrays
     import numpy as np
+
+    from gantry.spine import EpisodeLabels, Provenance, StageEvent, episode_from_arrays
 
     episodes = tuple(
         episode_from_arrays(
@@ -418,9 +432,7 @@ def _run_that_always_stops_at_stage_two():
         )
         for i in range(20)
     )
-    provenance = Provenance(
-        protocol={"stages": ["approach", "engage", "transport", "release"]}
-    )
+    provenance = Provenance(protocol={"stages": ["approach", "engage", "transport", "release"]})
     return episodes, provenance
 
 
@@ -429,7 +441,7 @@ def test_a_milestone_nothing_reached_is_invisible_to_inference():
 
     Every episode stops at the first milestone, so the later ones never appear
     as events. Inferring the vocabulary from what happened gives a one-rung
-    funnel at 100% and an uplift of zero — a clean bill of health for a policy
+    funnel at 100% and an uplift of zero -- a clean bill of health for a policy
     that never does anything.
     """
     episodes, _ = _run_that_always_stops_at_stage_two()

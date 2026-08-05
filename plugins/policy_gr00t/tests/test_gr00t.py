@@ -1,8 +1,8 @@
 """The policy: wiring discovered, checked, and driven against a fake server.
 
 The layout used here is the one shipped with the RoboMimic-to-LeRobot lift
-dataset in this project — a seven-wide action of x/y/z/roll/pitch/yaw/gripper
-over an eight-wide state — so the shapes are the real ones even though the model
+dataset in this project -- a seven-wide action of x/y/z/roll/pitch/yaw/gripper
+over an eight-wide state -- so the shapes are the real ones even though the model
 behind the socket is four lines of arithmetic.
 """
 
@@ -22,7 +22,7 @@ from gantry_policy_gr00t import (
     check,
     observation_specs,
 )
-from server import FakeServer, modality_payload
+from gantry_policy_gr00t.testing import FakeServer, modality_payload
 
 from gantry.conformance import check_policy
 from gantry.contracts.policy import EpisodeContext, Observation
@@ -33,14 +33,22 @@ HORIZON = 16
 
 MODALITY_JSON = {
     "state": {
-        "x": {"start": 0, "end": 1}, "y": {"start": 1, "end": 2}, "z": {"start": 2, "end": 3},
-        "roll": {"start": 3, "end": 4}, "pitch": {"start": 4, "end": 5},
-        "yaw": {"start": 5, "end": 6}, "gripper": {"start": 6, "end": 8},
+        "x": {"start": 0, "end": 1},
+        "y": {"start": 1, "end": 2},
+        "z": {"start": 2, "end": 3},
+        "roll": {"start": 3, "end": 4},
+        "pitch": {"start": 4, "end": 5},
+        "yaw": {"start": 5, "end": 6},
+        "gripper": {"start": 6, "end": 8},
     },
     "action": {
-        "x": {"start": 0, "end": 1}, "y": {"start": 1, "end": 2}, "z": {"start": 2, "end": 3},
-        "roll": {"start": 3, "end": 4}, "pitch": {"start": 4, "end": 5},
-        "yaw": {"start": 5, "end": 6}, "gripper": {"start": 6, "end": 7},
+        "x": {"start": 0, "end": 1},
+        "y": {"start": 1, "end": 2},
+        "z": {"start": 2, "end": 3},
+        "roll": {"start": 3, "end": 4},
+        "pitch": {"start": 4, "end": 5},
+        "yaw": {"start": 5, "end": 6},
+        "gripper": {"start": 6, "end": 7},
     },
     "video": {
         "image": {"original_key": "observation.images.image"},
@@ -83,9 +91,7 @@ def server():
 
 
 def build(server, layout_path, **kwargs) -> Gr00tPolicy:
-    return Gr00tPolicy(
-        layout_path, Endpoint(port=server.port, timeout_ms=3000), **kwargs
-    )
+    return Gr00tPolicy(layout_path, Endpoint(port=server.port, timeout_ms=3000), **kwargs)
 
 
 @pytest.fixture
@@ -379,8 +385,10 @@ def test_fields_are_ordered_by_position_not_by_file_order(tmp_path):
 def test_what_a_dataset_must_provide_can_be_asked_before_anything_runs(layout_path):
     layout = Layout.from_json(layout_path)
     wants = Wants.from_server(
-        {"video": {"modality_keys": ["image"], "delta_indices": [0]},
-         "state": {"modality_keys": FIELDS, "delta_indices": [0]}}
+        {
+            "video": {"modality_keys": ["image"], "delta_indices": [0]},
+            "state": {"modality_keys": FIELDS, "delta_indices": [0]},
+        }
     )
     specs = observation_specs(layout, wants)
     assert [spec.name for spec in specs] == ["observation.state", "observation.images.image"]
@@ -400,3 +408,79 @@ def test_it_reads_the_real_datasets_modality_json():
     assert layout.width("state") == 8
     assert layout.video["image"] == "observation.images.image"
     assert layout.labels("action")[:3] == ("x", "y", "z")
+
+
+# -- staying on its own plane ----------------------------------------------
+
+
+def test_a_layout_can_be_built_from_any_connectors_schema(layout_path):
+    """The preferred path: read the schema, not the dataset's sidecar.
+
+    A policy that parses modality.json knows a dataset format, which is a leak
+    across planes. Dimension labels are the framework's own vocabulary for the
+    same fact, and any connector that describes its channels provides them.
+    """
+    from gantry.spine import ChannelSpec
+
+    schema = (
+        ChannelSpec(
+            "observation.state",
+            "vector",
+            (8,),
+            "float32",
+            dim_labels=("x", "y", "z", "roll", "pitch", "yaw", "gripper.0", "gripper.1"),
+        ),
+        ChannelSpec("action", "vector", (7,), "float32", dim_labels=tuple(FIELDS)),
+    )
+    from_schema = Layout.from_schema(schema, video=["image", "wrist_image"])
+    from_file = Layout.from_json(layout_path)
+
+    assert from_schema.labels("action") == from_file.labels("action")
+    assert from_schema.labels("state") == from_file.labels("state")
+    assert from_schema.width("state") == 8
+    assert [f.key for f in from_schema.state] == [f.key for f in from_file.state]
+
+
+def test_an_unlabelled_channel_says_why_it_cannot_be_used():
+    from gantry.spine import ChannelSpec
+
+    with pytest.raises(ConfigError, match="no dimension labels"):
+        Layout.from_schema((ChannelSpec("action", "vector", (7,), "float32"),))
+
+
+def test_a_policy_can_be_built_from_a_schema_derived_layout(server, layout_path):
+    """Without the sidecar, the camera wiring is the caller's to declare.
+
+    from_schema deliberately does not invent it: which column holds the model's
+    'image' is a fact about the dataset's layout, and a policy that guessed at
+    it would be back to knowing a format.
+    """
+    layout = Layout.from_schema(
+        (
+            __import__("gantry.spine", fromlist=["x"]).ChannelSpec(
+                "observation.state",
+                "vector",
+                (8,),
+                "float32",
+                dim_labels=("x", "y", "z", "roll", "pitch", "yaw", "gripper.0", "gripper.1"),
+            ),
+            __import__("gantry.spine", fromlist=["x"]).ChannelSpec(
+                "action",
+                "vector",
+                (7,),
+                "float32",
+                dim_labels=tuple(FIELDS),
+            ),
+        ),
+        video=["image", "wrist_image"],
+    )
+    policy = Gr00tPolicy(
+        layout,
+        Endpoint(port=server.port, timeout_ms=3000),
+        video_channels={
+            "image": "observation.images.image",
+            "wrist_image": "observation.images.wrist_image",
+        },
+    )
+    assert policy.act(observation()).shape == (HORIZON, 7)
+    policy.close()

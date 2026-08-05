@@ -10,9 +10,15 @@ from .connector import (
     LeRobotConnector,
 )
 from .video import PIXEL_FORMAT, SEEK_THRESHOLD, MultiSource, VideoSource, available
+from .writer import CODEBASE_VERSION, Loss, WriteReport, survey, write_episodes
 
 __all__ = [
     "AUTO",
+    "CODEBASE_VERSION",
+    "Loss",
+    "WriteReport",
+    "survey",
+    "write_episodes",
     "BOOKKEEPING",
     "MEDIA_DTYPES",
     "PIXEL_FORMAT",

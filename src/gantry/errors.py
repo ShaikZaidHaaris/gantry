@@ -34,7 +34,7 @@ class GantryError(Exception):
     """Base for every Gantry failure.
 
     ``partial`` carries whatever the runner had assembled when the failure
-    happened — the steps taken, the episodes finished. A run that dies halfway
+    happened -- the steps taken, the episodes finished. A run that dies halfway
     is still evidence, and discarding it because an exception was raised loses
     the most informative part of the failure.
     """

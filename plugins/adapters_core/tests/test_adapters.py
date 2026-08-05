@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from gantry.resolve import bind_channel, requires_channels
-from gantry.spine import ChannelSpec
-
 from gantry_adapters_core import (
     PERMUTE,
     RESAMPLE,
@@ -16,10 +13,21 @@ from gantry_adapters_core import (
     resample_to,
 )
 
+from gantry.resolve import bind_channel, requires_channels
+from gantry.spine import ChannelSpec
+
 
 def spec(**over):
-    base = dict(name="position", kind="vector", shape=(3,), dtype="float32",
-                units="m", frame="world", rate_hz=20.0, semantics="position")
+    base = dict(
+        name="position",
+        kind="vector",
+        shape=(3,),
+        dtype="float32",
+        units="m",
+        frame="world",
+        rate_hz=20.0,
+        semantics="position",
+    )
     return ChannelSpec(**{**base, **over})
 
 
@@ -127,17 +135,13 @@ def test_the_resolver_finds_and_plans_them():
 
 
 def test_the_loss_of_the_lossy_one_reaches_the_binding():
-    binding, _ = bind_channel(
-        spec(rate_hz=20.0), [spec(rate_hz=30.0)], NEED, default_registry()
-    )
+    binding, _ = bind_channel(spec(rate_hz=20.0), [spec(rate_hz=30.0)], NEED, default_registry())
     assert binding.chain.lossy
     assert "detail faster than 20 Hz is gone" in binding.chain.losses[0]
 
 
 def test_a_width_change_is_still_refused_with_every_adapter_installed():
     """No adapter closes a modality or width gap, and none pretends to."""
-    binding, verdict = bind_channel(
-        spec(shape=(7,)), [spec(shape=(3,))], NEED, default_registry()
-    )
+    binding, verdict = bind_channel(spec(shape=(7,)), [spec(shape=(3,))], NEED, default_registry())
     assert binding is None
     assert "resolve.channel_incompatible" in verdict.codes()

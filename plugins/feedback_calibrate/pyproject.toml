@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-feedback-calibrate"
+version = "0.1.0.dev0"
+description = "Whether a judge agrees with people well enough for its labels to count"
+requires-python = ">=3.10"
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "krippendorff>=0.6"]
+
+[project.entry-points."gantry.feedback"]
+calibrate = "gantry_feedback_calibrate:Calibration"
+
+[tool.setuptools.packages.find]
+where = ["src"]

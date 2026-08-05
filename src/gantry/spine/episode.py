@@ -92,7 +92,7 @@ class ArraySource:
 class EmptySource:
     """A :class:`StepSource` with no channels at all.
 
-    For records that carry outcomes and milestones but no trajectory — which is
+    For records that carry outcomes and milestones but no trajectory -- which is
     what most evaluation logs actually contain. Such an episode is a legitimate
     record, not a broken one, and representing it honestly is what lets the
     resolver tell a caller that a trajectory-based analysis cannot run on it,
@@ -167,6 +167,19 @@ class EpisodeMeta:
     The namespacing is not decoration: merging two datasets that both number
     their episodes from zero silently collapses them otherwise, and a lost
     fifth of a training set does not announce itself.
+
+    Identity has to survive a conversion
+    ------------------------------------
+    A format change renumbers everything. The same demonstration is
+    ``mg/demo_1`` in one collection and ``lift_train_mg/episode_000000`` in the
+    copy a trainer reads, and nothing connects them -- so anything computed
+    about the first (it failed; it is worth dropping; it caused this behaviour)
+    cannot be acted on in the second.
+
+    ``derived_from`` carries the names it had before. A converter appends the
+    source's uid, so a claim made about a demonstration in the format where the
+    evidence lives can be applied in the format the trainer reads. Without it
+    the two are separate datasets that happen to contain the same motions.
     """
 
     id: str
@@ -175,11 +188,32 @@ class EpisodeMeta:
     task: str | None = None
     collected_by: str | None = None
     license: str | None = None
+    #: Uids this episode had in earlier formats, oldest first.
+    derived_from: tuple[str, ...] = ()
     extra: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def uid(self) -> str:
         return f"{self.source}/{self.id}"
+
+    @property
+    def lineage(self) -> tuple[str, ...]:
+        """Every name this episode has been known by, newest last."""
+        return tuple(self.derived_from) + (self.uid,)
+
+    def known_as(self, name: str) -> bool:
+        """Whether this episode answers to that name, now or in a past format."""
+        return name in self.lineage
+
+    def descended(self, source_uid: str) -> "EpisodeMeta":
+        """The same episode, recording that it came from ``source_uid``.
+
+        Used by whatever writes a converted copy. Appends rather than replaces,
+        so a chain of conversions stays walkable end to end.
+        """
+        if source_uid in self.lineage:
+            return self
+        return replace(self, derived_from=tuple(self.derived_from) + (source_uid,))
 
 
 @dataclass(frozen=True)
@@ -266,8 +300,7 @@ class EpisodeRecord:
             checks.append(
                 Verdict.note(
                     "schema.undeclared",
-                    f"{self.meta.uid}: source carries undeclared channel(s) "
-                    f"{sorted(undeclared)}",
+                    f"{self.meta.uid}: source carries undeclared channel(s) {sorted(undeclared)}",
                     hint="undeclared channels are invisible to the resolver",
                 )
             )

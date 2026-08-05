@@ -3,12 +3,12 @@
 The neutrality rule lives here. A channel is described on two axes:
 
 ``kind``
-    The *modality* — what shape of thing this is. Core owns this vocabulary
+    The *modality* -- what shape of thing this is. Core owns this vocabulary
     because it is genuinely universal: an image is an image on a humanoid, a
     drone, or a microscope. Small, extensible, and nothing robot-specific.
 
 ``semantics``
-    What the numbers *mean* — ``joint_position``, ``eef_pose``, ``wrench``,
+    What the numbers *mean* -- ``joint_position``, ``eef_pose``, ``wrench``,
     anything. This registry is open and core ships only a starter vocabulary.
     **No logic in core ever branches on a semantics value.** Retargeters do,
     and retargeters are plugins.
@@ -191,7 +191,7 @@ class ChannelSpec:
     #: they agree on every one of them.
     #:
     #: Core has no idea what any of them mean, and does not need to. It exists
-    #: because some distinctions live in a vocabulary core must not own — a
+    #: because some distinctions live in a vocabulary core must not own -- a
     #: quaternion stored scalar-first versus scalar-last is four floats either
     #: way, the same width, the same units, the same meaning tag, and executing
     #: one as the other is silently wrong. Listing the key here is how a plugin

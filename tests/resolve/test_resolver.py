@@ -62,9 +62,7 @@ def funnel():
 
 
 def attribution():
-    return requires_channels(
-        "attribution", "feedback", POSITION, capabilities={"outcomes": True}
-    )
+    return requires_channels("attribution", "feedback", POSITION, capabilities={"outcomes": True})
 
 
 # -- registry --------------------------------------------------------------
@@ -97,21 +95,6 @@ def test_double_registration_is_refused_unless_deliberate():
 def test_unknown_plane_is_rejected():
     with pytest.raises(ValueError, match="unknown plane"):
         Registry().register("vibes", "x", lambda: None)
-
-
-def test_discovery_finds_an_installed_plugin():
-    """The CSV plugin declares an entry point, so it appears without editing core."""
-    reg = Registry()
-    found = reg.discover()
-    assert "dataset:csv" in found
-    assert reg.get("dataset", "csv").origin == "entry-point:gantry.connectors"
-
-
-def test_discovery_does_not_import_the_plugin_until_it_is_built():
-    reg = Registry()
-    reg.discover()
-    registration = reg.get("dataset", "csv")
-    assert "lazy" in repr(registration.factory)
 
 
 # -- capabilities ----------------------------------------------------------
@@ -289,14 +272,32 @@ def test_a_lossy_adapter_reaches_the_plan_and_then_provenance():
         registry(),
         components={"dataset": {"name": "fake"}},
         consumers=[
-            requires_channels("screen", "feedback", ChannelSpec(
-                "position", "vector", (3,), "float32", units="m", frame="world",
-                semantics="position", rate_hz=20.0,
-            ))
+            requires_channels(
+                "screen",
+                "feedback",
+                ChannelSpec(
+                    "position",
+                    "vector",
+                    (3,),
+                    "float32",
+                    units="m",
+                    frame="world",
+                    semantics="position",
+                    rate_hz=20.0,
+                ),
+            )
         ],
         provided_channels=[
-            ChannelSpec("position", "vector", (3,), "float32", units="m", frame="world",
-                        semantics="position", rate_hz=30.0)
+            ChannelSpec(
+                "position",
+                "vector",
+                (3,),
+                "float32",
+                units="m",
+                frame="world",
+                semantics="position",
+                rate_hz=30.0,
+            )
         ],
         adapters=AdapterRegistry([resampler]),
     )

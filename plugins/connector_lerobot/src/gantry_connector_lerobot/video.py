@@ -9,8 +9,8 @@ Two things follow, and both matter more than the decoding itself.
 
 **Nothing is decoded until it is asked for.** A hundred episodes of two cameras
 is a few gigabytes of pixels; opening them to look at a state vector would make
-the lazy spine a lie. So a video channel is described from ``info.json`` — which
-already carries the shape, the codec and the frame rate — and touched only when
+the lazy spine a lie. So a video channel is described from ``info.json`` -- which
+already carries the shape, the codec and the frame rate -- and touched only when
 somebody reads it.
 
 **Frames are checked against the parquet.** A truncated mp4 is the failure this
@@ -42,8 +42,7 @@ from gantry.errors import ComponentError, ConfigError
 #: a window near the front it does the same work with more moving parts.
 SEEK_THRESHOLD = 32
 
-#: What a decoded frame is converted to. Three channels, eight bits, no scaling —
-#: any normalisation is the consumer's decision and its business to declare.
+#: What a decoded frame is converted to. Three channels, eight bits, no scaling -- #: any normalisation is the consumer's decision and its business to declare.
 PIXEL_FORMAT = "rgb24"
 
 
@@ -106,8 +105,7 @@ class VideoSource:
                         frames[position] = frame.to_ndarray(format=PIXEL_FORMAT)
         except (OSError, ValueError) as error:
             raise ComponentError(
-                f"{self._name}: could not decode {self._path.name}: "
-                f"{type(error).__name__}: {error}"
+                f"{self._name}: could not decode {self._path.name}: {type(error).__name__}: {error}"
             ) from error
 
         missing = [index for index in range(start, stop) if index not in frames]
@@ -196,7 +194,10 @@ class MultiSource:
         columns = [name for name in wanted if name not in self._videos]
         out = self._table.read(columns, start, stop) if columns else {}
         if any(name in self._videos for name in wanted):
-            first, last = max(0, start), self.num_steps if stop is None else min(stop, self.num_steps)
+            first, last = (
+                max(0, start),
+                self.num_steps if stop is None else min(stop, self.num_steps),
+            )
             for name in wanted:
                 if name in self._videos:
                     out[name] = self._videos[name].read(first, last)

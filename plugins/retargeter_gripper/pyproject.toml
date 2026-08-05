@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-retargeter-gripper"
+version = "0.1.0.dev0"
+description = "Map one gripper's joint readings onto another's, by measured travel"
+requires-python = ">=3.10"
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.retargeters"]
+gripper_aperture = "gantry_retargeter_gripper:GripperAperture"
+
+[tool.setuptools.packages.find]
+where = ["src"]

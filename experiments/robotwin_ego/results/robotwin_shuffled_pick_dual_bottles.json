@@ -1,0 +1,49 @@
+{
+  "arm": "shuffled",
+  "task": "pick_dual_bottles",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    9,
+    11
+  ],
+  "episodes": 10,
+  "successes": 0,
+  "success_rate": 0.0,
+  "expert_solve_rate": 0.8333,
+  "steps_per_episode": [
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400
+  ],
+  "instruction": "Lift both the long thin bottle and the medium green bottle bottles.",
+  "action_chain": [
+    "rotation@0.1.0.dev0"
+  ],
+  "reachability": {
+    "left": {
+      "median_distance_m": 0.476,
+      "max_distance_m": 3.215,
+      "fraction_within_reach": 0.8892
+    },
+    "right": {
+      "median_distance_m": 0.628,
+      "max_distance_m": 3.354,
+      "fraction_within_reach": 0.7137
+    }
+  },
+  "seconds": 1321.2
+}

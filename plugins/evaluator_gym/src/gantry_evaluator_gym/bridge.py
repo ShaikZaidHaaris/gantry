@@ -26,7 +26,7 @@ Whether a trial succeeded, and which milestones it passed. The step API has no
 place for either, so different suites bury them in different corners of ``info``
 and some do not record them at all. Reading one convention by default would mean
 silently reporting zero successes for every environment that uses a different
-one — a complete, well-formatted, wrong result. So a caller states how to read
+one -- a complete, well-formatted, wrong result. So a caller states how to read
 them, in one argument, using a named helper; and until they do, the descriptor
 says out loud that this evaluator reports no outcomes.
 """
@@ -95,7 +95,7 @@ class Transition:
 
 
 # --------------------------------------------------------------------------
-# how to read an outcome — named, so the assumption is visible at the call site
+# how to read an outcome -- named, so the assumption is visible at the call site
 # --------------------------------------------------------------------------
 
 
@@ -202,12 +202,10 @@ def _reader(known: Mapping[str, Callable], config: Any, what: str) -> Callable |
     if isinstance(config, str):
         kind, arguments = config, ()
     elif isinstance(config, Mapping) and len(config) == 1:
-        (kind, value), = config.items()
+        ((kind, value),) = config.items()
         arguments = (value,) if isinstance(value, str) else tuple(value or ())
     else:
-        raise ConfigError(
-            f"{what}: expected a reader name or a single-key object, got {config!r}"
-        )
+        raise ConfigError(f"{what}: expected a reader name or a single-key object, got {config!r}")
     if kind not in known:
         raise ConfigError(f"unknown {what} reader {kind!r}; known: {sorted(known)}")
     return known[kind](*arguments)
@@ -226,15 +224,13 @@ def imported(target: str) -> Any:
     """Resolve ``"package.module:attribute"`` to the thing it names.
 
     How an environment gets named in a file. The import happens here, in the
-    plugin, at build time — core still imports nothing it was not installed
+    plugin, at build time -- core still imports nothing it was not installed
     with, and a typo is a refusal with the name in it rather than a traceback
     from inside importlib.
     """
     module_name, separator, attribute = target.partition(":")
     if not separator:
-        raise ConfigError(
-            f"{target!r} does not name an attribute; expected 'package.module:name'"
-        )
+        raise ConfigError(f"{target!r} does not name an attribute; expected 'package.module:name'")
     import importlib
 
     try:
@@ -256,7 +252,7 @@ def accepts_seed(reset: Callable[..., Any]) -> bool:
     """Whether ``reset`` takes a ``seed`` keyword.
 
     Asked of the signature rather than discovered by calling and catching
-    ``TypeError`` — an environment whose reset raises ``TypeError`` for its own
+    ``TypeError`` -- an environment whose reset raises ``TypeError`` for its own
     reasons would otherwise be silently reset unseeded, and every seeded
     comparison built on it would be comparing noise.
     """
@@ -416,7 +412,9 @@ class GymEvaluator(Evaluator):
             description=f"an action this environment accepts, as {self._action.name!r}",
         )
 
-    def task_for(self, name: str = "", scenes: int | None = None, horizon: int | None = None) -> TaskSpec:
+    def task_for(
+        self, name: str = "", scenes: int | None = None, horizon: int | None = None
+    ) -> TaskSpec:
         count = self._scenes if scenes is None else scenes
         return TaskSpec(
             name=name or self._task,
@@ -436,8 +434,7 @@ class GymEvaluator(Evaluator):
                 self._env = self._factory()
             except Exception as error:  # noqa: BLE001 - a world that will not build
                 raise ConfigError(
-                    f"{self._name}: the environment factory raised "
-                    f"{type(error).__name__}: {error}"
+                    f"{self._name}: the environment factory raised {type(error).__name__}: {error}"
                 ) from error
             for method in ("reset", "step"):
                 if not callable(getattr(self._env, method, None)):

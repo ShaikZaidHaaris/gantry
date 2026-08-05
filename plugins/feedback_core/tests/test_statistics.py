@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from gantry_feedback_core import statistics as st
-
 
 # -- proportions -----------------------------------------------------------
 

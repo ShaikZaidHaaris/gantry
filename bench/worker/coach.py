@@ -1,0 +1,394 @@
+"""Turn a submission's results into at most four ways to improve the dataset.
+
+Every number on the verdict page says what happened; none of it says what to do
+next. The gap between "0% of scenes got past 'moved'" and "collect thirty more
+demonstrations of the lift, filmed slower" is judgement, and this module buys
+that judgement from a language model, grounded in the measurements the gates
+already made.
+
+Boundaries, stated up front:
+
+* **The model never sees the dataset.** It reads the gates' outputs: findings,
+  verdict sentences, ladder rates, what intake detected. It cannot invent a
+  measurement, only interpret the ones on the page, and the prompt forbids
+  advice that does not cite one.
+* **Advice is not a verdict.** It is stored separately, rendered separately,
+  labelled as generated, and nothing downstream depends on it. A submission
+  with no coaching is merely a submission with no coaching.
+* **Failure is silent by design.** No key configured, the API down, the model
+  returning soup: every path logs one line and stores nothing. A gate result
+  must never be held hostage by an advice call.
+
+The model is OpenAI's cheapest current one, ``gpt-5-nano``, overridable with
+``BENCH_FEEDBACK_MODEL``. A digest is a few hundred tokens and the reply a few
+hundred more, so a full run's coaching costs a fraction of a cent against a
+robot test that costs hours of GPU.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import urllib.error
+import urllib.request
+
+OPENAI_URL = "https://api.openai.com/v1/chat/completions"
+
+#: Cheapest current OpenAI model. Named in one place, overridable without a
+#: deploy, because "latest cheapest" is a fact about their price list, not ours.
+MODEL = os.environ.get("BENCH_FEEDBACK_MODEL", "gpt-5-nano")
+
+#: Three, exactly as specified. The truncation is enforced here rather than
+#: trusted to the prompt, because a prompt is a request and a slice is a rule.
+MAX_POINTS = 3
+
+SYSTEM = (
+    "You turn robot-dataset evaluation measurements into short text for the "
+    "uploader. Input: intake facts, findings (each with a code, a severity and "
+    "a summary), check verdicts, and a robot-test ladder comparing their data "
+    "against a shuffled control and a baseline.\n"
+    "Hard rules, all of them:\n"
+    '- points: EXACTLY 3 objects {"title": ..., "detail": ...}. These are the '
+    "main takeaway, so they carry the depth.\n"
+    "- When the robot test ran, it is the primary source: at least 2 of the 3 "
+    "points must be grounded in its ladder counts or verdict, naming the stage "
+    "and the wins/n numbers against the shuffled control and baseline.\n"
+    "- title: ONE imperative sentence, at most 12 words, naming the change.\n"
+    "- detail: 2 to 4 sentences, 30 to 80 words, written directly to the "
+    "uploader. State the measurement with its number, why it limits the score "
+    "(tie it to the ladder stage or verdict it affects), and exactly what to "
+    "change: how much footage, which stage, what to film, what to export. "
+    "Concrete quantities from the input only.\n"
+    "- Never mention finding codes, severity labels, JSON keys, or the words "
+    "'finding' or 'input' in any text. Cite the measurement itself, the way a "
+    "person would say it.\n"
+    "- fixes: one entry per finding code, ALL of them; omitting a code is a "
+    'failure. Each entry: {"say": ..., "detail": ...}.\n'
+    "- say: restate the finding in at most 14 words, keeping its exact "
+    "meaning, direction and numbers. Never soften it and never flip it.\n"
+    "- detail: 1 to 3 sentences, 20 to 50 words, written to the uploader. What "
+    "this measurement means for the result, and when it calls for a change, "
+    "exactly what to change with quantities. For good news, one sentence on "
+    "what it enables, and no action.\n"
+    "- NEVER invert a finding. If it reports something complete, present, "
+    "licensed, moving, or above its floor, that is good news: say so, and the "
+    "detail must not advise adding what is already there. That is the worst "
+    "failure available here.\n"
+    "- When a finding carries a hint, the hint states the direction of the "
+    "fix. Compress it, follow its direction exactly, never contradict it.\n"
+    "- Never invent a number, a cause, or a fact that is not in the input. No "
+    "hedging, no praise words, no 'consider', no 'ensure'.\n"
+    "Output JSON only: "
+    '{"points": [{"title": "...", "detail": "..."}], '
+    '"fixes": {"<code>": {"say": "...", "detail": "..."}}}'
+)
+
+#: The longest sentence the UI will show, enforced here and again at the API.
+#: A cap is a rule; the prompt's word limit is a request.
+MAX_SAY = 160
+
+#: The finding's explanatory line: paragraph-shaped like a point's detail but
+#: shorter, because up to nine of them share one screen.
+MAX_NOTE = 400
+
+#: The points carry the depth, so their caps are paragraph-sized: a title that
+#: stays a headline and a detail long enough for measurement, consequence and
+#: quantity, short enough that four of them still fit on a screen.
+MAX_TITLE = 120
+MAX_DETAIL = 600
+
+
+def digest(record: dict) -> dict:
+    """The facts worth sending, and nothing else.
+
+    Built by allow-list, not by dumping the record: the submission carries the
+    uploader's email and the full event log, and neither belongs in a request to
+    a third party. What goes is what a careful human coach would read off the
+    screen.
+    """
+    gates = {g.get("key"): g for g in record.get("gates", [])}
+    out: dict = {"benchmark": (record.get("benchmark") or {}).get("key")}
+
+    detected = (record.get("dataset") or {}).get("detected") or {}
+    out["intake"] = {
+        k: detected.get(k)
+        for k in ("episodes", "frames", "fps", "channels", "source", "poses")
+        if detected.get(k) is not None
+    }
+
+    # The robot test first: it is the evaluation, the sections after it are
+    # context, and a model reads in order.
+    for key, keep in (("g3", "robot test"), ("g2", "signal check"), ("g1", "data report")):
+        gate = gates.get(key)
+        if not gate or gate.get("status") in (None, "queued", "running"):
+            continue
+        entry: dict = {
+            "status": gate.get("status"),
+            "verdict": (gate.get("verdict") or {}).get("summary", ""),
+            # Code and summary both: the summary is what the advice is grounded
+            # in, the code is the handle the reply keys its per-finding line to,
+            # and the allow-list below refuses any code we did not send.
+            # The hint is the gate's own prescription. It no longer renders on
+            # the page, but it is the one text that states which DIRECTION the
+            # fix runs, and without it the model inverted the same finding
+            # three times: "1 distinct instruction across 58 clips" reads as a
+            # target to a reader who does not know language conditioning, and
+            # only the prescription says it is a defect.
+            "findings": [
+                {
+                    "code": f.get("code", ""),
+                    "severity": f.get("severity", ""),
+                    "summary": f.get("summary", ""),
+                    "hint": str(f.get("prescription", "") or "")[:220],
+                }
+                for f in (gate.get("findings") or [])[:8]
+                if f.get("summary")
+            ],
+        }
+        if key == "g3":
+            # `arms`, not `cells`: the gate keys each rung's measurements under
+            # `arms`, and this read the wrong name for long enough that the
+            # model never saw a single rate. Starved of evaluation numbers it
+            # anchored on the data-report findings, which are identical for
+            # identical uploads, so two runs with a sixfold difference in
+            # solved scenes got the same advice. The fixture that should have
+            # caught it was written from this code instead of from a real
+            # record, which is the whole lesson.
+            detail = gate.get("detail") or {}
+            entry["ladder"] = [
+                {
+                    "rung": row.get("rung") or row.get("name"),
+                    "counts": {
+                        arm: f"{cell.get('wins', '?')}/{cell.get('n', '?')}"
+                        for arm, cell in (row.get("arms") or row.get("cells") or {}).items()
+                        if (cell or {}).get("measured")
+                    },
+                }
+                for row in (detail.get("ladder") or [])[:8]
+            ]
+        out[keep] = entry
+    return out
+
+
+def _tidy(text: str) -> str:
+    """House style, applied to everything the model wrote.
+
+    Em and en dashes become commas: banned across the product's copy by the
+    owner, and a model will eventually emit one however the prompt reads.
+    """
+    return (
+        text.replace(" — ", ", ")
+        .replace("—", ", ")
+        .replace(" – ", ", ")
+        .replace("–", "-")
+        .strip()
+    )
+
+
+def _content(reply: dict) -> str:
+    """The message text, or a named failure when the budget ate it."""
+    choice = reply["choices"][0]
+    text = choice["message"].get("content") or ""
+    if not text.strip():
+        reason = choice.get("finish_reason", "?")
+        raise RuntimeError(
+            f"the model returned no content (finish_reason={reason}); with a "
+            "gpt-5-family model that usually means reasoning consumed the whole "
+            "completion budget"
+        )
+    return text
+
+
+def _parse_fixes(raw, allowed: set[str]) -> dict:
+    """The structural guardrails on per-finding entries, in one place.
+
+    Only codes in ``allowed`` survive (the whole defence against the model
+    writing beside a finding it invented), blanks mean nothing-to-say and are
+    dropped, both halves are tidied and sliced. Semantic fidelity cannot be
+    checked structurally; that is what the prompt's inversion rules, the hint
+    and the reasoning bump are for, and why the gate's own summary remains in
+    the record.
+    """
+    fixes: dict = {}
+    if isinstance(raw, dict):
+        for code, entry in raw.items():
+            if code not in allowed:
+                continue
+            if isinstance(entry, dict):
+                say = _tidy(str(entry.get("say", "")))[:MAX_SAY]
+                # `do` was this schema's previous name for the second line; a
+                # model or a cache answering in the old shape still lands.
+                detail = _tidy(str(entry.get("detail", "") or entry.get("do", "")))[:MAX_NOTE]
+            else:
+                say, detail = "", _tidy(str(entry))[:MAX_NOTE]
+            if say or detail:
+                fixes[code] = {"say": say, "detail": detail}
+    return fixes
+
+
+def _findings_for(facts: dict, codes: set[str]) -> list[dict]:
+    out = []
+    for section in facts.values():
+        if isinstance(section, dict):
+            for finding in section.get("findings", []):
+                if isinstance(finding, dict) and finding.get("code") in codes:
+                    out.append(finding)
+    return out
+
+
+def known_codes(facts: dict) -> set[str]:
+    """The finding codes that actually travelled, and therefore the only keys a
+    reply may use. Anything else in the reply is the model free-associating."""
+    codes: set[str] = set()
+    for section in facts.values():
+        if isinstance(section, dict):
+            for finding in section.get("findings", []):
+                if isinstance(finding, dict) and finding.get("code"):
+                    codes.add(finding["code"])
+    return codes
+
+
+def ask(facts: dict, *, key: str, model: str = "") -> dict:
+    """One call, one JSON reply: at most four points, one short line per finding.
+
+    Two gpt-5-family behaviours shaped this, both learned from the first live
+    call rather than the docs. Reasoning tokens are spent from the same
+    ``max_completion_tokens`` budget as the answer, and the model reasons
+    freely by default: a trivial probe spent 704 tokens thinking before its
+    one-line reply, and the real digest blew the whole budget on thought and
+    returned empty content, which parsed as "Expecting value: line 1 column
+    0". So the effort is pinned low, with a retry without the field for any
+    model that refuses it, and an empty reply names the budget as the cause
+    instead of failing as a JSON error three layers up.
+
+    Low rather than minimal, and that is a lesson too: at minimal the model
+    twice inverted a finding, advising someone to add the thing the finding
+    said they already had. Restating meaning faithfully turns out to need a
+    little thought after all.
+    """
+    body = {
+        "model": model or MODEL,
+        "messages": [
+            {"role": "system", "content": SYSTEM},
+            {"role": "user", "content": json.dumps(facts, ensure_ascii=False)},
+        ],
+        "response_format": {"type": "json_object"},
+        "reasoning_effort": "low",
+        # `max_tokens` is the old name and these models refuse it.
+        # Four detailed paragraphs plus per-finding pairs plus low-effort
+        # reasoning all draw from this one budget.
+        "max_completion_tokens": 6000,
+    }
+
+    def post(payload: dict) -> dict:
+        request = urllib.request.Request(
+            OPENAI_URL,
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+        )
+        with urllib.request.urlopen(request, timeout=90) as response:
+            return json.loads(response.read())
+
+    try:
+        reply = post(body)
+    except urllib.error.HTTPError as error:
+        detail = error.read()[:400].decode(errors="replace")
+        if error.code == 400 and "reasoning_effort" in detail:
+            reply = post({k: v for k, v in body.items() if k != "reasoning_effort"})
+        else:
+            raise urllib.error.HTTPError(error.url, error.code, detail, error.hdrs, None)
+
+    reply_body = json.loads(_content(reply))
+    points = []
+    for p in reply_body.get("points", []):
+        if isinstance(p, dict):
+            title = _tidy(str(p.get("title", "")))[:MAX_TITLE]
+            detail = _tidy(str(p.get("detail", "")))[:MAX_DETAIL]
+        else:
+            # A flat sentence from an older-shaped reply is a title with no
+            # depth, kept rather than dropped for the usual reason: strict
+            # parsing here fails as silence.
+            title, detail = _tidy(str(p))[:MAX_TITLE], ""
+        if title:
+            points.append({"title": title, "detail": detail})
+        if len(points) == MAX_POINTS:
+            break
+
+    allowed = known_codes(facts)
+    fixes = _parse_fixes(reply_body.get("fixes", {}), allowed)
+
+    # Coverage is a rule, not a request. The model reliably covers a subset of
+    # the findings per call, and which subset varies call to call, so every
+    # skipped code fell back to the gate's line and the section read as
+    # untouched by the layer that was supposed to write it. One focused
+    # follow-up asks for exactly the codes the first reply skipped; anything
+    # still missing after that falls back as before, but the common case now
+    # lands complete.
+    missing = allowed - set(fixes)
+    if missing:
+        follow = dict(body)
+        follow["messages"] = [
+            {"role": "system", "content": SYSTEM},
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "findings": _findings_for(facts, missing),
+                        "instruction": "Return a fixes entry for EVERY code "
+                        'above. Set points to [].',
+                    },
+                    ensure_ascii=False,
+                ),
+            },
+        ]
+        try:
+            more = json.loads(_content(post(follow)))
+            fixes.update(_parse_fixes(more.get("fixes", {}), missing))
+        except Exception:  # noqa: BLE001 - partial coverage beats no advice
+            pass
+    return {"points": points, "fixes": fixes}
+
+
+def maybe_coach(api: str, sub_id: str, call) -> str:
+    """Generate and store advice for one submission. Returns a one-line outcome.
+
+    ``call`` is the worker's own API helper, passed in rather than imported, so
+    tests hand a fake and the transport stays in one place.
+    """
+    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not key:
+        return "coach: skipped, no OPENAI_API_KEY"
+
+    try:
+        record = call(api, f"/api/submissions/{sub_id}/for-worker", {})
+    except Exception as error:  # noqa: BLE001 - advice must never break a gate
+        return f"coach: could not read the record ({type(error).__name__})"
+
+    facts = digest(record)
+    if len(facts) <= 2:  # benchmark + intake alone: nothing worth interpreting
+        return "coach: skipped, no finished checks to read"
+
+    try:
+        advice = ask(facts, key=key)
+    except urllib.error.HTTPError as error:
+        detail = ""
+        try:
+            detail = error.read()[:200].decode(errors="replace")
+        except Exception:  # noqa: BLE001
+            pass
+        return f"coach: openai refused ({error.code}) {detail}"
+    except Exception as error:  # noqa: BLE001
+        return f"coach: openai call failed ({type(error).__name__}: {error})"
+
+    if not advice["points"] and not advice["fixes"]:
+        return "coach: model returned nothing usable, stored nothing"
+
+    try:
+        call(
+            api,
+            f"/api/submissions/{sub_id}/coach",
+            {"points": advice["points"], "fixes": advice["fixes"], "model": MODEL},
+        )
+    except Exception as error:  # noqa: BLE001
+        return f"coach: could not store the advice ({type(error).__name__})"
+    return f"coach: stored {len(advice['points'])} point(s), {len(advice['fixes'])} finding note(s)"

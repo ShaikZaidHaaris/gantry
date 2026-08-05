@@ -6,7 +6,7 @@ skipped and routinely worth more than the answer people go looking for.
 
 In this project's own benchmark, changing how many actions of each predicted
 chunk were executed before re-planning moved a fixed policy on fixed data by
-fourteen points — no retraining, no collection, no new demonstrations. Nobody
+fourteen points -- no retraining, no collection, no new demonstrations. Nobody
 had a module for it, so it was found by hand and could easily not have been.
 
 How it works
@@ -23,7 +23,7 @@ Anything where the comparison would not mean what it looks like. Cohorts that
 differ in policy or evaluator as well as protocol are not a protocol sweep, they
 are a confound, and reporting a winner would attribute to the setting whatever
 the other difference did. Cohorts carrying no protocol at all are not a sweep
-either — that is a run that never recorded how it was executed.
+either -- that is a run that never recorded how it was executed.
 """
 
 from __future__ import annotations
@@ -94,11 +94,7 @@ def varying(arms: Sequence[Arm]) -> tuple[str, ...]:
     """Protocol keys that differ across the arms."""
     keys = {key for arm in arms for key in arm.protocol}
     return tuple(
-        sorted(
-            key
-            for key in keys
-            if len({repr(arm.protocol.get(key)) for arm in arms}) > 1
-        )
+        sorted(key for key in keys if len({repr(arm.protocol.get(key)) for arm in arms}) > 1)
     )
 
 
@@ -144,7 +140,16 @@ class ProtocolSweep(FeedbackModule):
 
     def descriptor(self) -> Descriptor:
         return feedback_descriptor(
-            "protocol", VERSION, min_cohorts=2, prescribes=True, levers=list(self.levers)
+            "protocol",
+            VERSION,
+            min_cohorts=2,
+            prescribes=True,
+            # A sweep where the policy also changed is measuring the policy.
+            # Declared rather than hand-checked: the base contract verifies it
+            # from provenance for every module that declares it, so this one
+            # stopped carrying its own copy of the logic.
+            holds=HELD,
+            levers=list(self.levers),
         )
 
     def requirement(self) -> Requirement:
@@ -177,29 +182,7 @@ class ProtocolSweep(FeedbackModule):
                     hint="the evaluator should record how it executed the run",
                 )
             )
-        held = self._confounded(cohorts)
-        if held:
-            checks.append(
-                Verdict.no(
-                    "protocol.confounded",
-                    f"the cohorts differ on {', '.join(held)} as well as protocol",
-                    hint="a sweep where the policy also changed measures the policy",
-                    planes=list(held),
-                )
-            )
         return Verdict.all(checks)
-
-    @staticmethod
-    def _confounded(cohorts: Sequence[Cohort]) -> tuple[str, ...]:
-        differing = []
-        for plane in HELD:
-            refs = {
-                (c.provenance.component(plane).ref if c.provenance and c.provenance.component(plane) else None)
-                for c in cohorts
-            }
-            if len(refs) > 1:
-                differing.append(plane)
-        return tuple(differing)
 
     def analyse(self, cohorts: Sequence[Cohort]) -> Report:
         arms = [arm for arm in (_arm(c) for c in cohorts) if arm is not None]
@@ -223,8 +206,9 @@ class ProtocolSweep(FeedbackModule):
                 "no protocol lever varies across these cohorts, so there is nothing to "
                 "sweep; they were run the same way"
             )
-            return Report("protocol", (), measurements, tuple(notes),
-                          tuple(c.name for c in cohorts))
+            return Report(
+                "protocol", (), measurements, tuple(notes), tuple(c.name for c in cohorts)
+            )
         if len(swept) > 1:
             notes.append(
                 f"{len(swept)} levers vary at once ({', '.join(swept)}), so a winner "
@@ -234,11 +218,10 @@ class ProtocolSweep(FeedbackModule):
         ranked = sorted(arms, key=lambda arm: arm.rate, reverse=True)
         best, worst = ranked[0], ranked[-1]
         findings = [self._verdict(best, worst, swept, len(swept) == 1)]
-        notes.append(
-            "ranked by success rate; every arm ran the same policy on the same task"
+        notes.append("ranked by success rate; every arm ran the same policy on the same task")
+        return Report(
+            "protocol", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
         )
-        return Report("protocol", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
 
     def _verdict(self, best: Arm, worst: Arm, swept: Sequence[str], single: bool) -> Finding:
         gain = best.rate - worst.rate
@@ -275,10 +258,15 @@ class ProtocolSweep(FeedbackModule):
                 f"{gain:+.1%} over {worst.name}; {comparison}"
             ),
             severity="strong" if gain >= 0.05 and single else "weak",
-            measurements={best.name: Measurement(
-                best.rate, n=best.n, ci=wilson(sum(best.outcomes), best.n),
-                units="fraction", method="wilson",
-            )},
+            measurements={
+                best.name: Measurement(
+                    best.rate,
+                    n=best.n,
+                    ci=wilson(sum(best.outcomes), best.n),
+                    units="fraction",
+                    method="wilson",
+                )
+            },
             evidence=evidence,
             prescription=(
                 f"Run at {setting}. It costs nothing: same policy, same data, "

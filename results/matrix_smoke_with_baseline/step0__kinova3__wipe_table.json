@@ -1,0 +1,18 @@
+{
+  "checkpoint": "step0",
+  "arm": "kinova3",
+  "task": "wipe_table",
+  "trials": 1,
+  "execute": 16,
+  "horizon": 8,
+  "smoke": "horizon cut from 300 to 8 and 1 trial(s): this cell proves the path runs, it does not measure the policy",
+  "retargeter": "gripper_aperture:Robotiq85Gripper->PandaGripper",
+  "retargeter_losses": [
+    "reads Robotiq85Gripper as a fraction of its own travel and rebuilds that fraction on PandaGripper",
+    "keeps only how far open the hand is; finger count, finger kinematics and the geometry of where it contacts an object do not cross",
+    "grip force and contact state are not represented at either end"
+  ],
+  "status": "refused",
+  "reason": "ConfigError: Wipe will not host this configuration: Tried to specify gripper other than WipingGripper in Wipe environment!",
+  "seconds": 0.0
+}

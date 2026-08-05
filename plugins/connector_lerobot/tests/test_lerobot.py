@@ -12,10 +12,9 @@ import json
 from pathlib import Path
 
 import numpy as np
-import pyarrow as pa
-import pyarrow.parquet as pq
 import pytest
 from gantry_connector_lerobot import SUGGESTED_SEMANTICS, LeRobotConnector
+from gantry_connector_lerobot.testing import build_dataset
 
 from gantry.conformance import check_connector
 from gantry.errors import ConfigError
@@ -23,82 +22,6 @@ from gantry.errors import ConfigError
 #: A real dataset, when the machine happens to have one.
 REAL = Path("/tmp/gantry-real/lift_lerobot/ph")
 real_only = pytest.mark.skipif(not REAL.exists(), reason="no real LeRobot dataset present")
-
-
-def build_dataset(root: Path, *, episodes: int = 3, steps: int = 12, version: str = "v2.1") -> Path:
-    """Write a dataset in the layout the format actually ships."""
-    (root / "meta").mkdir(parents=True, exist_ok=True)
-    (root / "data" / "chunk-000").mkdir(parents=True, exist_ok=True)
-
-    (root / "meta" / "info.json").write_text(
-        json.dumps(
-            {
-                "codebase_version": version,
-                "robot_type": "franka",
-                "total_episodes": episodes,
-                "fps": 20,
-                "chunks_size": 1000,
-                "data_path": "data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet",
-                "video_path": "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4",
-                "features": {
-                    "observation.images.top": {
-                        "dtype": "video",
-                        "shape": [128, 128, 3],
-                        "names": ["height", "width", "rgb"],
-                    },
-                    "observation.state": {
-                        "dtype": "float32",
-                        "shape": [4],
-                        "names": {"motors": ["x", "y", "z", "gripper"]},
-                    },
-                    "action": {
-                        "dtype": "float32",
-                        "shape": [7],
-                        "names": {
-                            "motors": [
-                                "x", "y", "z",
-                                "axis_angle1", "axis_angle2", "axis_angle3",
-                                "gripper",
-                            ]
-                        },
-                    },
-                    "timestamp": {"dtype": "float32", "shape": [1], "names": None},
-                    "frame_index": {"dtype": "int64", "shape": [1], "names": None},
-                    "episode_index": {"dtype": "int64", "shape": [1], "names": None},
-                    "index": {"dtype": "int64", "shape": [1], "names": None},
-                    "task_index": {"dtype": "int64", "shape": [1], "names": None},
-                },
-            }
-        )
-    )
-    (root / "meta" / "tasks.jsonl").write_text(
-        json.dumps({"task_index": 0, "task": "lift the cube"}) + "\n"
-    )
-    (root / "meta" / "episodes.jsonl").write_text(
-        "".join(
-            json.dumps({"episode_index": i, "tasks": ["lift the cube"], "length": steps}) + "\n"
-            for i in range(episodes)
-        )
-    )
-    rng = np.random.default_rng(0)
-    for index in range(episodes):
-        table = pa.table(
-            {
-                "observation.state": pa.array(
-                    rng.normal(size=(steps, 4)).tolist(), pa.list_(pa.float32(), 4)
-                ),
-                "action": pa.array(
-                    rng.normal(size=(steps, 7)).tolist(), pa.list_(pa.float32(), 7)
-                ),
-                "timestamp": pa.array(np.arange(steps) / 20.0, pa.float32()),
-                "frame_index": pa.array(np.arange(steps), pa.int64()),
-                "episode_index": pa.array([index] * steps, pa.int64()),
-                "index": pa.array(np.arange(steps), pa.int64()),
-                "task_index": pa.array([0] * steps, pa.int64()),
-            }
-        )
-        pq.write_table(table, root / "data" / "chunk-000" / f"episode_{index:06d}.parquet")
-    return root
 
 
 @pytest.fixture
@@ -122,15 +45,19 @@ def test_the_schema_comes_from_the_declared_features(dataset):
 
 
 def test_the_frame_rate_is_carried_through(dataset):
-    assert all(
-        spec.rate_hz == 20.0 for spec in LeRobotConnector(dataset).schema("episode_000000")
-    )
+    assert all(spec.rate_hz == 20.0 for spec in LeRobotConnector(dataset).schema("episode_000000"))
 
 
 def test_per_dimension_names_become_labels(dataset):
     schema = {spec.name: spec for spec in LeRobotConnector(dataset).schema("episode_000000")}
     assert schema["action"].dim_labels == (
-        "x", "y", "z", "axis_angle1", "axis_angle2", "axis_angle3", "gripper",
+        "x",
+        "y",
+        "z",
+        "axis_angle1",
+        "axis_angle2",
+        "axis_angle3",
+        "gripper",
     )
 
 
@@ -265,15 +192,70 @@ def test_a_real_episode_has_the_shape_the_metadata_promised():
 
 
 @real_only
-def test_a_real_dataset_with_duplicate_dimension_names_drops_them():
+@real_only
+def test_duplicate_names_in_info_json_are_rescued_by_the_modality_sidecar():
     """Found in genuine data: the state names end ('gripper', 'gripper').
 
-    A repeated label cannot address a dimension, so keeping it would offer an
-    addressing scheme that silently resolves two columns to one.
+    A repeated label cannot address a dimension, so ``info.json``'s list is
+    unusable. The same dataset's ``modality.json`` says the gripper spans
+    columns 6 to 8, which is unambiguous, so the columns end up addressable
+    after all -- numbered, because two columns are two dimensions.
     """
     connector = LeRobotConnector(REAL)
     schema = {spec.name: spec for spec in connector.schema(connector.episode_ids()[0])}
     names = connector.info["features"]["observation.state"]["names"]["motors"]
-    assert len(names) != len(set(names))
-    assert schema["observation.state"].dim_labels is None
+    assert len(names) != len(set(names)), "info.json alone could not address these"
+    assert schema["observation.state"].dim_labels == (
+        "x",
+        "y",
+        "z",
+        "roll",
+        "pitch",
+        "yaw",
+        "gripper.0",
+        "gripper.1",
+    )
     assert schema["action"].dim_labels is not None
+
+
+def test_without_a_sidecar_duplicate_names_are_still_dropped(dataset):
+    """The rescue is the sidecar's doing, not a new tolerance for ambiguity."""
+    info = json.loads((dataset / "meta" / "info.json").read_text())
+    info["features"]["observation.state"]["names"] = {"motors": ["a", "b", "c", "c"]}
+    (dataset / "meta" / "info.json").write_text(json.dumps(info))
+    assert not (dataset / "meta" / "modality.json").exists()
+    schema = {s.name: s for s in LeRobotConnector(dataset).schema("episode_000000")}
+    assert schema["observation.state"].dim_labels is None
+
+
+def test_a_sidecar_that_does_not_tile_the_width_is_ignored(dataset):
+    """A partial description would mislabel every dimension after the hole.
+
+    Ignored means ignored, not fatal: info.json's names are still there and
+    still usable in this fixture, so the channel keeps those.
+    """
+    (dataset / "meta" / "modality.json").write_text(
+        json.dumps({"state": {"x": {"start": 0, "end": 1}, "z": {"start": 2, "end": 4}}})
+    )
+    schema = {s.name: s for s in LeRobotConnector(dataset).schema("episode_000000")}
+    assert schema["observation.state"].dim_labels == ("x", "y", "z", "gripper")
+
+
+def test_a_bad_sidecar_leaves_nothing_when_info_json_is_no_better(dataset):
+    """Both sources unusable is the case where a channel has no labels at all."""
+    info = json.loads((dataset / "meta" / "info.json").read_text())
+    info["features"]["observation.state"]["names"] = {"motors": ["a", "b", "c", "c"]}
+    (dataset / "meta" / "info.json").write_text(json.dumps(info))
+    (dataset / "meta" / "modality.json").write_text(
+        json.dumps({"state": {"x": {"start": 0, "end": 1}, "z": {"start": 2, "end": 4}}})
+    )
+    schema = {s.name: s for s in LeRobotConnector(dataset).schema("episode_000000")}
+    assert schema["observation.state"].dim_labels is None
+
+
+def test_a_sidecar_tiling_the_width_names_every_element(dataset):
+    (dataset / "meta" / "modality.json").write_text(
+        json.dumps({"state": {"pos": {"start": 0, "end": 3}, "grip": {"start": 3, "end": 4}}})
+    )
+    schema = {s.name: s for s in LeRobotConnector(dataset).schema("episode_000000")}
+    assert schema["observation.state"].dim_labels == ("pos.0", "pos.1", "pos.2", "grip")

@@ -43,20 +43,38 @@ demonstrations succeed.** Sixteen percent.
 
 ## The idea
 
-Seven planes, each an independent axis of variation. A plugin implements one contract, declares
+Ten planes, each an independent axis of variation. A plugin implements one contract, declares
 what it needs and what it provides, and never learns anything about the others.
 
 | Plane | What it is | Shipped |
 |---|---|---|
 | `dataset` | where episodes come from | `lerobot` · `robomimic` · `csv` · `evallog` |
+| `task` | what is being attempted, and how anyone decides it was done | `declared` |
+| `curation` | what to do to the data, said precisely enough to be wrong | `labels` · `collect` |
+| `scorer` | who decides whether a trial succeeded, and on what evidence | `machine` · `human` |
 | `policy` | anything that turns observations into actions | `gr00t` · `served` · `replay` · `constant` · `noisy_replay` |
-| `evaluation` | running a policy and recording what happened | `gym` · `offline` · `waypoint` |
-| `feedback` | records in, findings out | `screen` · `funnel` · `attribution` · `harden` · `protocol` |
-| `embodiment` | what a robot is, physically | *(contract only)* |
+| `evaluation` | running a policy and recording what happened | `robosuite` · `libero` · `gym` · `offline` · `waypoint` |
+| `feedback` | records in, findings out | `screen` · `compare` · `funnel` · `attribution` · `harden` · `protocol` · `verify` · `power` · `rank` · `calibrate` |
+| `embodiment` | what a robot is, physically | `declared` |
 | `adapter` | one correct answer: units, rates, rotations | `unit_convert` · `resample` · `rotation` · `permute` |
 | `retargeter` | declared-judgement conversions between bodies | `pose_to_position` |
 
 Planes are themselves a registry: a plugin can add one without editing core.
+
+**Any plane can be the axis.** A manifest names one component per plane and says
+which one varies. Three datasets under one policy and three policies in one world
+are the same shape of question, so `varies` is a field rather than an assumption:
+
+```json
+{ "varies": "policy",
+  "cohorts": { "ph": {"name": "gr00t", …}, "mg": {"name": "gr00t", …} },
+  "dataset": {"name": "robomimic", …}, "evaluation": {"name": "robosuite"} }
+```
+
+Whatever varies is the one thing not held. A feedback module declares the mirror
+image with `holds`, and the two are checked against each other from provenance —
+so a comparison that claims to measure the data, while the policy also changed,
+is refused rather than reported.
 
 ## What makes it different
 
@@ -101,6 +119,172 @@ Nothing was retrained. How much of a predicted action chunk gets executed before
 is one of the largest levers on a measured result and the one most often left implicit, so it
 lives in the record with everything else that changes an answer.
 
+## Tasks are files, not code
+
+A task says what is being attempted, where things start, and what counts as done —
+naming no robot and no simulator:
+
+```json
+{ "name": "lift_cube",
+  "instruction": "lift the cube off the table",
+  "objects": [{"id": "cube", "kind": "cube_20mm",
+               "start": {"surface": "table", "x": [-0.03, 0.03], "y": [-0.03, 0.03]}}],
+  "success": [{"check": "lifted", "args": {"object": "cube", "height": 0.04},
+               "rubric": "The cube is clear of the table by at least 4 cm and held in
+                          the gripper. A cube nudged off the edge does not count."}],
+  "staging": {"robosuite": {"env_name": "Lift", "places": {"cube": "cube"}}} }
+```
+
+**Every success criterion is written twice** — once machine-checkable, once as a rubric
+precise enough that two people watching a video agree. A criterion with no rubric is
+refused. In simulation success is a free, exact pose check; on a real bench it is a person
+watching, and the rubric is the part that survives the move. The 14 tasks in
+`manifests/tasks/` are all scorable by hand today, with no simulator.
+
+**The rectangle in the file is the rectangle in the simulator.** A `start` region becomes
+robosuite's placement sampler, so the numbers you would tape onto a real table are the ones
+that ran:
+
+```
+lift_cube        file says x=[-0.03, 0.03]   sim gives x=[-0.030, +0.030]
+lift_cube_wide   file says x=[-0.10, 0.10]   sim gives x=[-0.092, +0.096]
+```
+
+Same file, six bodies — Panda, Sawyer, IIWA, Kinova3, Jaco, UR5e — each rebuilt around its
+own measured description, none of them normalised to a shared one.
+
+And where a world *cannot* be driven from a file, it says so instead of pretending. Some
+robosuite environments build their own layout and discard the one they are handed; that is
+detected by checking the sampler survived, not by a list of environment names, so an
+environment added later is judged on what it does:
+
+```
+pick_place_can   REFUSED: PickPlaceCan exposes no surface origin …
+hang_tool        REFUSED: ToolHang takes no placement at all …
+```
+
+## Curation: telling you what to do to the data
+
+The other eight planes describe or measure. This one **prescribes** — and every
+prescription is an object that can turn out to be wrong:
+
+```
+[labels@screening] drop 1256 -> success_rate +0.042
+```
+
+That plan says which episodes, from which signal, at what claim strength, and
+**what it predicts**. Then it gets tested rather than believed:
+
+```
+20 trials  -> refused: separating +0.042 from a 35% baseline needs about 66 paired trials
+200 trials -> proceed
+
+curation.verified  observed +0.400 over 20 shared scenes (won 8, lost 0, p=0.0078)
+```
+
+Prescriptions also cover data that does not exist yet. A failed rollout is a
+seed, a seed re-stages the scene exactly, and the task's region is the same
+rectangle on a simulated table or a real one — so "collect more data" becomes a
+work order:
+
+```
+collect 5 x lift_cube, from 5 failed scene(s)
+  seeds: (3000, 3001, 3002, 3003, 3004)
+  note : failed scenes sit toward the low end of x (median +0.068, over +0.060..+0.076)
+```
+
+**Proposing and judging are different planes on purpose.** Every curation method
+in the literature reports its own wins, because evaluation is normally too
+expensive to run twice. Here a curator proposes and the feedback plane judges,
+with three gates the published methods do not have:
+
+- **Leakage** — a signal that read rollouts to choose what to drop cannot be
+  scored on those same scenes. It declares the seeds it consumed; the overlap is
+  a refusal.
+- **Power** — a plan predicting +3pp verified on 20 trials is refused *before*
+  the retrain, not discovered after it.
+- **Selection** — the tenth plan from one signal faces a corrected threshold. The
+  same result that passes at p=0.031 on its first try is refuted as the best of
+  forty.
+
+Verdicts are kept either way, in a ledger addressed by content. After enough of
+them it answers a question nobody has published: **which curation signals
+actually work, on which tasks.**
+
+```
+  labels    2/3 held, median +0.120 when it did   [132 gpu-min]
+  deminf    0/1 held
+
+  lift_cube            held: labels    refuted: deminf
+  assemble_square_nut  held: -         refuted: labels
+```
+
+## The feedback layer
+
+Eight planes describe or measure, one prescribes. This is the one that decides
+what a measurement *means* — and the only part willing to say you cannot tell yet.
+
+**It refuses before the money is spent.** Sizing reads what a task has actually
+produced before, so the refusal carries a number:
+
+```
+20 trials for +0.05 -> REFUSED
+  separating a +0.050 change from a baseline of 61% needs about 55 paired
+  trials, and 20 are planned
+  hint: run 55, or ask about an effect this budget can see — at 20 that is +0.140
+```
+
+The baseline comes from history rather than from whoever is typing, because an
+invented rate produces an invented trial count and the invented count is always
+comfortably below the budget already planned.
+
+**It aggregates a matrix without letting one task decide.** IQM with a stratified
+bootstrap, a performance profile, and a compact letter display — and a refusal
+when the matrix is mostly floor:
+
+```
+mh_official 0.620 [a]; ph_official 0.370 [b]; mg_official 0.010 [c]
+  -> Use mh_official.
+
+[rank.mostly_floor] cohorts sit at the floor on more than half the shared tasks,
+  so an aggregate over all of them is decided by how many tasks were included
+  rather than by performance
+```
+
+**Judging is an axis, not a privilege.** The simulator's predicate used to *be*
+the definition of success, which made "would a person agree" unaskable. Now it is
+one scorer among several, and agreement between them is a measured quantity with
+consequences:
+
+```
+gantry annotate lift_cube --tasks manifests/tasks --videos runs/ -o score/
+# a person watches 12 videos with the rubric printed verbatim beside them
+gantry calibrate score/judgements.jsonl --machine score/machine.json --against machine
+
+[judge.calibrated] machine against zaid: kappa 0.833 over 12 settled judgements
+  (raw agreement 92%)
+  -> machine may stand in for zaid on this task family.
+```
+
+Below κ=0.67 the gate **refuses** that judge's findings rather than reporting them
+with a caveat, because a caveat gets dropped the first time somebody quotes the
+number. And chance correction is not optional: on a task solved 5% of the time,
+two judges who both say "failed" every time agree 95% of the time and have
+established nothing.
+
+**It gates every checkpoint.** `gantry ci` pairs a candidate against a pinned
+baseline and exits nonzero only on a significant drop — a gate that blocks on
+noise is switched off within a week and then protects nothing.
+
+```
+paired on 50 shared scene(s): won 5, lost 0, p=0.0625
+threshold p<0.0167 (3 run(s) recorded on this task)
+Up +10.0%.
+```
+
+The threshold tightens as a task accumulates runs, from the attempt count history
+keeps: the tenth checkpoint is not making the first one's claim.
+
 ## GR00T N1.7
 
 `plugins/policy_gr00t` speaks GR00T's inference protocol — ZeroMQ, msgpack — and **never
@@ -129,11 +313,11 @@ plausible numbers.
 ```
 src/gantry/          core — depends on numpy and nothing else
   spine/               what an episode, a run, a channel and a verdict are
-  contracts/           the five plane interfaces
+  contracts/           the ten plane interfaces
   conformance/         one kit per contract, returning verdicts, importing no test framework
   resolve/             binding, adapters, retargeters, requirements
   isolate.py           subprocess boundary for conflicting dependencies
-plugins/             16 plugins, each installable on its own
+plugins/             30 plugins, each installable on its own
 docs/                writing-a-plugin.md
 manifests/           a run described as a file, so it can be committed and diffed
 reference/           earlier implementations, kept to check this one against
@@ -143,8 +327,9 @@ ARCHITECTURE.md      the whole design, contracts first
 ## Testing
 
 ```bash
-python -m pytest                      # 271 core
-python -m pytest plugins/*/tests      # 474 across 16 plugins
+python -m pytest tests --ignore=tests/integration   # core alone, no plugins
+python -m pytest                                   # 285, plugins installed
+python -m pytest plugins/*/tests                   # 776 across 30 plugins
 python tools/isolation_check.py       # each plugin alone, in a fresh venv
 ```
 
@@ -154,7 +339,7 @@ never mentions and nobody finds out until someone installs it alone. This builds
 interpreter per plugin and installs only core, that plugin, and what it actually declares:
 
 ```
-16/16 plugins install and pass on their own
+30/30 plugins install and pass on their own
 ```
 
 CI runs core on four Python versions with no plugin present, every plugin in isolation, and
@@ -162,12 +347,14 @@ everything together.
 
 ## Status
 
-Working: the seven planes, 16 plugins, 745 tests. Verified against real LeRobot and RoboMimic
-data, and against a GR00T server over its real protocol.
+Working: the ten planes, 30 plugins, 1063 tests. Verified against real LeRobot and
+RoboMimic data; against a GR00T N1.7 checkpoint fine-tuned on this data and served over its
+real protocol; and in closed loop against MuJoCo, where replaying recorded actions into the
+rebuilt world lifts the cube 3/3, which is the check that proves the wiring rather than
+asserting it.
 
-Not done: no large-scale training run has been evaluated end to end yet — that needs a
-checkpoint and a box big enough to fine-tune on. The embodiment plane has a contract and no
-shipped implementation.
+Thin: evaluations so far are tens of trials, not hundreds. A fine-tune that freezes the
+diffusion head proves the pipeline and is not a capability result.
 
 ## License
 

@@ -1,0 +1,28 @@
+{
+  "start": 0,
+  "stop": 12,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    9,
+    11
+  ],
+  "instructions": {
+    "0": "Lift both the long thin bottle and the medium green bottle bottles.",
+    "1": "Hold the hand-sized soda bottle and the smooth green plastic bottle using both arms separately.",
+    "2": "Grab the bottles the medium dark brown bottle and the medium green bottle with capped neck.",
+    "3": "Hold the red-capped bottle and the medium green bottle with capped neck, one in each hand.",
+    "4": "Pick up the long thin bottle and the bottle with rounded neck using separate hands.",
+    "6": "Pick the dark drink bottle with logo first and then the medium-sized green bottle.",
+    "7": "Lift the dark drink bottle with logo and the smooth green plastic bottle together with both hands.",
+    "8": "Take the medium dark brown bottle with one arm, hold the plastic bottle too.",
+    "9": "Grab the Coca-Cola bottle with one hand, then reach for the green bottle with indented base.",
+    "11": "Pick the red-capped bottle first and then the green bottle with indented base."
+  }
+}

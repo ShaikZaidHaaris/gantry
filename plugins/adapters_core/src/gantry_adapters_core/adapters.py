@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gantry.resolve import Adapter, AdapterRegistry
 from gantry.spine import ChannelSpec, Verdict, units
 
@@ -24,9 +25,7 @@ def _units_guard(source: ChannelSpec, target: ChannelSpec) -> Verdict:
         factor = units.conversion_factor(source.units, target.units)
     except units.UnknownUnitError as error:
         return Verdict.no("adapter.units_unconvertible", str(error))
-    return Verdict.note(
-        "adapter.units_factor", f"{source.units} -> {target.units} is x{factor:g}"
-    )
+    return Verdict.note("adapter.units_factor", f"{source.units} -> {target.units} is x{factor:g}")
 
 
 def convert_units(values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.ndarray:

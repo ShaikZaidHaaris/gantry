@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import zmq
 from gantry_policy_gr00t import Client, Codec, Endpoint
-from server import FakeServer, modality_payload
+from gantry_policy_gr00t.testing import FakeServer, modality_payload
 
 from gantry.errors import ComponentError, ConfigError
 

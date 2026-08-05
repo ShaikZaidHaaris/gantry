@@ -70,9 +70,7 @@ class RunRecord:
     def validate(self, deep: bool = False) -> Verdict:
         checks = [episode.validate(deep=deep) for episode in self.episodes]
         if not self.episodes:
-            checks.append(
-                Verdict.note("run.empty", f"run {self.digest} contains no episodes")
-            )
+            checks.append(Verdict.note("run.empty", f"run {self.digest} contains no episodes"))
         uids = [episode.meta.uid for episode in self.episodes]
         duplicates = {uid for uid in uids if uids.count(uid) > 1}
         if duplicates:
@@ -125,9 +123,7 @@ class RunSet:
         for run in self.runs[1:]:
             if not first.comparable_to(run.provenance, holding):
                 differing = [
-                    plane
-                    for plane in holding
-                    if not first.comparable_to(run.provenance, [plane])
+                    plane for plane in holding if not first.comparable_to(run.provenance, [plane])
                 ]
                 return Verdict.no(
                     "runset.incomparable",

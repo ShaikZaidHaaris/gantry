@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-scorer-human"
+version = "0.1.0.dev0"
+description = "A person watches the video and reads the rubric; their answer is the label"
+requires-python = ">=3.10"
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+# Rendering episode frames into a video a person can watch. An extra, because
+# reading somebody's recorded judgements back needs no decoder at all.
+video = ["av>=10"]
+
+[project.entry-points."gantry.scorers"]
+human = "gantry_scorer_human:HumanScorer"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,47 @@
+{
+  "name": "lift_cube_wide",
+  "instruction": "lift the cube off the table",
+  "surfaces": [
+    "table"
+  ],
+  "objects": [
+    {
+      "id": "cube",
+      "kind": "cube_20mm",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.1,
+          0.1
+        ],
+        "y": [
+          -0.1,
+          0.1
+        ]
+      }
+    }
+  ],
+  "success": [
+    {
+      "check": "lifted",
+      "args": {
+        "object": "cube",
+        "height": 0.04
+      },
+      "rubric": "The cube is clear of the table by at least 4 cm and held in the gripper. A cube nudged off the edge or dropped immediately does not count."
+    }
+  ],
+  "horizon": 300,
+  "trials": 20,
+  "staging": {
+    "robosuite": {
+      "env_name": "Lift",
+      "places": {
+        "cube": "cube"
+      }
+    }
+  },
+  "metadata": {
+    "note": "Same task as lift_cube over a start region three times wider. A policy that scores well here and not there has learned the task; one that scores well there and not here has learned a position."
+  }
+}

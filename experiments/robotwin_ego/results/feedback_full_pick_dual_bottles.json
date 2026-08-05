@@ -1,0 +1,307 @@
+{
+  "task": "pick_dual_bottles",
+  "cohorts": {
+    "data": [
+      {
+        "arm": "ego",
+        "episodes": 18
+      },
+      {
+        "arm": "shuffled",
+        "episodes": 18
+      },
+      {
+        "arm": "two_handed",
+        "episodes": 58
+      },
+      {
+        "arm": "one_handed",
+        "episodes": 58
+      }
+    ],
+    "outcome": [
+      {
+        "arm": "base",
+        "wins": 12,
+        "scored": 100
+      },
+      {
+        "arm": "ego",
+        "wins": 0,
+        "scored": 10
+      },
+      {
+        "arm": "shuffled",
+        "wins": 0,
+        "scored": 10
+      }
+    ]
+  },
+  "results": [
+    {
+      "module": "attribution",
+      "side": "outcome",
+      "abstained": false,
+      "measurements": {
+        "base.episode_length": "-1 (n=100)"
+      },
+      "findings": [
+        {
+          "code": "attribution.context",
+          "severity": "info",
+          "summary": "base: episode_length separates success from failure (delta=-1.00, q=0) \u2014 context only",
+          "prescription": null
+        }
+      ]
+    },
+    {
+      "module": "capture",
+      "side": "data",
+      "abstained": false,
+      "measurements": {
+        "ego.instructions": "7 (n=18)",
+        "shuffled.instructions": "7 (n=18)",
+        "two_handed.instructions": "1 (n=58)",
+        "one_handed.instructions": "1 (n=58)"
+      },
+      "findings": [
+        {
+          "code": "capture.one_instruction",
+          "severity": "strong",
+          "summary": "two_handed: 1 distinct instruction(s) across 58 clips",
+          "prescription": "Describe each clip by what was actually done in it, rather than reusing one sentence for the whole upload. A language-conditioned policy trains on the sentence. One sentence everywhere means the language carries no information."
+        },
+        {
+          "code": "capture.one_instruction",
+          "severity": "strong",
+          "summary": "one_handed: 1 distinct instruction(s) across 58 clips",
+          "prescription": "Describe each clip by what was actually done in it, rather than reusing one sentence for the whole upload. A language-conditioned policy trains on the sentence. One sentence everywhere means the language carries no information."
+        }
+      ]
+    },
+    {
+      "module": "compare",
+      "side": "outcome",
+      "abstained": false,
+      "measurements": {
+        "base.success_rate": "0.12 fraction [0.0699941, 0.198121] (n=100)",
+        "ego.success_rate": "0 fraction [0, 0.277533] (n=10)",
+        "shuffled.success_rate": "0 fraction [0, 0.277533] (n=10)"
+      },
+      "findings": [
+        {
+          "code": "compare.best_policy",
+          "severity": "weak",
+          "summary": "base solved 12.0% and shuffled 0.0%, +12.0%; paired on 10 shared scenes: won 3, lost 0, agreed on 7, p=0.25",
+          "prescription": null
+        }
+      ]
+    },
+    {
+      "module": "control",
+      "side": "outcome",
+      "abstained": false,
+      "measurements": {
+        "base.success_rate": "0.12 fraction [0.0699941, 0.198121] (n=100)",
+        "ego.success_rate": "0 fraction [0, 0.277533] (n=10)",
+        "shuffled.success_rate": "0 fraction [0, 0.277533] (n=10)",
+        "ego_vs_shuffled": "1 (n=20)",
+        "ego_vs_base": "0.298596 (n=20)",
+        "shuffled_vs_base": "0.298596 (n=20)"
+      },
+      "findings": [
+        {
+          "code": "control.not_separated",
+          "severity": "weak",
+          "summary": "the data (0%) and its shuffled control (0%) are not separated at this number of trials, so the data has not been shown to carry information",
+          "prescription": "Either the data carries little, or there are too few trials to tell. The power module says which \u2014 and reporting the larger number here would be reporting noise with a decimal point on it."
+        },
+        {
+          "code": "control.fine_tuning_effect",
+          "severity": "info",
+          "summary": "base 12%, shuffled 0%, ego 0%",
+          "prescription": "Report all three. A two-arm table showing base against ego is the table that would have been reported as a data result no matter what the data contained."
+        }
+      ]
+    },
+    {
+      "module": "coverage",
+      "side": "data",
+      "abstained": false,
+      "measurements": {},
+      "findings": [
+        {
+          "code": "coverage.no_task_list",
+          "severity": "info",
+          "summary": "no evaluation task list was supplied, so whether this data is about what is being measured cannot be assessed",
+          "prescription": "Pass the instructions the benchmark evaluates. Without them a low delta cannot be told apart from a task mismatch, and reporting one as the other is the most unfair thing this pipeline can do."
+        }
+      ]
+    },
+    {
+      "module": "extraction",
+      "side": "data",
+      "abstained": false,
+      "measurements": {},
+      "findings": [
+        {
+          "code": "extraction.healthy",
+          "severity": "info",
+          "summary": "every measured extraction stage for ego is above its floor; the limit on this dataset is the footage rather than the pipeline",
+          "prescription": null
+        },
+        {
+          "code": "extraction.healthy",
+          "severity": "info",
+          "summary": "every measured extraction stage for shuffled is above its floor; the limit on this dataset is the footage rather than the pipeline",
+          "prescription": null
+        },
+        {
+          "code": "extraction.healthy",
+          "severity": "info",
+          "summary": "every measured extraction stage for two_handed is above its floor; the limit on this dataset is the footage rather than the pipeline",
+          "prescription": null
+        },
+        {
+          "code": "extraction.healthy",
+          "severity": "info",
+          "summary": "every measured extraction stage for one_handed is above its floor; the limit on this dataset is the footage rather than the pipeline",
+          "prescription": null
+        }
+      ]
+    },
+    {
+      "module": "funnel",
+      "side": "outcome",
+      "abstained": false,
+      "measurements": {},
+      "findings": []
+    },
+    {
+      "module": "harden",
+      "side": "outcome",
+      "abstained": false,
+      "measurements": {},
+      "findings": []
+    },
+    {
+      "module": "power",
+      "side": "outcome",
+      "abstained": false,
+      "measurements": {
+        "base.success_rate": "0.12 fraction [0.0699941, 0.198121] (n=100)",
+        "ego.success_rate": "0 fraction [0, 0.277533] (n=10)",
+        "shuffled.success_rate": "0 fraction [0, 0.277533] (n=10)"
+      },
+      "findings": [
+        {
+          "code": "power.underpowered",
+          "severity": "weak",
+          "summary": "ego: 10 scored trial(s) at 0% could separate an effect of about +0.275; a +0.100 claim needs about 28",
+          "prescription": "Run 28 trials before reading this as a comparison, or state the claim at +0.275 where the evidence supports it."
+        },
+        {
+          "code": "power.underpowered",
+          "severity": "weak",
+          "summary": "shuffled: 10 scored trial(s) at 0% could separate an effect of about +0.275; a +0.100 claim needs about 28",
+          "prescription": "Run 28 trials before reading this as a comparison, or state the claim at +0.275 where the evidence supports it."
+        }
+      ]
+    },
+    {
+      "module": "protocol",
+      "side": "outcome",
+      "abstained": true,
+      "reason": "refused\n  [feedback.nothing_held] protocol holds ['policy', 'evaluation'] fixed and no cohort has any, so these are recordings compared directly rather than runs\n  [protocol.unrecorded] no cohort carries a protocol, so there is no setting to compare (the evaluator should record how it executed the run)",
+      "codes": [
+        "feedback.nothing_held",
+        "protocol.unrecorded"
+      ]
+    },
+    {
+      "module": "provenance",
+      "side": "data",
+      "abstained": false,
+      "measurements": {
+        "two_handed.restriction": "0 (n=1)",
+        "one_handed.restriction": "0 (n=1)"
+      },
+      "findings": [
+        {
+          "code": "provenance.nothing_declared",
+          "severity": "strong",
+          "summary": "ego carries no licence information at all, so what it may be used for is unknown rather than unrestricted",
+          "prescription": "Every component that touches the data should record its licence, and the connectors here already do. An episode with none came from somewhere that does not, and that component is the one to find."
+        },
+        {
+          "code": "provenance.nothing_declared",
+          "severity": "strong",
+          "summary": "shuffled carries no licence information at all, so what it may be used for is unknown rather than unrestricted",
+          "prescription": "Every component that touches the data should record its licence, and the connectors here already do. An episode with none came from somewhere that does not, and that component is the one to find."
+        },
+        {
+          "code": "provenance.clean",
+          "severity": "info",
+          "summary": "two_handed is permissively licensed throughout (1 declaration(s)), so it may be used commercially",
+          "prescription": null
+        },
+        {
+          "code": "provenance.clean",
+          "severity": "info",
+          "summary": "one_handed is permissively licensed throughout (1 declaration(s)), so it may be used commercially",
+          "prescription": null
+        }
+      ]
+    },
+    {
+      "module": "rank",
+      "side": "outcome",
+      "abstained": false,
+      "measurements": {
+        "base.iqm": "0.12 [0.12, 0.12] (n=1)",
+        "ego.iqm": "0 [0, 0] (n=1)",
+        "shuffled.iqm": "0 [0, 0] (n=1)",
+        "base_beats_ego": "1 (n=1)",
+        "base_beats_shuffled": "1 (n=1)",
+        "ego_beats_shuffled": "0.5 (n=1)"
+      },
+      "findings": [
+        {
+          "code": "rank.mostly_floor",
+          "severity": "info",
+          "summary": "2 cohort(s) sit at the floor on more than half the shared tasks, so an aggregate over all of them is determined by how many tasks were included rather than by performance",
+          "prescription": "Report the tasks above the floor as a ranking and the rest as a zero-shot floor, separately. Averaging them produces one number that means neither thing."
+        },
+        {
+          "code": "rank.ordering",
+          "severity": "strong",
+          "summary": "base 0.120 [a]; ego 0.000 [b]; shuffled 0.000 [b] over 1 shared task(s)",
+          "prescription": "Use base."
+        }
+      ]
+    },
+    {
+      "module": "screen",
+      "side": "data",
+      "abstained": false,
+      "measurements": {
+        "ego.episode_length": "299 [297, 299] (n=18)",
+        "shuffled.episode_length": "299 [297, 299] (n=18)",
+        "two_handed.episode_length": "124 [122, 126] (n=58)",
+        "one_handed.episode_length": "124 [122, 126] (n=58)",
+        "ego.stages_reached": "0 [0, 0] (n=18)",
+        "shuffled.stages_reached": "0 [0, 0] (n=18)",
+        "two_handed.stages_reached": "0 [0, 0] (n=58)",
+        "one_handed.stages_reached": "0 [0, 0] (n=58)"
+      },
+      "findings": [
+        {
+          "code": "screen.separates",
+          "severity": "strong",
+          "summary": "episode_length separates the cohorts (q=9.61e-08, delta=+0.85)",
+          "prescription": null
+        }
+      ]
+    }
+  ]
+}

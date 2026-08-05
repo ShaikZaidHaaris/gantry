@@ -4,7 +4,7 @@ A retargeter maps one machine's channel onto another's, and most such maps need
 kinematics, a calibration, or someone's opinion. These two do not:
 
 **Dropping named dimensions.** A seven-jointed arm feeding a six-jointed
-consumer has to lose a joint, and *which* joint is a decision — so it is an
+consumer has to lose a joint, and *which* joint is a decision -- so it is an
 argument, not a guess. Once named, the transform is a selection and the loss is
 exactly the named columns.
 
@@ -12,8 +12,8 @@ exactly the named columns.
 in a stated encoding. Keeping the leading three numbers is unambiguous, and what
 is discarded is the whole orientation.
 
-Everything harder — joint angles to an end-effector pose, one gripper's opening
-onto another's — needs a model of the machine and belongs with whoever owns that
+Everything harder -- joint angles to an end-effector pose, one gripper's opening
+onto another's -- needs a model of the machine and belongs with whoever owns that
 machine. This package deliberately stops here rather than shipping a plausible
 approximation, because a retargeter that is *nearly* right produces motion that
 looks reasonable and is wrong.
@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Sequence
 
 import numpy as np
+
 from gantry.contracts.embodiment import Retargeter
 from gantry.spine import ChannelSpec, Verdict
 
@@ -67,9 +68,7 @@ class DropDimensions(Retargeter):
         if source.dim_labels is None:
             return None
         keep = [
-            index
-            for index, label in enumerate(source.dim_labels)
-            if label not in set(self._drop)
+            index for index, label in enumerate(source.dim_labels) if label not in set(self._drop)
         ]
         return tuple(keep)
 
@@ -112,9 +111,7 @@ class DropDimensions(Retargeter):
             "anything they carried is gone",
         )
 
-    def apply(
-        self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec
-    ) -> np.ndarray:
+    def apply(self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.ndarray:
         keep = self._indices(source)
         if keep is None:
             raise ValueError(f"{source.name!r} has no dimension labels")
@@ -154,8 +151,7 @@ class PoseToPosition(Retargeter):
         if rotation is None:
             return Verdict.no(
                 "retarget.not_a_pose",
-                f"{source.name!r} declares no rotation encoding, so it cannot be read "
-                "as a pose",
+                f"{source.name!r} declares no rotation encoding, so it cannot be read as a pose",
                 hint="set rotation_repr in the channel's metadata; a width alone "
                 "never establishes that something is a pose",
             )
@@ -171,7 +167,5 @@ class PoseToPosition(Retargeter):
         encoding = source.metadata.get("rotation_repr", "the rotation")
         return (f"discarded the orientation ({encoding}) from {source.name!r}",)
 
-    def apply(
-        self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec
-    ) -> np.ndarray:
+    def apply(self, values: np.ndarray, source: ChannelSpec, target: ChannelSpec) -> np.ndarray:
         return np.asarray(values)[:, :3]

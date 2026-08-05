@@ -1,0 +1,119 @@
+{
+  "task": "pick_dual_bottles",
+  "arms": {
+    "ego": {
+      "steps": 4000,
+      "per_arm": [
+        {
+          "arm": "left",
+          "robotwin_workspace_centre_m": [
+            -0.001,
+            -0.164,
+            0.927
+          ],
+          "robotwin_workspace_radius_m": 0.482,
+          "commanded_centre_m": [
+            0.12,
+            0.075,
+            0.787
+          ],
+          "offset_m": [
+            0.121,
+            0.238,
+            -0.139
+          ],
+          "offset_magnitude_m": 0.302,
+          "commanded_distance_from_centre_m": {
+            "median": 0.566,
+            "p95": 1.171
+          },
+          "within_0.5m_of_centre_pct": 40.3,
+          "within_0.75m_of_centre_pct": 70.8
+        },
+        {
+          "arm": "right",
+          "robotwin_workspace_centre_m": [
+            0.137,
+            -0.05,
+            0.911
+          ],
+          "robotwin_workspace_radius_m": 0.468,
+          "commanded_centre_m": [
+            -0.486,
+            0.098,
+            1.019
+          ],
+          "offset_m": [
+            -0.623,
+            0.148,
+            0.107
+          ],
+          "offset_magnitude_m": 0.649,
+          "commanded_distance_from_centre_m": {
+            "median": 0.76,
+            "p95": 1.308
+          },
+          "within_0.5m_of_centre_pct": 28.0,
+          "within_0.75m_of_centre_pct": 48.9
+        }
+      ]
+    },
+    "shuffled": {
+      "steps": 4000,
+      "per_arm": [
+        {
+          "arm": "left",
+          "robotwin_workspace_centre_m": [
+            -0.044,
+            -0.053,
+            0.885
+          ],
+          "robotwin_workspace_radius_m": 0.513,
+          "commanded_centre_m": [
+            -0.017,
+            0.136,
+            0.469
+          ],
+          "offset_m": [
+            0.027,
+            0.189,
+            -0.416
+          ],
+          "offset_magnitude_m": 0.458,
+          "commanded_distance_from_centre_m": {
+            "median": 0.519,
+            "p95": 0.799
+          },
+          "within_0.5m_of_centre_pct": 43.1,
+          "within_0.75m_of_centre_pct": 93.3
+        },
+        {
+          "arm": "right",
+          "robotwin_workspace_centre_m": [
+            0.125,
+            -0.017,
+            0.875
+          ],
+          "robotwin_workspace_radius_m": 0.583,
+          "commanded_centre_m": [
+            0.098,
+            0.126,
+            0.64
+          ],
+          "offset_m": [
+            -0.027,
+            0.143,
+            -0.235
+          ],
+          "offset_magnitude_m": 0.276,
+          "commanded_distance_from_centre_m": {
+            "median": 0.393,
+            "p95": 0.698
+          },
+          "within_0.5m_of_centre_pct": 77.6,
+          "within_0.75m_of_centre_pct": 96.3
+        }
+      ]
+    }
+  }
+}

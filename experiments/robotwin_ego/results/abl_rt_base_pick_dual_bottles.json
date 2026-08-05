@@ -1,0 +1,47 @@
+{
+  "arm": "rt_base",
+  "task": "pick_dual_bottles",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    9,
+    11
+  ],
+  "episodes": 10,
+  "successes": 1,
+  "success_rate": 0.1,
+  "expert_solve_rate": 0.8333,
+  "steps_per_episode": [
+    161,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400
+  ],
+  "instruction": "pick up both bottles",
+  "action_chain": [],
+  "reachability": {
+    "left": {
+      "median_distance_m": 0.937,
+      "max_distance_m": 1.09,
+      "fraction_within_reach": 0.0
+    },
+    "right": {
+      "median_distance_m": 0.935,
+      "max_distance_m": 1.129,
+      "fraction_within_reach": 0.0
+    }
+  },
+  "seconds": 886.0
+}

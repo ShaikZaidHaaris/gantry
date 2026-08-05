@@ -206,7 +206,7 @@ def _capability(cap: str, present: Callable[[EpisodeRecord], bool]) -> Callable[
         observed = any(present(episode) for episode in context.sample)
         if declared and not observed:
             return Verdict.note(
-                f"conformance.capability_unproven",
+                "conformance.capability_unproven",
                 f"declares {cap}=True but none of the {len(context.sample)} sampled "
                 "episodes show it",
                 hint="not necessarily wrong on a large dataset, but worth confirming",
@@ -251,7 +251,7 @@ def _channels_described(context: Context) -> Verdict:
     A channel with neither units nor semantics can only be matched by name and
     width. That is matching by coincidence, and it is precisely how data ends
     up feeding a consumer that expected something else. A reader cannot invent
-    the missing description — but it can be honest that it is missing, which is
+    the missing description -- but it can be honest that it is missing, which is
     what this reports.
     """
     checks = []
@@ -260,8 +260,7 @@ def _channels_described(context: Context) -> Verdict:
             if spec.kind not in NUMERIC_KINDS or spec.units or spec.semantics:
                 continue
             message = (
-                f"{episode.meta.uid}: channel {spec.name!r} declares neither units "
-                "nor semantics"
+                f"{episode.meta.uid}: channel {spec.name!r} declares neither units nor semantics"
             )
             hint = "supply a schema sidecar, or it can only be matched by name and width"
             checks.append(
@@ -280,7 +279,9 @@ CHECKS: tuple[Check, ...] = (
     Check("ids_unique", "episode ids are unique", _ids_unique),
     Check("schema_matches_open", "schema() agrees with open().schema", _schema_matches_open),
     Check("records_valid", "sampled records validate against their own schema", _records_valid),
-    Check("reads_selective", "reads honour the requested channels and window", _reads_are_selective),
+    Check(
+        "reads_selective", "reads honour the requested channels and window", _reads_are_selective
+    ),
     Check("reads_deterministic", "two opens return identical data", _reads_are_deterministic),
     Check("unknown_id", "an unknown id raises KeyError", _unknown_id_raises),
     Check("namespaced", "episode ids are namespaced by a source", _ids_are_namespaced),

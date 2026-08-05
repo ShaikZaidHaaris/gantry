@@ -1,0 +1,108 @@
+{
+  "name": "baxter",
+  "version": "1.4.1",
+  "control_hz": 20,
+  "state": [
+    {
+      "name": "observation.state",
+      "kind": "vector",
+      "shape": [
+        16
+      ],
+      "dtype": "float32",
+      "semantics": "pose",
+      "dim_labels": [
+        "right.x",
+        "right.y",
+        "right.z",
+        "right.roll",
+        "right.pitch",
+        "right.yaw",
+        "left.x",
+        "left.y",
+        "left.z",
+        "left.roll",
+        "left.pitch",
+        "left.yaw",
+        "right.RethinkGripper.0",
+        "right.RethinkGripper.1",
+        "left.RethinkGripper.0",
+        "left.RethinkGripper.1"
+      ]
+    }
+  ],
+  "action": [
+    {
+      "name": "action",
+      "kind": "vector",
+      "shape": [
+        14
+      ],
+      "dtype": "float32",
+      "semantics": "actuation",
+      "dim_labels": [
+        "right.dx",
+        "right.dy",
+        "right.dz",
+        "right.droll",
+        "right.dpitch",
+        "right.dyaw",
+        "right.gripper",
+        "left.dx",
+        "left.dy",
+        "left.dz",
+        "left.droll",
+        "left.dpitch",
+        "left.dyaw",
+        "left.gripper"
+      ]
+    }
+  ],
+  "kinematics": "",
+  "notes": "Bimanual: two ['right', 'left'] arms, each with a RethinkGripper. Commanded at 20 Hz through OSC_POSE per arm \u2014 14 numbers, not the 7 a single-armed task expects. robosuite's single-arm environments assert a single-armed robot and refuse this body; the two-arm environments are the ones it can host.",
+  "capabilities": {
+    "arms": 2
+  },
+  "metadata": {
+    "robosuite": {
+      "robots": [
+        "Baxter"
+      ],
+      "controller_configs": {
+        "type": "OSC_POSE"
+      },
+      "control_freq": 20,
+      "arms": 2
+    },
+    "grippers": {
+      "right": {
+        "name": "RethinkGripper",
+        "joints": 2,
+        "closed": [
+          -0.011842,
+          0.011831
+        ],
+        "open": [
+          0.01121,
+          -0.011581
+        ],
+        "measured_in": "robosuite-1.4.1",
+        "how": "commanded to each stop for 60 steps at 20 Hz and read back"
+      },
+      "left": {
+        "name": "RethinkGripper",
+        "joints": 2,
+        "closed": [
+          -0.011832,
+          0.011842
+        ],
+        "open": [
+          0.011583,
+          -0.011208
+        ],
+        "measured_in": "robosuite-1.4.1",
+        "how": "commanded to each stop for 60 steps at 20 Hz and read back"
+      }
+    }
+  }
+}

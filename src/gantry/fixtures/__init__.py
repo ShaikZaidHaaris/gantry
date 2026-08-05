@@ -2,7 +2,7 @@
 
 Every layer above the spine is acceptance-tested against these: a detector is
 judged on whether it finds the planted defects *and* stays quiet on the clean
-and decoy suites. Runs in CI on a laptop — no GPU, no simulator, no checkpoint.
+and decoy suites. Runs in CI on a laptop -- no GPU, no simulator, no checkpoint.
 
 Shipped inside core rather than kept in the test tree so that third-party
 plugins can test themselves against exactly the same material the first-party

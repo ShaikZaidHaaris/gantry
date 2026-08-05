@@ -109,7 +109,9 @@ def test_metrics_carry_their_own_shape():
 
 
 def test_runs_on_different_embodiments_are_not_comparable():
-    runs = runset([RunRecord(provenance(embodiment="arm")), RunRecord(provenance(embodiment="humanoid"))])
+    runs = runset(
+        [RunRecord(provenance(embodiment="arm")), RunRecord(provenance(embodiment="humanoid"))]
+    )
     verdict = runs.comparable(["embodiment", "evaluation"])
     assert not verdict.ok
     assert verdict.because("runset.incomparable")[0].detail["planes"] == ["embodiment"]

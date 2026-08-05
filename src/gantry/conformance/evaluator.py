@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from typing import Any, Callable, Sequence
 
 from ..contracts.evaluator import (
-    CAP_CLOSED_LOOP,
     CAP_OUTCOMES,
     CAP_SEEDABLE,
     CAP_STAGE_EVENTS,

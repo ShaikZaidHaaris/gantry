@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from gantry_evaluator_waypoint import GreedyPolicy, WaypointWorld
+
 from gantry.conformance import check_evaluator, check_policy
 from gantry.contracts.evaluator import Protocol
 from gantry.contracts.feedback import Cohort
 from gantry.contracts.policy import Observation
 from gantry.spine import IncompatibleError
-
-from gantry_evaluator_waypoint import GreedyPolicy, WaypointWorld
 
 TIGHT_ENGAGE = [0.08, 0.03, 0.08, 0.08]
 

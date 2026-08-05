@@ -1,0 +1,14 @@
+[Unit]
+Description=Gantry Bench worker
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/gantry_bench/worker
+EnvironmentFile=/home/ubuntu/gantry_bench/env
+ExecStart=/home/ubuntu/gantry/.venv/bin/python run.py --api http://127.0.0.1:8090 --gates g0,g1,g2,g3 --name l40s-01 --work /home/ubuntu/bench_work
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

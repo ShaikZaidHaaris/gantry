@@ -3,7 +3,7 @@
 Every implementation on every plane ships a Descriptor: identity, the contract
 version it implements, what it needs, what it provides, and how it wants to be
 isolated. The resolver reads descriptors and nothing else, which is why it can
-plan a run without importing a single plugin — and why an unresolvable
+plan a run without importing a single plugin -- and why an unresolvable
 combination fails in milliseconds instead of after a model finishes loading.
 
 ``requires`` and ``provides`` are free-form maps. Core defines no well-known
@@ -41,7 +41,9 @@ class ContractVersion:
         try:
             return cls(name, int(major), int(minor or 0))
         except ValueError as error:
-            raise ValueError(f"malformed contract version {text!r}; want 'name@major.minor'") from error
+            raise ValueError(
+                f"malformed contract version {text!r}; want 'name@major.minor'"
+            ) from error
 
     def __str__(self) -> str:
         return f"{self.name}@{self.major}.{self.minor}"
@@ -86,9 +88,7 @@ class Descriptor:
 
     def __post_init__(self) -> None:
         if self.plane not in known_planes():
-            raise ValueError(
-                f"unknown plane {self.plane!r}; expected one of {known_planes()}"
-            )
+            raise ValueError(f"unknown plane {self.plane!r}; expected one of {known_planes()}")
         if self.isolation not in ISOLATION:
             raise ValueError(f"unknown isolation {self.isolation!r}; expected one of {ISOLATION}")
         ContractVersion.parse(self.contract)

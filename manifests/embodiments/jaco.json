@@ -1,0 +1,97 @@
+{
+  "name": "jaco",
+  "version": "robosuite-1.4.1",
+  "control_hz": 20,
+  "state": [
+    {
+      "name": "observation.state",
+      "kind": "vector",
+      "shape": [
+        12
+      ],
+      "dtype": "float32",
+      "semantics": "pose",
+      "dim_labels": [
+        "x",
+        "y",
+        "z",
+        "roll",
+        "pitch",
+        "yaw",
+        "JacoThreeFingerGripper.0",
+        "JacoThreeFingerGripper.1",
+        "JacoThreeFingerGripper.2",
+        "JacoThreeFingerGripper.3",
+        "JacoThreeFingerGripper.4",
+        "JacoThreeFingerGripper.5"
+      ]
+    }
+  ],
+  "action": [
+    {
+      "name": "action",
+      "kind": "vector",
+      "shape": [
+        7
+      ],
+      "dtype": "float32",
+      "semantics": "actuation",
+      "dim_labels": [
+        "dx",
+        "dy",
+        "dz",
+        "droll",
+        "dpitch",
+        "dyaw",
+        "JacoThreeFingerGripper.cmd"
+      ]
+    }
+  ],
+  "kinematics": "",
+  "notes": "7-joint arm with a JacoThreeFingerGripper reporting 6 joint(s). Commanded at 20 Hz through OSC_POSE: 7 numbers, of which the last 1 command the gripper. Proprioceptive state is 12 wide and is this arm's own \u2014 comparing it with another arm's needs a declared transform, not a reshape. Limits not established.",
+  "capabilities": [
+    "simulated",
+    "resettable",
+    "seedable"
+  ],
+  "metadata": {
+    "robosuite": {
+      "robots": [
+        "Jaco"
+      ],
+      "controller_configs": {
+        "type": "OSC_POSE"
+      },
+      "gripper_types": "JacoThreeFingerGripper"
+    },
+    "arm_type": "single",
+    "dof": 7,
+    "default_mount": "RethinkMount",
+    "gripper_dof": 6,
+    "gripper_class": "JacoThreeFingerGripper",
+    "arm_joints": 7,
+    "measured_from": "robosuite 1.4.1 Lift",
+    "gripper": {
+      "name": "JacoThreeFingerGripper",
+      "joints": 6,
+      "closed": [
+        0.007874,
+        -0.768716,
+        0.008713,
+        -0.779481,
+        0.001136,
+        -0.542782
+      ],
+      "open": [
+        1.509823,
+        0.926185,
+        1.509814,
+        0.926176,
+        1.509812,
+        0.926174
+      ],
+      "measured_in": "robosuite-1.4.1",
+      "how": "commanded to each stop for 60 steps at 20 Hz and read back"
+    }
+  }
+}

@@ -3,12 +3,12 @@
 A finding from one dataset cannot tell you what to collect, because it cannot
 distinguish two very different situations:
 
-**Universal** — the same effect appears in every cohort, including the good
+**Universal** -- the same effect appears in every cohort, including the good
 ones. It is a property of the task, the policy, or how the policy is run, and
 collecting more data will not shift it. Acting on it wastes a collection
 budget.
 
-**Data-attributable** — the effect appears in some cohorts and not others. That
+**Data-attributable** -- the effect appears in some cohorts and not others. That
 difference is the actionable part, and it is the only kind of finding that
 should reach whoever decides what to record next.
 
@@ -19,7 +19,7 @@ The mechanism: run the same per-statistic test inside each cohort
 independently, then classify by where it fires. Firing is judged on effect size
 as well as significance, because a statistic sitting near the correction
 threshold clears it in one cohort and misses in the next for no reason but
-sampling — and reading that as "the actionable difference" is how a collection
+sampling -- and reading that as "the actionable difference" is how a collection
 budget gets spent on a coin flip.
 
 When an effect fires in some cohorts but the others are merely unproven rather
@@ -31,13 +31,14 @@ confident, not more correct.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Sequence
 
 from gantry.contracts.feedback import Cohort, FeedbackModule, Finding, Report, feedback_descriptor
-from gantry.resolve import Requirement, requires_channels
+from gantry.resolve import Requirement
 from gantry.spine import Descriptor, Measurement
 
-from . import metrics, statistics as st
+from . import metrics
+from . import statistics as st
 from .metrics import get_statistic, tabulate
 
 VERSION = "0.1.0.dev0"
@@ -122,7 +123,13 @@ class Harden(FeedbackModule):
         self.aliases = dict(aliases or {})
 
     def descriptor(self) -> Descriptor:
-        return feedback_descriptor("harden", VERSION, min_cohorts=2, prescribes=True)
+        return feedback_descriptor(
+            "harden",
+            VERSION,
+            min_cohorts=2,
+            prescribes=True,
+            holds=("policy", "evaluation"),
+        )
 
     def requirement(self) -> Requirement:
         return metrics.requirement(
@@ -181,8 +188,9 @@ class Harden(FeedbackModule):
             )
         if not findings:
             notes.append("nothing fired consistently enough to classify")
-        return Report("harden", tuple(findings), measurements, tuple(notes),
-                      tuple(c.name for c in cohorts))
+        return Report(
+            "harden", tuple(findings), measurements, tuple(notes), tuple(c.name for c in cohorts)
+        )
 
 
 def _summarise(name: str, verdict: str, firing: Sequence[PerCohort], total: int) -> str:

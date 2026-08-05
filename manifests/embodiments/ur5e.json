@@ -1,0 +1,97 @@
+{
+  "name": "ur5e",
+  "version": "robosuite-1.4.1",
+  "control_hz": 20,
+  "state": [
+    {
+      "name": "observation.state",
+      "kind": "vector",
+      "shape": [
+        12
+      ],
+      "dtype": "float32",
+      "semantics": "pose",
+      "dim_labels": [
+        "x",
+        "y",
+        "z",
+        "roll",
+        "pitch",
+        "yaw",
+        "Robotiq85Gripper.0",
+        "Robotiq85Gripper.1",
+        "Robotiq85Gripper.2",
+        "Robotiq85Gripper.3",
+        "Robotiq85Gripper.4",
+        "Robotiq85Gripper.5"
+      ]
+    }
+  ],
+  "action": [
+    {
+      "name": "action",
+      "kind": "vector",
+      "shape": [
+        7
+      ],
+      "dtype": "float32",
+      "semantics": "actuation",
+      "dim_labels": [
+        "dx",
+        "dy",
+        "dz",
+        "droll",
+        "dpitch",
+        "dyaw",
+        "Robotiq85Gripper.cmd"
+      ]
+    }
+  ],
+  "kinematics": "",
+  "notes": "6-joint arm with a Robotiq85Gripper reporting 6 joint(s). Commanded at 20 Hz through OSC_POSE: 7 numbers, of which the last 1 command the gripper. Proprioceptive state is 12 wide and is this arm's own \u2014 comparing it with another arm's needs a declared transform, not a reshape. Limits not established.",
+  "capabilities": [
+    "simulated",
+    "resettable",
+    "seedable"
+  ],
+  "metadata": {
+    "robosuite": {
+      "robots": [
+        "UR5e"
+      ],
+      "controller_configs": {
+        "type": "OSC_POSE"
+      },
+      "gripper_types": "Robotiq85Gripper"
+    },
+    "arm_type": "single",
+    "dof": 6,
+    "default_mount": "RethinkMount",
+    "gripper_dof": 6,
+    "gripper_class": "Robotiq85Gripper",
+    "arm_joints": 6,
+    "measured_from": "robosuite 1.4.1 Lift",
+    "gripper": {
+      "name": "Robotiq85Gripper",
+      "joints": 6,
+      "closed": [
+        0.499688,
+        -0.259762,
+        0.26876,
+        0.499215,
+        -0.259672,
+        0.268185
+      ],
+      "open": [
+        -0.027561,
+        -0.275598,
+        -0.201709,
+        -0.027605,
+        -0.275787,
+        -0.201752
+      ],
+      "measured_in": "robosuite-1.4.1",
+      "how": "commanded to each stop for 60 steps at 20 Hz and read back"
+    }
+  }
+}

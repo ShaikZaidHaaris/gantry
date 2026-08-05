@@ -1,7 +1,7 @@
 """Which implementations exist, per plane.
 
 Deliberately dumb. The registry maps ``(plane, name)`` to a factory and knows
-nothing else — every judgement about whether a component *fits* belongs to the
+nothing else -- every judgement about whether a component *fits* belongs to the
 resolver, working from descriptors.
 
 Discovery is opt-in. ``register`` is explicit and enough for a script or a
@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
 from ..spine import Descriptor, entry_point_groups, known_planes
+
 
 def ENTRY_POINT_GROUPS() -> Mapping[str, str]:
     """Packaging entry-point group -> plane, derived from the plane registry.
@@ -44,14 +45,41 @@ class Registration:
     def ref(self) -> str:
         return f"{self.plane}:{self.name}"
 
-    def build(self, config: Mapping[str, Any] | None = None) -> Any:
-        return self.factory(**dict(config or {}))
+    def build(self, config: Mapping[str, Any] | None = None, source: Any = None) -> Any:
+        """Construct it, optionally on top of something already constructed.
 
-    def descriptor(self, config: Mapping[str, Any] | None = None) -> Descriptor:
-        """Describe without committing to a full build, where possible."""
-        if self.describe is not None:
+        ``source`` is passed as the leading positional argument, which is the
+        whole convention for chaining: a component that reads from another takes
+        it first and positionally. That is already how every chained connector in
+        this repo is written, so the convention is a description of practice
+        rather than a new rule -- but it is a rule now, because a manifest naming
+        a chain has no other way to know where the previous stage goes.
+        """
+        settings = dict(config or {})
+        if source is None:
+            return self.factory(**settings)
+        try:
+            return self.factory(source, **settings)
+        except TypeError as error:
+            # Told to build on something, and cannot accept one. Worth its own
+            # message: the alternative is a TypeError from inside somebody's
+            # __init__ that reads as a config error.
+            raise TypeError(
+                f"{self.ref} was given a source to build on and does not take one "
+                f"positionally. A component in a chain reads from the stage before "
+                f"it as its first argument. ({error})"
+            ) from error
+
+    def descriptor(self, config: Mapping[str, Any] | None = None, source: Any = None) -> Descriptor:
+        """Describe without committing to a full build, where possible.
+
+        A chained component's description depends on what it is built on -- a
+        connector reports the licence and the media capability of its source --         so a cheap describe hook is skipped when there is a source, because it
+        cannot have accounted for one.
+        """
+        if self.describe is not None and source is None:
             return self.describe(**dict(config or {}))
-        return self.build(config).descriptor()
+        return self.build(config, source).descriptor()
 
 
 class DuplicateRegistration(ValueError):
@@ -77,9 +105,7 @@ class Registry:
         replace: bool = False,
     ) -> Registration:
         if plane not in known_planes():
-            raise ValueError(
-                f"unknown plane {plane!r}; expected one of {known_planes()}"
-            )
+            raise ValueError(f"unknown plane {plane!r}; expected one of {known_planes()}")
         key = (plane, name)
         if key in self._entries and not replace:
             raise DuplicateRegistration(
@@ -119,8 +145,10 @@ class Registry:
             return self._entries[(plane, name)]
         except KeyError:
             available = self.names(plane)
-            hint = f"installed on the {plane} plane: {', '.join(available)}" if available else (
-                f"nothing is installed on the {plane} plane"
+            hint = (
+                f"installed on the {plane} plane: {', '.join(available)}"
+                if available
+                else (f"nothing is installed on the {plane} plane")
             )
             raise KeyError(f"no {plane} component named {name!r}; {hint}") from None
 
@@ -158,6 +186,26 @@ class _LazyEntryPoint:
         if self._loaded is None:
             self._loaded = self._entry.load()
         return self._loaded(*args, **kwargs)
+
+    @property
+    def target(self) -> Any:
+        """What the entry point names, imported now.
+
+        A factory is usually the component's class, and some things are asked
+        of the class rather than of an instance -- writing a dataset that does
+        not exist yet, for one. Exposed rather than left for callers to reach
+        into a private attribute for.
+        """
+        if self._loaded is None:
+            self._loaded = self._entry.load()
+        return self._loaded
+
+    def __getattr__(self, name: str) -> Any:
+        # Anything not defined here is asked of what the entry point names, so
+        # a lazily-registered class behaves like the class for classmethods.
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return getattr(self.target, name)
 
     def __repr__(self) -> str:  # pragma: no cover - cosmetic
         return f"<lazy {self._entry.value}>"

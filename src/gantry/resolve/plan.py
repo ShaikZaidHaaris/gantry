@@ -1,7 +1,7 @@
 """The output of resolution: an executable plan, or a refusal you can act on.
 
 A refusal is not an error string. It names the seam that failed, the code that
-failed there, and what would close it — and when several consumers were asked
+failed there, and what would close it -- and when several consumers were asked
 for, it names the ones that *would* have run. "Incompatible" ends a
 conversation; "funnel needs stage events, which this evaluator does not emit;
 screen and attribution would run" continues it.
@@ -68,9 +68,7 @@ class Wiring:
     @property
     def transforms(self) -> tuple[tuple[str, str], ...]:
         """``(name, kind)`` for each step, so an adapter reads apart from a retargeter."""
-        return tuple(
-            (step.name, step.kind) for binding in self.bindings for step in binding.chain
-        )
+        return tuple((step.name, step.kind) for binding in self.bindings for step in binding.chain)
 
     @property
     def lossy(self) -> bool:

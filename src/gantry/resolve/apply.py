@@ -10,8 +10,8 @@ is worse than no chain at all, because the run looks converted.
 
 Laziness survives where it can. Most transforms are per-timestep and preserve
 episode length, so they compose into a wrapper that transforms on read and never
-materialises anything. A resampler does not — it changes how many steps there
-are, which makes a step window meaningless — so an episode adapted through one is
+materialises anything. A resampler does not -- it changes how many steps there
+are, which makes a step window meaningless -- so an episode adapted through one is
 read once and held. That branch is explicit rather than clever: silently
 returning the right *count* of the wrong rows is exactly the kind of quiet
 wrongness the framework exists to prevent.
@@ -77,7 +77,7 @@ def adapt_episode(episode: EpisodeRecord, wiring: Wiring) -> EpisodeRecord:
 
     Renaming counts. A consumer that matched a channel by meaning or by alias
     sees it under *its own* name, so the module never has to know what the
-    recording happened to call things — which is the whole reason binding by
+    recording happened to call things -- which is the whole reason binding by
     semantics exists.
     """
     if not wiring.bindings:

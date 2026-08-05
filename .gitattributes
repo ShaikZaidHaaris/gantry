@@ -1,0 +1,31 @@
+# Line endings for the files that Linux executes rather than a human reads.
+#
+# This repository is written on Windows and runs on Ubuntu. What is committed is
+# already LF, so a clone on Linux has always been fine. The problem is the
+# Windows working copy: `core.autocrlf=true` rewrites these to CRLF on every
+# checkout, and `bench/deploy/deploy.sh` copies to the host from the working
+# copy, not from git. So whether the box receives LF or CRLF depends on whether
+# git happened to re-materialise a file since it was last edited, which is not a
+# thing anybody should be depending on.
+#
+# It matters because on Linux a carriage return is not cosmetic. The kernel
+# reads the shebang literally, so `#!/usr/bin/env bash\r` requests an
+# interpreter named "bash\r" and fails with
+#
+#     ./deploy.sh: /usr/bin/env: bad interpreter: No such file or directory
+#
+# naming the interpreter that does exist and saying nothing about the character
+# that is actually wrong. Unit files fail more quietly: systemd keeps the
+# trailing CR as part of the value.
+#
+# `eol=lf` overrides autocrlf for these paths, so the working copy is LF on
+# every platform and the transfer has nothing left to get wrong.
+#
+# Scoped rather than blanket on purpose. A repository-wide `* text=auto eol=lf`
+# renormalises every tracked file at once; tried here, it rewrote two unrelated
+# CSV manifests and buried the change that mattered in four thousand lines.
+
+*.sh       text eol=lf
+*.service  text eol=lf
+# Rendered on the host by sed, so CRLF here becomes CRLF in the live Caddyfile.
+Caddyfile* text eol=lf

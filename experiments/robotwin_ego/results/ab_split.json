@@ -1,0 +1,49 @@
+{
+  "criterion": "fraction of frames in which both hands were moving",
+  "threshold": 0.5,
+  "parts": {
+    "two_handed": {
+      "name": "two_handed",
+      "episodes": 8,
+      "frames": 2294,
+      "measured_median": 0.6134,
+      "measured_range": [
+        0.5034,
+        0.7349
+      ],
+      "dropped_to_match": []
+    },
+    "one_handed": {
+      "name": "one_handed",
+      "episodes": 8,
+      "frames": 2383,
+      "measured_median": 0.4144,
+      "measured_range": [
+        0.0068,
+        0.4899
+      ],
+      "dropped_to_match": [
+        "ego_016",
+        "ego_003"
+      ]
+    },
+    "arms": {
+      "rt_two_handed": {
+        "episodes": 58,
+        "frames": 8423
+      },
+      "rt_two_handed_shuf": {
+        "episodes": 58,
+        "frames": 8423
+      },
+      "rt_one_handed": {
+        "episodes": 58,
+        "frames": 8512
+      },
+      "rt_one_handed_shuf": {
+        "episodes": 58,
+        "frames": 8512
+      }
+    }
+  }
+}

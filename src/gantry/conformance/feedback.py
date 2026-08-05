@@ -4,7 +4,7 @@ One check per invariant sentence in :mod:`gantry.contracts.feedback`.
 
 Two of these matter more than the rest. **Purity**, because an analysis that
 returns something different the second time cannot be reviewed, argued with, or
-reproduced — and the drift is invisible unless someone runs it twice on purpose.
+reproduced -- and the drift is invisible unless someone runs it twice on purpose.
 And **refusing below the cohorts it needs**, because the failure mode there is
 not an error: it is a confident, well-formatted answer to a question nobody
 asked.
@@ -62,8 +62,7 @@ def _requirement_is_valid(context: Context) -> Verdict:
         checks.append(
             Verdict.no(
                 "conformance.requirement_plane",
-                f"{context.module.name} declares a requirement on plane "
-                f"{requirement.plane!r}",
+                f"{context.module.name} declares a requirement on plane {requirement.plane!r}",
             )
         )
     return Verdict.all(checks)
@@ -152,13 +151,11 @@ def _refuses_below_its_minimum(context: Context) -> Verdict:
     except Exception as error:  # noqa: BLE001
         return Verdict.no(
             "conformance.wrong_refusal",
-            f"given {len(too_few)} cohort(s) it raised {type(error).__name__}, "
-            "expected a refusal",
+            f"given {len(too_few)} cohort(s) it raised {type(error).__name__}, expected a refusal",
         )
     return Verdict.no(
         "conformance.answered_anyway",
-        f"{context.module.name} declares min_cohorts={needed} but answered with "
-        f"{len(too_few)}",
+        f"{context.module.name} declares min_cohorts={needed} but answered with {len(too_few)}",
         hint="a confident answer to a question that was not askable is worse than an error",
     )
 
@@ -194,8 +191,7 @@ def _report_names_itself(context: Context) -> Verdict:
         checks.append(
             Verdict.no(
                 "conformance.report_cohorts",
-                f"report names cohorts {sorted(context.report.cohorts)}, was given "
-                f"{sorted(given)}",
+                f"report names cohorts {sorted(context.report.cohorts)}, was given {sorted(given)}",
                 hint="a comparative result is unreadable without knowing what was compared",
             )
         )

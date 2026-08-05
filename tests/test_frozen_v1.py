@@ -6,7 +6,7 @@ interfaces have been shaped by use rather than by imagination. That is the point
 at which freezing means something.
 
 What this file does is make a break *loud*. Renaming a method, dropping a
-capability key, or changing a refusal code is not forbidden — it is a major
+capability key, or changing a refusal code is not forbidden -- it is a major
 version bump, and this test is what forces someone to say so out loud instead of
 discovering it in a plugin six weeks later.
 
@@ -23,10 +23,12 @@ import pytest
 
 from gantry import contracts
 from gantry.contracts.connector import CONNECTOR_CONTRACT, Connector
-from gantry.contracts.embodiment import EMBODIMENT_CONTRACT, EmbodimentDescriptor, Retargeter
+from gantry.contracts.curation import CURATION_CONTRACT
+from gantry.contracts.embodiment import EMBODIMENT_CONTRACT, Retargeter
 from gantry.contracts.evaluator import EVALUATOR_CONTRACT, Evaluator
 from gantry.contracts.feedback import FEEDBACK_CONTRACT, FeedbackModule
 from gantry.contracts.policy import POLICY_CONTRACT, Policy
+from gantry.contracts.scorer import SCORER_CONTRACT
 from gantry.spine import PLANES, SPINE_CONTRACT
 
 # --------------------------------------------------------------------------
@@ -36,15 +38,30 @@ from gantry.spine import PLANES, SPINE_CONTRACT
 #: Every contract, pinned. Moving one is allowed and must be recorded here in
 #: the same commit, which is what makes it a decision rather than a drift.
 #:
+#: scorer@1.1 added ``annotate`` and ``recorded_labels``. Driving a scoring
+#: workflow used to mean importing a particular scorer, which gave core a
+#: favourite judge. Both default to refusing.
+#:
+#: spine@1.2 gave EpisodeMeta ``derived_from``. A format conversion renumbers
+#: everything, so anything measured about a demonstration in the collection it
+#: came from could not be acted on in the copy a trainer reads. Additive, with
+#: an empty default, so a producer that records nothing is unchanged.
+#:
+#: connector@1.1 added ``write``. Producing a dataset used to mean importing a
+#: particular format by name, which gave core a favourite. The default refuses,
+#: so a connector predating it is read-only and says so.
+#:
 #: evaluator@1.1 made ``task_for`` required. It had been a hook the runner
 #: probed for, so an evaluator could pass every check and still be undriveable.
 FROZEN_CONTRACTS = {
-    "spine": (SPINE_CONTRACT, "1.1"),
-    "connector": (CONNECTOR_CONTRACT, "1.0"),
+    "spine": (SPINE_CONTRACT, "1.2"),
+    "connector": (CONNECTOR_CONTRACT, "1.1"),
     "embodiment": (EMBODIMENT_CONTRACT, "1.0"),
     "policy": (POLICY_CONTRACT, "1.0"),
     "evaluator": (EVALUATOR_CONTRACT, "1.1"),
     "feedback": (FEEDBACK_CONTRACT, "1.0"),
+    "curation": (CURATION_CONTRACT, "1.0"),
+    "scorer": (SCORER_CONTRACT, "1.1"),
 }
 
 
@@ -60,13 +77,26 @@ def test_contract_versions_are_pinned(name, pinned):
 def test_the_core_planes_are_frozen():
     """The planes core itself declares.
 
-    Plugins may register more — that is the point of the plane registry — so
+    Plugins may register more -- that is the point of the plane registry -- so
     this pins what core ships, not what a running system contains.
     """
     from gantry.spine import CORE_PLANES
 
     assert CORE_PLANES == (
         "dataset",
+        # Added deliberately: a task used to be invented inside an evaluator,
+        # which made "the same task on another arm" and "the same task on real
+        # hardware" both unsayable. It is a plane because it is a thing you
+        # author once and stage many ways.
+        "task",
+        # Added deliberately: judging used to be one privileged path -- the
+        # simulator's predicate -- which made "would a person agree" unaskable.
+        "scorer",
+        # Added deliberately: the only plane whose output is an instruction
+        # rather than a description. It is separate from feedback because a
+        # signal that scores its own effect is the Goodhart machine, and the
+        # two must not be the same component.
+        "curation",
         "embodiment",
         "policy",
         "evaluation",
@@ -84,7 +114,9 @@ def test_every_core_plane_is_fully_described():
     for name in CORE_PLANES:
         plane = get_plane(name)
         assert plane is not None and plane.description
-        assert plane.entry_point_group, f"{name} has no entry-point group, so nothing installs into it"
+        assert plane.entry_point_group, (
+            f"{name} has no entry-point group, so nothing installs into it"
+        )
 
 
 # --------------------------------------------------------------------------
@@ -112,8 +144,10 @@ def test_every_public_method_is_documented(interface, methods):
     undocumented = [
         name
         for name in methods
-        if not (getattr(inspect.getattr_static(interface, name, None), "__doc__", None)
-                or getattr(getattr(interface, name, None), "__doc__", None))
+        if not (
+            getattr(inspect.getattr_static(interface, name, None), "__doc__", None)
+            or getattr(getattr(interface, name, None), "__doc__", None)
+        )
     ]
     assert not undocumented, f"{interface.__name__}: undocumented {undocumented}"
 
@@ -123,7 +157,9 @@ def test_every_public_method_is_documented(interface, methods):
 # --------------------------------------------------------------------------
 
 FROZEN_CAPABILITIES = {
-    "connector": {"lazy", "stage_events", "outcomes", "media"},
+    # "writes" added with connector@1.1: producing a dataset used to require
+    # importing a format by name, which gave core a favourite.
+    "connector": {"lazy", "stage_events", "outcomes", "media", "writes"},
     "policy": {"chunk", "deterministic", "stateful"},
     "evaluator": {"stage_events", "outcomes", "seedable", "closed_loop"},
     "feedback": {"min_cohorts", "prescribes"},
@@ -199,9 +235,7 @@ def test_every_frozen_code_is_still_emitted_somewhere():
     import pathlib
 
     root = pathlib.Path(contracts.__file__).parent.parent
-    source = "\n".join(
-        path.read_text() for path in root.rglob("*.py") if "tests" not in str(path)
-    )
+    source = "\n".join(path.read_text() for path in root.rglob("*.py") if "tests" not in str(path))
     missing = sorted(code for code in FROZEN_CODES if f'"{code}"' not in source)
     assert not missing, f"these pinned refusal codes are no longer emitted: {missing}"
 

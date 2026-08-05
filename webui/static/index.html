@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gantry Bench</title>
+<style>
+  :root{
+    --canvas:#F7F8FA; --surface:#FFFFFF; --border:#E4E7EC; --border-2:#D0D5DD;
+    --text:#101828; --text-2:#475467; --text-3:#98A2B3;
+    --accent:#2456D6; --accent-bg:#EFF4FF; --accent-hover:#1B44AC;
+    --danger:#B42318; --danger-bg:#FEF3F2; --warn:#B54708; --warn-bg:#FFFAEB;
+    --ok:#067647; --ok-bg:#ECFDF3; --neutral-bg:#F2F4F7;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --shadow:0 1px 2px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--canvas);color:var(--text);font:13.5px/1.55 var(--sans);
+       -webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:var(--accent);text-decoration:none}
+  button{font:inherit;cursor:pointer}
+  .mono{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
+
+  /* ---------- header ---------- */
+  header{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .hwrap{max-width:1024px;margin:0 auto;padding:0 24px;height:52px;display:flex;align-items:center;gap:28px}
+  .brand{font-weight:650;font-size:14.5px;letter-spacing:-.1px;display:flex;align-items:center;gap:8px}
+  .brand .tag{font:500 10.5px var(--mono);color:var(--text-2);background:var(--neutral-bg);
+              border:1px solid var(--border);border-radius:4px;padding:1px 6px;letter-spacing:.04em}
+  nav{display:flex;gap:2px;height:100%}
+  nav a{display:flex;align-items:center;padding:0 12px;color:var(--text-2);font-weight:500;
+        border-bottom:2px solid transparent;margin-bottom:-1px;font-size:13.5px}
+  nav a:hover{color:var(--text)}
+  nav a.on{color:var(--text);border-bottom-color:var(--accent)}
+  .hright{margin-left:auto;font:11.5px var(--mono);color:var(--text-3)}
+
+  /* ---------- layout ---------- */
+  main{max-width:1024px;margin:0 auto;padding:32px 24px 96px}
+  section{display:none}
+  section.on{display:block;animation:fade .15s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  @media (prefers-reduced-motion:reduce){section.on{animation:none}}
+  .page-h{margin-bottom:24px}
+  .page-h h1{font-size:20px;font-weight:650;letter-spacing:-.2px}
+  .page-h p{color:var(--text-2);margin-top:4px;max-width:66ch}
+  h2{font-size:14.5px;font-weight:650;margin:32px 0 4px;display:flex;align-items:center;gap:8px}
+  h2 .count{font:500 11px var(--mono);color:var(--text-2);background:var(--neutral-bg);
+            border-radius:10px;padding:1px 8px}
+  .sub{color:var(--text-2);font-size:12.5px;margin-bottom:12px;max-width:70ch}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow)}
+  .pad{padding:16px 18px}
+
+  /* ---------- stat tiles ---------- */
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+  @media (max-width:860px){.tiles{grid-template-columns:repeat(2,1fr)}}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;box-shadow:var(--shadow)}
+  .tile .k{font-size:12px;color:var(--text-2);font-weight:500}
+  .tile .v{font:600 22px/1.2 var(--sans);letter-spacing:-.3px;margin-top:4px;font-variant-numeric:tabular-nums}
+  .tile .v small{font-size:13px;color:var(--text-3);font-weight:500}
+  .tile .d{font-size:11.5px;color:var(--text-3);margin-top:3px}
+
+  /* ---------- stepper ---------- */
+  .stepper{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+           box-shadow:var(--shadow);overflow-x:auto;margin-bottom:24px}
+  .step{flex:1;min-width:130px;padding:14px 16px;border-right:1px solid var(--border)}
+  .step:last-child{border-right:0}
+  .step .n{display:flex;align-items:center;gap:7px;font-weight:600;font-size:12.5px}
+  .step .dot{width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;
+             justify-content:center;font-size:10px;flex:none;color:#fff;background:var(--border-2)}
+  .step.done .dot{background:var(--ok)}
+  .step.active .dot{background:var(--accent)}
+  .step.warn .dot{background:var(--warn)}
+  .step .s{font-size:11.5px;color:var(--text-2);margin-top:3px;line-height:1.4}
+
+  /* ---------- inline CI ---------- */
+  .ci{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+  .ci .track{position:relative;width:96px;height:6px;background:var(--neutral-bg);border-radius:3px;flex:none}
+  .ci .band{position:absolute;top:0;bottom:0;background:rgba(36,86,214,.22);border-radius:3px}
+  .ci .mark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--accent);border-radius:1px}
+  .ci .ceil{position:absolute;top:-3px;bottom:-3px;width:1.5px;background:var(--text-3)}
+  .ci .lab{font:11.5px var(--mono);color:var(--text-2)}
+
+  /* ---------- generic list-table ---------- */
+  .lt{background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);overflow:hidden}
+  .lt .lt-head{display:grid;padding:0 16px;height:36px;align-items:center;gap:16px;
+               font:600 11px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);
+               border-bottom:1px solid var(--border)}
+  .lt details{border-bottom:1px solid var(--border)}
+  .lt details:last-child{border-bottom:0}
+  .lt summary{display:grid;padding:0 16px;min-height:44px;align-items:center;gap:16px;cursor:pointer;list-style:none}
+  .lt summary::-webkit-details-marker{display:none}
+  .lt summary:hover{background:#FBFBFC}
+  .lt .chev{width:14px;height:14px;flex:none;color:var(--text-3);transition:transform .15s}
+  .lt details[open] .chev{transform:rotate(90deg)}
+  .lt .body{padding:4px 16px 16px 46px;font-size:13px;color:var(--text-2)}
+
+  .sev{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+  .sev.strong{background:var(--danger)} .sev.moderate{background:var(--warn)}
+  .sev.weak{background:#6172F3} .sev.info{background:var(--border-2)}
+  .badge{font:500 11px var(--sans);border-radius:4px;padding:2px 7px;white-space:nowrap}
+  .badge.gray{background:var(--neutral-bg);color:var(--text-2)}
+  .badge.red{background:var(--danger-bg);color:var(--danger)}
+  .badge.amber{background:var(--warn-bg);color:var(--warn)}
+  .badge.green{background:var(--ok-bg);color:var(--ok)}
+  .badge.blue{background:var(--accent-bg);color:var(--accent)}
+  .chip{font:11.5px var(--mono);background:var(--neutral-bg);border:1px solid var(--border);
+        border-radius:4px;padding:1px 6px;color:var(--text-2);white-space:nowrap}
+  .code{font:11.5px var(--mono);color:var(--text-2)}
+
+  .rx{margin-top:10px;padding:11px 13px;background:var(--accent-bg);border-radius:6px;font-size:12.5px;
+      color:var(--text);line-height:1.55;border:1px solid #D6E0FF}
+  .rx b{color:var(--accent);font-size:11px;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:3px}
+  .note{border:1px solid var(--border);background:var(--surface);border-left:3px solid var(--border-2);
+        border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:13px;color:var(--text-2)}
+  .note.blue{border-left-color:var(--accent)}
+  .note b{color:var(--text)}
+
+  /* ---------- rung sparks ---------- */
+  .sparks{display:flex;align-items:flex-end;gap:3px;height:22px}
+  .sparks i{width:9px;background:var(--accent);opacity:.85;border-radius:2px 2px 0 0;min-height:2px}
+  .sparks i.zero{background:var(--border-2)}
+
+  /* ---------- dots ---------- */
+  .dots{display:flex;flex-wrap:wrap;gap:3px}
+  .dot2{width:10px;height:10px;border-radius:2px;background:var(--neutral-bg);border:1px solid var(--border)}
+  .dot2.both{background:var(--border-2);border-color:var(--border-2)}
+  .dot2.a{background:var(--accent);border-color:var(--accent)}
+  .dot2.b{background:#DC6803;border-color:#DC6803}
+  .legend{display:flex;gap:14px;font-size:11.5px;color:var(--text-2);margin-top:8px}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}
+
+  /* ---------- controls ---------- */
+  select{background:var(--surface);border:1px solid var(--border-2);border-radius:6px;color:var(--text);
+         padding:7px 10px;font:13px var(--sans);box-shadow:var(--shadow)}
+  .drop{border:1.5px dashed var(--border-2);border-radius:8px;background:var(--surface);
+        padding:28px;text-align:center;color:var(--text-2);cursor:pointer;font-size:13px}
+  .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-bg)}
+  .drop b{color:var(--text)}
+  .kv{display:grid;grid-template-columns:180px 1fr;gap:4px 16px;font-size:12.5px}
+  .kv .k{color:var(--text-3)} .kv .v{color:var(--text);font-family:var(--mono);font-size:12px}
+
+  .rep-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .rep-tabs button{background:var(--surface);border:1px solid var(--border);border-radius:6px;
+                   padding:5px 11px;font-size:12px;color:var(--text-2)}
+  .rep-tabs button.on{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+  .report{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:24px 28px;
+          font:12.5px/1.7 var(--mono);white-space:pre-wrap;overflow-x:auto;color:var(--text-2)}
+  .report .h{color:var(--text);font-weight:700}
+  .empty{color:var(--text-3);font-size:13px;padding:28px;text-align:center}
+  footer{max-width:1024px;margin:0 auto;padding:0 24px 32px;font:11px var(--mono);color:var(--text-3)}
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand">Gantry <span class="tag">BENCH</span></div>
+    <nav id="nav">
+      <a href="#overview" class="on">Overview</a>
+      <a href="#runs">Runs</a>
+      <a href="#compare">Compare</a>
+      <a href="#diagnosis">Diagnosis</a>
+      <a href="#datasets">Datasets</a>
+      <a href="#reports">Reports</a>
+    </nav>
+    <div class="hright">local · pick_dual_bottles</div>
+  </div>
+</header>
+
+<main>
+  <!-- ================= OVERVIEW ================= -->
+  <section id="overview" class="on">
+    <div class="page-h">
+      <h1>Overview</h1>
+      <p>The experiment as a pipeline, and where it stands. Every number carries its
+         sample size and interval; anything the bench could not measure is shown as
+         unmeasured rather than as zero.</p>
+    </div>
+    <div class="stepper" id="stepper"></div>
+    <div class="tiles" id="tiles"></div>
+    <h2>Needs attention <span class="count" id="attn-count"></span></h2>
+    <p class="sub">The strongest findings from the last diagnosis. Everything else is under Diagnosis.</p>
+    <div class="lt" id="attn"></div>
+    <h2>Latest runs</h2>
+    <div class="lt" id="mini-runs"></div>
+  </section>
+
+  <!-- ================= RUNS ================= -->
+  <section id="runs">
+    <div class="page-h">
+      <h1>Runs</h1>
+      <p>Closed-loop evaluations on expert-screened scenes. Expand a row for the
+         stage ladder and execution detail.</p>
+    </div>
+    <div class="lt" id="runs-table"></div>
+  </section>
+
+  <!-- ================= COMPARE ================= -->
+  <section id="compare">
+    <div class="page-h">
+      <h1>Compare</h1>
+      <p>Two arms on the same scenes, paired. Most scenes agree and carry no
+         information; the test runs on the disagreements only.</p>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+      <select id="sel-a"></select>
+      <span style="color:var(--text-3);font-size:12px">vs</span>
+      <select id="sel-b"></select>
+    </div>
+    <div id="compare-out"><div class="panel"><div class="empty">Pick two runs that carry per-scene records.</div></div></div>
+  </section>
+
+  <!-- ================= DIAGNOSIS ================= -->
+  <section id="diagnosis">
+    <div class="page-h">
+      <h1>Diagnosis</h1>
+      <p>Findings from every feedback module, grouped by check. One row per finding;
+         the cohorts it applies to are chips on the row. Expand for the evidence and
+         the prescription.</p>
+    </div>
+    <div class="tiles" id="diag-tiles"></div>
+    <div id="diag-sections"></div>
+    <h2>Could not tell you <span class="count" id="abst-count"></span></h2>
+    <p class="sub">Modules that declined to answer, with the reason. Shown rather than dropped.</p>
+    <div class="lt" id="diag-abst"></div>
+  </section>
+
+  <!-- ================= DATASETS ================= -->
+  <section id="datasets">
+    <div class="page-h">
+      <h1>Datasets</h1>
+      <p>What the bench has read or built, and what each declared. Uploads are
+         inspected with the pipeline's own connectors; nothing is trained or modified.</p>
+    </div>
+    <div class="drop" id="drop">
+      <b>Drop a LeRobot dataset (.zip)</b> or click to choose
+      <input type="file" id="file" accept=".zip" style="display:none">
+    </div>
+    <div id="upload-report"></div>
+    <h2>Contributor split</h2>
+    <p class="sub">Two cohorts cut from one corpus on a measured property — the fraction of
+       frames in which both hands were moving.</p>
+    <div class="lt" id="split-table"></div>
+    <h2>On the bench</h2>
+    <div class="lt" id="ds-table"></div>
+  </section>
+
+  <!-- ================= REPORTS ================= -->
+  <section id="reports">
+    <div class="page-h">
+      <h1>Reports</h1>
+      <p>The written record, as committed to the repository.</p>
+    </div>
+    <div class="rep-tabs" id="rep-tabs"></div>
+    <div class="report" id="rep-body"></div>
+  </section>
+</main>
+<footer>Gantry Bench — rates are shown with n and Wilson 95% intervals; abstentions are rendered, never dropped.</footer>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const el = (t, cls, html) => { const e = document.createElement(t); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const pct = (x, d=1) => (100 * x).toFixed(x === 0 || x >= 0.995 ? 0 : d) + "%";
+const CHEV = '<svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function route() {
+  const h = (location.hash || "#overview").slice(1);
+  document.querySelectorAll("main section").forEach(s => s.classList.toggle("on", s.id === h));
+  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.hash === "#" + h));
+}
+addEventListener("hashchange", route);
+
+function ci(rate, lo, hi, ceil, label) {
+  const w = el("span", "ci");
+  const t = el("span", "track");
+  const band = el("span", "band"); band.style.left = pct(lo,0); band.style.width = (100*(hi-lo)) + "%";
+  const mark = el("span", "mark"); mark.style.left = `calc(${pct(rate,0)} - 1px)`;
+  t.append(band, mark);
+  if (ceil != null) { const c = el("span", "ceil"); c.style.left = pct(ceil,0); c.title = "expert ceiling " + pct(ceil); t.append(c); }
+  w.append(t, el("span", "lab", label ?? `${pct(lo)}–${pct(hi)}`));
+  return w;
+}
+
+const RUNG_LABEL = { reached_any:"Reached", moved_any:"Disturbed", lifted_any:"Lifted one", lifted_both:"Lifted both", solved:"Solved" };
+
+/* ================= overview ================= */
+let DIAG = null;
+async function loadOverview() {
+  const bench = await (await fetch("/api/bench")).json();
+  const b = bench.baseline;
+
+  const steps = [
+    { name: "Ingest", state: "done", s: "18 ego clips · hands tracked" },
+    { name: "Convert", state: "done", s: "camera→world · euler→quat" },
+    { name: "Split", state: "done", s: "two-handed vs one-handed" },
+    { name: "Train", state: "done", s: "π₀.₅ LoRA · 7 arms configured" },
+    { name: "Evaluate", state: b ? "done" : "active", s: b ? `baseline ${b.wins}/${b.n} · A/B running` : "queued" },
+    { name: "Verdict", state: "warn", s: "not separated at current n" },
+  ];
+  const st = $("#stepper"); st.innerHTML = "";
+  for (const [i, s] of steps.entries()) {
+    const d = el("div", "step " + s.state);
+    const icon = s.state === "done" ? "✓" : (i + 1);
+    d.append(el("div", "n", `<span class="dot">${icon}</span>${s.name}`));
+    d.append(el("div", "s", s.s));
+    st.append(d);
+  }
+
+  const tiles = $("#tiles"); tiles.innerHTML = "";
+  if (b) {
+    const t = el("div", "tile");
+    t.append(el("div", "k", "Baseline success"));
+    t.append(el("div", "v", `${b.wins}<small>/${b.n} · ${pct(b.wins/b.n)}</small>`));
+    const c = ci(b.wins/b.n, b.lo, b.hi, b.expert); c.style.marginTop = "8px"; t.append(c);
+    tiles.append(t);
+    tiles.append(el("div","tile",`<div class="k">Expert ceiling</div><div class="v">${pct(b.expert)}</div><div class="d">same screened scenes</div>`));
+  }
+  tiles.append(el("div","tile",`<div class="k">Plugins installed</div><div class="v">${bench.plugin_count}</div><div class="d">across ${bench.planes.length} planes</div>`));
+
+  DIAG = await (await fetch("/api/diagnosis")).json();
+  const strong = (DIAG.counts && DIAG.counts.strong) || 0;
+  const total = Object.values(DIAG.counts || {}).reduce((a, x) => a + x, 0);
+  tiles.append(el("div","tile",`<div class="k">Open findings</div><div class="v">${total}<small> · ${strong} strong</small></div><div class="d">${DIAG.modules_ran||0} modules ran · ${(DIAG.abstentions||[]).length} abstained</div>`));
+
+  const groups = groupFindings(DIAG).filter(g => g.severity === "strong").slice(0, 3);
+  $("#attn-count").textContent = groups.length;
+  renderGroups($("#attn"), groups);
+  if (!groups.length) $("#attn").innerHTML = '<div class="empty">No strong findings open.</div>';
+
+  const runs = (await (await fetch("/api/runs")).json()).runs.slice(0, 4);
+  const mini = $("#mini-runs"); mini.innerHTML = "";
+  const cols = "14px 1.4fr 90px 1fr 130px";
+  const head = el("div","lt-head","<span></span><span>Run</span><span>Success</span><span>Interval</span><span>Era</span>");
+  head.style.gridTemplateColumns = cols; mini.append(head);
+  for (const r of runs) {
+    const d = el("details"); const s = el("summary");
+    s.style.gridTemplateColumns = cols;
+    s.innerHTML = `${CHEV}<span style="font-weight:550">${esc(r.arm)}</span>
+      <span class="mono">${r.wins}/${r.n}</span><span></span>
+      <span>${r.era === "current" ? '<span class="badge gray">current</span>' : '<span class="badge amber">pre-fix</span>'}</span>`;
+    s.children[3].append(ci(r.rate, r.lo, r.hi, r.expert));
+    d.append(s); d.append(runBody(r)); mini.append(d);
+  }
+  if (!runs.length) mini.innerHTML = '<div class="empty">No runs yet.</div>';
+}
+
+/* ================= runs ================= */
+let RUNS = [];
+function sparkline(ladder) {
+  const w = el("span", "sparks");
+  for (const k of Object.keys(RUNG_LABEL)) {
+    if (!(k in (ladder || {}))) { w.append(el("i", "zero")); continue; }
+    const bar = el("i", ladder[k] === 0 ? "zero" : "");
+    bar.style.height = Math.max(2, ladder[k] * 22) + "px";
+    bar.title = `${RUNG_LABEL[k]}: ${pct(ladder[k])}`;
+    w.append(bar);
+  }
+  return w;
+}
+function runBody(r) {
+  const b = el("div", "body");
+  const kv = el("div", "kv");
+  const add = (k, v) => { kv.append(el("span","k",k)); kv.append(el("span","v",v)); };
+  add("Task", esc(r.task || "—"));
+  add("Instruction", r.instruction ? "“" + esc(r.instruction) + "”" : "—");
+  add("Expert ceiling", r.expert != null ? pct(r.expert) : "—");
+  add("Action chain", (r.action_chain && r.action_chain.length) ? r.action_chain.map(esc).join(" → ") : "direct — already in the evaluator's space");
+  if (r.frame_shift) add("Frame", "camera → world (published extrinsics)");
+  if (r.seconds) add("Wall clock", Math.round(r.seconds/60) + " min");
+  b.append(kv);
+  if (r.ladder) {
+    b.append(el("div","", "<div style='font-weight:600;font-size:12px;margin:14px 0 6px;color:var(--text)'>Stage ladder</div>"));
+    const lt = el("div", "kv");
+    for (const [k, label] of Object.entries(RUNG_LABEL)) {
+      if (!(k in r.ladder)) continue;
+      lt.append(el("span","k",label));
+      lt.append(el("span","v",`${Math.round(r.ladder[k]*r.n)}/${r.n} · ${pct(r.ladder[k])}`));
+    }
+    b.append(lt);
+  } else {
+    b.append(el("div","note","Recorded before stage metrics existed — binary outcome only, honestly labelled."));
+  }
+  return b;
+}
+async function loadRuns() {
+  const d = await (await fetch("/api/runs")).json();
+  RUNS = d.runs;
+  const cols = "14px 1.3fr 90px 1fr 110px 130px";
+  const t = $("#runs-table"); t.innerHTML = "";
+  const head = el("div","lt-head","<span></span><span>Run</span><span>Success</span><span>Interval</span><span>Ladder</span><span>Era</span>");
+  head.style.gridTemplateColumns = cols; t.append(head);
+  for (const r of RUNS) {
+    const det = el("details"); const s = el("summary");
+    s.style.gridTemplateColumns = cols;
+    s.innerHTML = `${CHEV}<span style="font-weight:550">${esc(r.arm)}</span>
+      <span class="mono">${r.wins}/${r.n}</span><span></span><span></span>
+      <span>${r.era === "current" ? '<span class="badge gray">current</span>' : '<span class="badge amber">pre-fix</span>'}</span>`;
+    s.children[3].append(ci(r.rate, r.lo, r.hi, r.expert));
+    if (r.ladder) s.children[4].append(sparkline(r.ladder)); else s.children[4].innerHTML = '<span class="code">—</span>';
+    det.append(s, runBody(r)); t.append(det);
+  }
+  if (!RUNS.length) t.innerHTML = '<div class="empty">No run records found.</div>';
+
+  const opts = RUNS.map(r => `<option value="${r.id}" ${r.has_pairing ? "" : "disabled"}>${esc(r.arm)}${r.has_pairing ? "" : " — no per-scene record"}</option>`).join("");
+  $("#sel-a").innerHTML = opts; $("#sel-b").innerHTML = opts;
+  const paired = RUNS.filter(r => r.has_pairing);
+  if (paired.length >= 2) { $("#sel-a").value = paired[0].id; $("#sel-b").value = paired[1].id; runCompare(); }
+}
+
+/* ================= compare ================= */
+async function runCompare() {
+  const a = $("#sel-a").value, b = $("#sel-b").value, out = $("#compare-out");
+  if (!a || !b || a === b) { out.innerHTML = '<div class="panel"><div class="empty">Pick two different runs.</div></div>'; return; }
+  const d = await (await fetch(`/api/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`)).json();
+  out.innerHTML = "";
+  if (d.abstained) {
+    out.append(el("div", "note", `<b>Abstained.</b> ${esc(d.reason)}`));
+    return;
+  }
+  const cols = "14px 110px 1fr 1fr 70px 70px 70px";
+  const t = el("div", "lt");
+  const head = el("div","lt-head",`<span></span><span>Rung</span><span>A · ${esc(d.a.arm)}</span><span>B · ${esc(d.b.arm)}</span><span>A only</span><span>B only</span><span>p</span>`);
+  head.style.gridTemplateColumns = cols; t.append(head);
+  for (const r of d.rungs) {
+    const det = el("details"); const s = el("summary");
+    s.style.gridTemplateColumns = cols;
+    const sig = r.p < 0.05;
+    s.innerHTML = `${CHEV}<span style="font-weight:550">${RUNG_LABEL[r.rung] || r.rung}</span><span></span><span></span>
+      <span class="mono">${r.only_a}</span><span class="mono">${r.only_b}</span>
+      <span class="mono" style="${sig ? "color:var(--ok);font-weight:600" : "color:var(--text-3)"}">${r.p.toFixed(3)}</span>`;
+    s.children[2].append(ci(r.a.wins/r.a.n, r.a.lo, r.a.hi, null, `${r.a.wins}/${r.a.n}`));
+    s.children[3].append(ci(r.b.wins/r.b.n, r.b.lo, r.b.hi, null, `${r.b.wins}/${r.b.n}`));
+    const body = el("div", "body");
+    body.append(el("div","", "<div style='font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px'>Scene by scene</div>"));
+    const dots = el("div", "dots");
+    for (const sc of r.scenes) { const dd = el("span","dot2 " + sc.state); dd.title = `scene ${sc.seed}: ${sc.state}`; dots.append(dd); }
+    body.append(dots);
+    body.append(el("div","legend",`<span><i style="background:var(--accent)"></i>A only</span><span><i style="background:#DC6803"></i>B only</span><span><i style="background:var(--border-2)"></i>both</span><span><i style="background:var(--neutral-bg);border:1px solid var(--border)"></i>neither</span>`));
+    det.append(s, body); t.append(det);
+  }
+  out.append(t);
+  out.append(el("div","note blue",`<b>${d.paired_scenes} scenes paired.</b> ${esc(d.caveat)}`));
+}
+$("#sel-a").addEventListener("change", runCompare);
+$("#sel-b").addEventListener("change", runCompare);
+
+/* ================= diagnosis ================= */
+function cohortNames(diag) {
+  const names = new Set();
+  for (const side of ["data", "outcome"]) {
+    for (const c of ((diag.cohorts || {})[side]) || []) names.add(c.arm);
+  }
+  return names;
+}
+function groupFindings(diag, only) {
+  const map = new Map();
+  const known = cohortNames(diag);
+  const sevRank = { strong: 0, moderate: 1, weak: 2, info: 3 };
+  for (const section of diag.sections || []) {
+    if (only && section.title !== only) continue;
+    for (const f of section.findings) {
+      // A chip is a cohort, never the first word of a sentence. "episode_length
+      // separates the cohorts" is not about a cohort called episode_length.
+      const lead = (f.summary.match(/^([a-z0-9_]+)[:\s]/i) || [])[1] || null;
+      const cohort = lead && known.has(lead) ? lead : null;
+      const key = f.code + "|" + (f.prescription || "");
+      if (!map.has(key)) map.set(key, {
+        code: f.code, module: f.module, side: f.side, severity: f.severity,
+        section: section.title, prescription: f.prescription, items: [],
+      });
+      const g = map.get(key);
+      if (sevRank[f.severity] < sevRank[g.severity]) g.severity = f.severity;
+      g.items.push({ cohort, summary: f.summary });
+    }
+  }
+  return [...map.values()].sort((x, y) => sevRank[x.severity] - sevRank[y.severity]);
+}
+function renderGroups(root, groups) {
+  root.innerHTML = "";
+  const cols = "14px 8px 1.6fr 1fr 150px";
+  const head = el("div","lt-head","<span></span><span></span><span>Finding</span><span>Applies to</span><span>Module</span>");
+  head.style.gridTemplateColumns = cols; root.append(head);
+  for (const g of groups) {
+    const det = el("details"); const s = el("summary");
+    s.style.gridTemplateColumns = cols;
+    const chips = [...new Set(g.items.map(i => i.cohort).filter(Boolean))];
+    s.innerHTML = `${CHEV}<span class="sev ${g.severity}"></span>
+      <span><span class="code">${esc(g.code)}</span></span>
+      <span>${chips.slice(0,4).map(c => `<span class="chip">${esc(c)}</span>`).join(" ")}${chips.length > 4 ? ` <span class="chip">+${chips.length-4}</span>` : ""}</span>
+      <span class="code">${esc(g.module)} · ${esc(g.side || "")}</span>`;
+    const body = el("div", "body");
+    for (const item of g.items) body.append(el("div","", "· " + esc(item.summary)));
+    if (g.prescription) body.append(el("div","rx",`<b>What to do</b>${esc(g.prescription)}`));
+    det.append(s, body); root.append(det);
+  }
+}
+async function loadDiagnosis() {
+  const d = DIAG || await (await fetch("/api/diagnosis")).json();
+  DIAG = d;
+  const tiles = $("#diag-tiles"); tiles.innerHTML = "";
+  const c = d.counts || {};
+  tiles.append(el("div","tile",`<div class="k">Strong</div><div class="v" style="color:var(--danger)">${c.strong||0}</div><div class="d">act on these</div>`));
+  tiles.append(el("div","tile",`<div class="k">Weak</div><div class="v" style="color:#6172F3">${c.weak||0}</div><div class="d">underpowered or borderline</div>`));
+  tiles.append(el("div","tile",`<div class="k">Informational</div><div class="v">${c.info||0}</div><div class="d">context, incl. clean bills</div>`));
+  tiles.append(el("div","tile",`<div class="k">Abstained</div><div class="v">${(d.abstentions||[]).length}</div><div class="d">of ${d.modules_ran||0} module runs</div>`));
+
+  const root = $("#diag-sections"); root.innerHTML = "";
+  for (const section of d.sections || []) {
+    const groups = groupFindings(d, section.title);
+    root.append(el("h2","",`${esc(section.title)} <span class="count">${groups.length}</span>`));
+    const holder = el("div","lt"); root.append(holder);
+    renderGroups(holder, groups);
+  }
+  if (!(d.sections || []).length) root.innerHTML = '<div class="panel"><div class="empty">No feedback report on file.</div></div>';
+
+  const abst = $("#diag-abst"); abst.innerHTML = "";
+  $("#abst-count").textContent = (d.abstentions || []).length;
+  const cols = "14px 120px 1fr";
+  const head = el("div","lt-head","<span></span><span>Module</span><span>Reason</span>");
+  head.style.gridTemplateColumns = cols; abst.append(head);
+  for (const a of d.abstentions || []) {
+    const det = el("details"); const s = el("summary");
+    s.style.gridTemplateColumns = cols;
+    s.innerHTML = `${CHEV}<span style="font-weight:550">${esc(a.module)}</span><span class="code">${(a.codes||[]).map(esc).join(", ")}</span>`;
+    det.append(s, el("div","body", esc(a.reason)));
+    abst.append(det);
+  }
+  if (!(d.abstentions || []).length) abst.innerHTML = '<div class="empty">Every module produced findings.</div>';
+}
+
+/* ================= datasets ================= */
+async function loadDatasets() {
+  const d = await (await fetch("/api/datasets")).json();
+  const parts = (d.split && d.split.parts) || {};
+  const st = $("#split-table"); st.innerHTML = "";
+  const cols = "14px 130px 90px 90px 1fr 150px";
+  const head = el("div","lt-head","<span></span><span>Cohort</span><span>Clips</span><span>Frames</span><span>Both hands moving</span><span>Leakage</span>");
+  head.style.gridTemplateColumns = cols; st.append(head);
+  for (const key of Object.keys(parts)) {
+    const p = parts[key];
+    if (!p || typeof p !== "object" || !("episodes" in p)) continue;
+    const det = el("details"); const s = el("summary");
+    s.style.gridTemplateColumns = cols;
+    const leak = p.leakage_checkable === true ? '<span class="badge green">checked</span>'
+               : p.leakage_checkable === false ? '<span class="badge amber">not checkable</span>'
+               : '<span class="badge gray">not recorded</span>';
+    s.innerHTML = `${CHEV}<span style="font-weight:550">${esc(key)}</span>
+      <span class="mono">${p.episodes}</span><span class="mono">${p.frames}</span>
+      <span class="mono">median ${p.measured_median ?? "—"}${p.measured_range ? " · " + p.measured_range.join("–") : ""}</span>
+      <span>${leak}</span>`;
+    const body = el("div","body");
+    const kv = el("div","kv");
+    kv.append(el("span","k","Criterion")); kv.append(el("span","v", esc((d.split||{}).criterion || "both hands moving")));
+    kv.append(el("span","k","Dropped to match")); kv.append(el("span","v",(p.dropped_to_match||[]).join(", ") || "none"));
+    body.append(kv); det.append(s, body); st.append(det);
+  }
+  if (!st.querySelector("details")) st.innerHTML = '<div class="empty">No split on file.</div>';
+
+  const dt = $("#ds-table"); dt.innerHTML = "";
+  const dcols = "14px 1.4fr 110px 110px 1fr";
+  const dhead = el("div","lt-head","<span></span><span>Dataset</span><span>Episodes</span><span>Frames</span><span>Origin</span>");
+  dhead.style.gridTemplateColumns = dcols; dt.append(dhead);
+  for (const b of d.built || []) {
+    const det = el("details"); const s = el("summary");
+    s.style.gridTemplateColumns = dcols;
+    s.innerHTML = `${CHEV}<span style="font-weight:550">${esc(b.name)}</span>
+      <span class="mono">${b.episodes}</span><span class="mono">${b.frames}</span>
+      <span class="code">${esc(b.origin || "")}</span>`;
+    det.append(s, el("div","body","Built by the bench's own dataset builders; provenance travels in the gantry sidecar."));
+    dt.append(det);
+  }
+  if (!dt.querySelector("details")) dt.innerHTML = '<div class="empty">No datasets recorded.</div>';
+  for (const u of d.uploads || []) renderUpload(u, false);
+}
+function renderUpload(rep, fresh) {
+  const wrap = $("#upload-report");
+  const p = el("div", "panel pad"); p.style.marginTop = "12px";
+  p.append(el("div","", `<div style="display:flex;justify-content:space-between;align-items:baseline">
+     <span style="font-weight:600">${esc(rep.name)}</span>
+     <span class="code">${rep.episodes ?? "?"} episodes · ${rep.frames ?? "?"} frames · ${rep.fps ?? "?"} fps</span></div>`));
+  const kv = el("div","kv"); kv.style.marginTop = "10px";
+  for (const [k, v] of rep.checks || []) { kv.append(el("span","k",esc(k))); kv.append(el("span","v",esc(v))); }
+  if (rep.licences && rep.licences.length) { kv.append(el("span","k","licences")); kv.append(el("span","v",rep.licences.map(esc).join(", "))); }
+  p.append(kv);
+  if (rep.both_hands_moving && rep.both_hands_moving.length) {
+    p.append(el("div","", "<div style='font-size:12px;font-weight:600;margin:12px 0 4px'>Both hands moving, per episode</div>"));
+    const sp = el("div","sparks"); sp.style.height = "26px";
+    for (const v of rep.both_hands_moving) { const bar = el("i", v >= .5 ? "" : "zero"); bar.style.height = Math.max(2, v*26) + "px"; bar.title = v; sp.append(bar); }
+    p.append(sp);
+    p.append(el("div","sub","Bars at or above 0.5 would land in the two-handed cohort under the standing split."));
+  }
+  for (const prob of rep.problems || []) p.append(el("div","note",`<span class="code" style="color:var(--warn)">${esc(prob.code)}</span> — ${esc(prob.message)}`));
+  if (fresh) wrap.prepend(p); else wrap.append(p);
+}
+const drop = $("#drop"), file = $("#file");
+drop.addEventListener("click", () => file.click());
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) sendUpload(e.dataTransfer.files[0]); });
+file.addEventListener("change", () => { if (file.files[0]) sendUpload(file.files[0]); });
+async function sendUpload(f) {
+  drop.firstChild.textContent = "Inspecting…";
+  const fd = new FormData(); fd.append("file", f);
+  try { renderUpload(await (await fetch("/api/upload", { method:"POST", body: fd })).json(), true); }
+  catch (err) { renderUpload({ name: f.name, problems: [{ code:"upload.failed", message: String(err) }] }, true); }
+  drop.firstChild.textContent = "Drop a LeRobot dataset (.zip)";
+}
+
+/* ================= reports ================= */
+async function loadReports() {
+  const d = await (await fetch("/api/reports")).json();
+  const tabs = $("#rep-tabs"), body = $("#rep-body");
+  tabs.innerHTML = ""; body.innerHTML = "";
+  if (!d.reports.length) { body.innerHTML = '<div class="empty">No reports committed yet.</div>'; return; }
+  const show = i => {
+    tabs.querySelectorAll("button").forEach((btn, j) => btn.classList.toggle("on", i === j));
+    body.innerHTML = esc(d.reports[i].body).replace(/^(#{1,3} .*)$/gm, '<span class="h">$1</span>');
+  };
+  d.reports.forEach((r, i) => {
+    const btn = el("button", i === 0 ? "on" : "", esc(r.name));
+    btn.addEventListener("click", () => show(i)); tabs.append(btn);
+  });
+  show(0);
+}
+
+route();
+loadOverview().then(loadDiagnosis);
+loadRuns(); loadDatasets(); loadReports();
+</script>
+</body>
+</html>

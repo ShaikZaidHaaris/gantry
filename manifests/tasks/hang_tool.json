@@ -1,0 +1,65 @@
+{
+  "name": "hang_tool",
+  "instruction": "assemble the stand and hang the tool on it",
+  "surfaces": [
+    "table"
+  ],
+  "objects": [
+    {
+      "id": "frame",
+      "kind": "hook_frame",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.03,
+          0.03
+        ],
+        "y": [
+          -0.03,
+          0.03
+        ]
+      }
+    },
+    {
+      "id": "tool",
+      "kind": "wrench",
+      "start": {
+        "surface": "table",
+        "x": [
+          -0.03,
+          0.03
+        ],
+        "y": [
+          -0.03,
+          0.03
+        ]
+      }
+    },
+    {
+      "id": "base",
+      "kind": "stand_base"
+    }
+  ],
+  "success": [
+    {
+      "check": "hung",
+      "args": {
+        "object": "tool",
+        "target": "frame"
+      },
+      "rubric": "The frame is inserted upright into the base and stays there unaided, and the tool is hanging on the frame's hook. A frame that falls over, or a tool resting against the frame rather than hooked on it, does not count."
+    }
+  ],
+  "horizon": 1500,
+  "trials": 20,
+  "staging": {
+    "robosuite": {
+      "env_name": "ToolHang",
+      "places": {}
+    }
+  },
+  "metadata": {
+    "note": "The hardest task robosuite ships. Two dependent insertions, and the first must survive the second.",
+    "placement": "This environment builds its own object layout and discards any given to it, so the start regions here describe the task for a real bench and do not drive the simulator. Runs in it are noted accordingly."
+  }
+}

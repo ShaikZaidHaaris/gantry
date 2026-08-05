@@ -6,7 +6,7 @@ made the one decomposition most likely to need extending the one thing a plugin
 could not extend. This closes that inconsistency.
 
 A plane is registered with everything the framework needs in order to reason
-about it generically — which contract to version-check, which entry-point group
+about it generically -- which contract to version-check, which entry-point group
 to discover, whether more than one may appear in a run, and whether it can be
 run out of process. Once registered, a plane is a first-class citizen: the
 registry accepts it, descriptors validate against it, manifests carry it, the
@@ -95,9 +95,7 @@ def contract_for(name: str) -> str | None:
 def entry_point_groups() -> Mapping[str, str]:
     """Group -> plane, for discovery. Derived, never maintained by hand."""
     return {
-        plane.entry_point_group: plane.name
-        for plane in _PLANES.values()
-        if plane.entry_point_group
+        plane.entry_point_group: plane.name for plane in _PLANES.values() if plane.entry_point_group
     }
 
 
@@ -117,6 +115,28 @@ for _plane in (
         entry_point_group="gantry.connectors",
         cardinality=MANY,
         proxyable=True,
+    ),
+    Plane(
+        "task",
+        "what is being attempted, described so that any world can stage it and "
+        "any person can judge it",
+        contract="task@1.0",
+        entry_point_group="gantry.tasks",
+        cardinality=MANY,
+    ),
+    Plane(
+        "scorer",
+        "who decides whether a trial succeeded, given what evidence",
+        contract="scorer@1.0",
+        entry_point_group="gantry.scorers",
+        cardinality=MANY,
+    ),
+    Plane(
+        "curation",
+        "what to do to the data, said precisely enough to be applied and to be found wrong",
+        contract="curation@1.0",
+        entry_point_group="gantry.curators",
+        cardinality=MANY,
     ),
     Plane(
         "embodiment",

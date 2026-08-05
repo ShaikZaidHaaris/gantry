@@ -3,8 +3,8 @@
 Each of these closes one refusal code the spine emits, and each is a transform
 nobody could disagree about: a unit conversion is a multiplication, a
 permutation is a reordering, a resample is an interpolation. Anything requiring
-a judgement — a seven-jointed arm onto a six-jointed one, a pose onto joint
-angles — is a *retargeter*, belongs to whoever owns those two machines, and is
+a judgement -- a seven-jointed arm onto a six-jointed one, a pose onto joint
+angles -- is a *retargeter*, belongs to whoever owns those two machines, and is
 deliberately not here.
 
 Two of the three are exactly reversible and say so. The third is not, and says
@@ -21,8 +21,12 @@ from .adapters import (
     permutation_between,
     resample_to,
 )
+from .policies import AdaptedPolicy, adapt_policy, installed_adapters
 
 __all__ = [
+    "AdaptedPolicy",
+    "adapt_policy",
+    "installed_adapters",
     "PERMUTE",
     "RESAMPLE",
     "UNIT_CONVERT",

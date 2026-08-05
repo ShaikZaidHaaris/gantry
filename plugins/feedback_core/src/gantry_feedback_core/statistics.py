@@ -168,9 +168,7 @@ class Corrected:
     significant: bool
 
 
-def benjamini_hochberg(
-    pvalues: dict[str, float], alpha: float = 0.05
-) -> tuple[Corrected, ...]:
+def benjamini_hochberg(pvalues: dict[str, float], alpha: float = 0.05) -> tuple[Corrected, ...]:
     """Control the false discovery rate across a family of tests.
 
     Screening a dozen statistics at once and reporting whatever clears 0.05
@@ -189,9 +187,7 @@ def benjamini_hochberg(
         running = min(running, p * m / rank)
         qs.append(running)
     qs.reverse()
-    return tuple(
-        Corrected(name, p, q, q <= alpha) for (name, p), q in zip(items, qs)
-    )
+    return tuple(Corrected(name, p, q, q <= alpha) for (name, p), q in zip(items, qs))
 
 
 def bootstrap_ci(

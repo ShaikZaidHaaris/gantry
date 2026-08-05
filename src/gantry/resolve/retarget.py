@@ -2,8 +2,7 @@
 
 Adapters and retargeters look similar and are not. An adapter closes a gap that
 has one correct answer: millimetres to metres is a multiplication, and reordering
-labelled dimensions is a permutation. A retargeter closes a gap that does not —
-mapping seven joints onto six, or a full pose onto a position, throws information
+labelled dimensions is a permutation. A retargeter closes a gap that does not -- mapping seven joints onto six, or a full pose onto a position, throws information
 away, and *which* information depends on the pair and on somebody's judgement.
 
 So they are searched differently. Adapters are looked up by refusal code, because
@@ -59,9 +58,7 @@ class RetargeterRegistry:
     def __len__(self) -> int:
         return len(self._retargeters)
 
-    def find(
-        self, source: ChannelSpec, target: ChannelSpec
-    ) -> tuple[Step | None, Verdict]:
+    def find(self, source: ChannelSpec, target: ChannelSpec) -> tuple[Step | None, Verdict]:
         """The first retargeter that accepts this pair, and why the others did not.
 
         First rather than best, because there is no ordering to be best by: two

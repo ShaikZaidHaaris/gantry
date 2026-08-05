@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gantry-evaluator-bench"
+version = "0.1.0.dev0"
+description = "Runs a policy on a real machine, with a person resetting the scene and saying what happened"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# Nothing. A real bench has no simulator to install, and the driver for whatever
+# arm is bolted down is the operator's own code, passed in.
+dependencies = ["gantry-core", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.entry-points."gantry.evaluators"]
+bench = "gantry_evaluator_bench:BenchEvaluator"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

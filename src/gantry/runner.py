@@ -15,7 +15,7 @@ Resolution is not advisory
 Every module is resolved against every cohort before it is run: capabilities are
 checked, channels are bound, and transforms are *applied* to what the module
 reads. A module that does not fit is refused by name with the reason, and the
-modules that do fit still run — a plan that reported a conversion and then did
+modules that do fit still run -- a plan that reported a conversion and then did
 not perform it would be worse than having none, because the run would look
 converted.
 
@@ -25,7 +25,7 @@ cannot drive this machine" a refusal before the first step instead of a
 surprise during one.
 
 Isolation is honoured. A component whose descriptor says it needs its own
-environment gets one, or the run is refused — never quietly imported into this
+environment gets one, or the run is refused -- never quietly imported into this
 interpreter, which is the thing the declaration was asking to avoid.
 """
 
@@ -50,7 +50,7 @@ from .resolve import (
     check_capabilities,
     requires_channels,
 )
-from .spine import ChannelSpec, EpisodeRecord, Provenance, RunRecord, Verdict
+from .spine import ChannelSpec, EpisodeRecord, Provenance, Reason, RunRecord, Verdict
 from .store import write_run
 
 
@@ -122,11 +122,17 @@ class Built:
     policy: Any = None
     evaluator: Any = None
     embodiment: Any = None
+    #: The single dataset, when the dataset plane is not the one varying.
+    dataset: Any = None
     refs: list[Any] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    #: What building had to say -- chiefly which optional chain stages were
+    #: skipped. A skip that never reaches the caller is a different pipeline
+    #: running under the manifest's name without saying so.
+    verdict: Verdict = field(default_factory=Verdict.yes)
 
     def close(self) -> None:
-        for component in (*self.cohorts.values(), self.policy, self.evaluator):
+        for component in (*self.cohorts.values(), self.policy, self.evaluator, self.dataset):
             closer = getattr(component, "close", None)
             if callable(closer):
                 try:
@@ -138,14 +144,56 @@ class Built:
 def build_component(
     registry: Registry, plane: str, spec: ComponentSpec
 ) -> tuple[Any, Any, Verdict]:
-    """Construct one component, honouring the isolation it declared."""
+    """Construct one component, honouring the isolation it declared.
+
+    A chained spec is built innermost first, each stage handed the one before
+    it. Every stage's own refusals fire here, at plan time, which is the point:
+    a chain that cannot work -- an estimator pointed at a dataset with no video,
+    a retargeting step given image coordinates -- is refused before a single
+    frame is decoded rather than an hour into a run.
+    """
+    if spec.chained:
+        return _build_chain(registry, plane, spec)
+    return _build_one(registry, plane, spec)
+
+
+def _build_chain(registry: Registry, plane: str, spec: ComponentSpec) -> tuple[Any, Any, Verdict]:
+    component: Any = None
+    refs: list[str] = []
+    notes: list[Reason] = []
+    for link in spec.chain:
+        try:
+            component, ref, verdict = _build_one(registry, plane, link, source=component)
+        except GantryError as error:
+            if link.optional and component is not None:
+                # A stage that may genuinely not apply. The run continues on the
+                # stage before it and the record says which link was skipped and
+                # why, because a silently shorter chain is a different pipeline
+                # wearing the same name.
+                notes.append(
+                    Reason(
+                        "chain.skipped",
+                        f"{plane}: optional stage {link.name!r} was skipped ({error})",
+                    )
+                )
+                refs.append(f"{link.name}(skipped)")
+                continue
+            raise
+        refs.append(ref if isinstance(ref, str) else link.name)
+        notes.extend(verdict.reasons)
+    return component, " -> ".join(refs), Verdict(ok=True, reasons=tuple(notes))
+
+
+def _build_one(
+    registry: Registry, plane: str, spec: ComponentSpec, source: Any = None
+) -> tuple[Any, Any, Verdict]:
     try:
         registration = registry.get(plane, spec.name)
     except KeyError as error:
         raise ConfigError(str(error)) from None
 
     try:
-        descriptor = registration.descriptor(spec.config)
+        descriptor = registration.descriptor(spec.config, source)
     except GantryError:
         raise
     except Exception as error:  # noqa: BLE001
@@ -153,14 +201,26 @@ def build_component(
             f"{plane}:{spec.name} could not describe itself: {type(error).__name__}: {error}"
         ) from error
 
-    if wants_isolation(descriptor):
+    if wants_isolation(descriptor) and source is None:
+        # Isolation and chaining do not compose: a stage in another process
+        # cannot be handed a live object from this one. Declared isolation on a
+        # chained stage is honoured by refusing rather than by quietly running
+        # it in-process, which would be the isolation silently not happening.
         component, verdict = isolated_or_refuse(descriptor, plane, spec.name, spec.config)
         if component is None:
             raise ConfigError(verdict.explain())
         return component, descriptor.component_ref(config=spec.config), verdict
 
+    if wants_isolation(descriptor) and source is not None:
+        raise ConfigError(
+            f"{plane}:{spec.name} declares isolation and is a stage in a chain. A "
+            "component running in another process cannot be handed a live object "
+            "from this one; put the isolated component first in the chain, or drop "
+            "the isolation"
+        )
+
     try:
-        component = registration.build(spec.config)
+        component = registration.build(spec.config, source)
     except GantryError:
         raise
     except Exception as error:  # noqa: BLE001
@@ -171,24 +231,40 @@ def build_component(
 
 
 def build_all(manifest: Manifest, registry: Registry) -> Built:
+    """Build every plane, with the cohorts on whichever one varies."""
     built = Built()
+    # The cohorts are components of the varying plane -- datasets by default,
+    # policies when comparing checkpoints, evaluators when comparing worlds.
+    verdicts: list[Verdict] = []
     for name, spec in manifest.cohorts.items():
-        component, ref, verdict = build_component(registry, "dataset", spec)
+        component, ref, verdict = build_component(registry, manifest.varies, spec)
         built.cohorts[name] = component
         built.refs.append(ref)
         built.notes.extend(reason.message for reason in verdict.reasons)
+        verdicts.append(verdict)
     for spec in manifest.feedback:
-        component, ref, _ = build_component(registry, "feedback", spec)
+        component, ref, verdict = build_component(registry, "feedback", spec)
         built.feedback.append(component)
         built.refs.append(ref)
-    if manifest.embodiment is not None:
-        built.embodiment, ref, _ = build_component(registry, "embodiment", manifest.embodiment)
+        verdicts.append(verdict)
+    # Everything single-valued. A plane supplied by the cohorts has no single
+    # component and is skipped here; the runner reads it per cohort instead.
+    for plane, attribute in (
+        ("embodiment", "embodiment"),
+        ("policy", "policy"),
+        ("evaluation", "evaluator"),
+        ("dataset", "dataset"),
+    ):
+        spec = manifest.components.get(plane)
+        if spec is None or manifest.varies == plane:
+            continue
+        if plane in ("policy", "evaluation") and not manifest.evaluates:
+            continue
+        component, ref, verdict = build_component(registry, plane, spec)
+        setattr(built, attribute, component)
         built.refs.append(ref)
-    if manifest.evaluates:
-        built.policy, ref, _ = build_component(registry, "policy", manifest.policy)
-        built.refs.append(ref)
-        built.evaluator, ref, _ = build_component(registry, "evaluation", manifest.evaluation)
-        built.refs.append(ref)
+        verdicts.append(verdict)
+    built.verdict = Verdict.all(verdicts)
     return built
 
 
@@ -228,13 +304,20 @@ class Fit:
 
 def fit_consumer(
     requirement: Any,
-    episodes: Sequence[EpisodeRecord],
+    schema: Sequence[ChannelSpec],
     provider: Any,
     adapters: AdapterRegistry,
     retargeters: RetargeterRegistry,
 ) -> Fit:
-    """Check capabilities and bind channels, before anything is analysed."""
-    schema: tuple[ChannelSpec, ...] = episodes[0].schema if episodes else ()
+    """Check capabilities and bind channels, before anything is analysed.
+
+    Takes the cohort's schema rather than its episodes because the schema is
+    all this ever needed. Asking for the episodes made every caller materialise
+    a whole cohort to answer a question about its channel names -- which for a
+    chain that decodes video and estimates pose is minutes of work to read one
+    tuple.
+    """
+    schema = tuple(schema)
     capability = check_capabilities(requirement, provider.descriptor())
     wiring, binding = bind(requirement, schema, adapters, retargeters)
     verdict = Verdict.all([capability, binding])
@@ -254,18 +337,20 @@ def check_policy_against_embodiment(
     if not descriptor:
         return Verdict.note(
             "runner.embodiment_actionless",
-            "the embodiment declares no action channels, so the policy was not checked "
-            "against it",
+            "the embodiment declares no action channels, so the policy was not checked against it",
         )
     requirement = requires_channels("policy", "policy", policy.action_spec())
     _, verdict = bind(requirement, tuple(descriptor), adapters, retargeters)
     if verdict.ok:
         return verdict
-    return Verdict.no(
-        "runner.policy_embodiment",
-        f"{policy.name} cannot command this embodiment",
-        hint="the policy's action channel does not fit any the machine accepts",
-    ) & verdict
+    return (
+        Verdict.no(
+            "runner.policy_embodiment",
+            f"{policy.name} cannot command this embodiment",
+            hint="the policy's action channel does not fit any the machine accepts",
+        )
+        & verdict
+    )
 
 
 # --------------------------------------------------------------------------
@@ -320,14 +405,18 @@ def _execute(
         blocked: Verdict | None = None
         for source in sources:
             fit = fit_consumer(
-                module.requirement(), source.episodes, source.provider, adapters, retargeters
+                module.requirement(),
+                source.episodes[0].schema if source.episodes else (),
+                source.provider,
+                adapters,
+                retargeters,
             )
             if fit.wiring is None:
                 blocked = fit.verdict
                 break
             # The run's provenance travels with the cohort. A module that needs
-            # to know what the run was *set up* to do — rather than only what
-            # happened — reads it from there.
+            # to know what the run was *set up* to do -- rather than only what
+            # happened -- reads it from there.
             cohorts.append(
                 Cohort(
                     source.name,
@@ -350,9 +439,7 @@ def _execute(
 
     if refusals:
         runnable = [report.module for report in reports]
-        notes.append(
-            "runnable as requested: " + (", ".join(runnable) if runnable else "nothing")
-        )
+        notes.append("runnable as requested: " + (", ".join(runnable) if runnable else "nothing"))
     notes.extend(
         f"{step.name} is lossy: {'; '.join(step.losses)}" for step in applied if step.losses
     )
@@ -414,25 +501,56 @@ def _gather(
     failures: list[str] = []
     notes: list[str] = []
 
-    for name, connector in built.cohorts.items():
-        episodes = tuple(connector)
+    varies = manifest.varies
+    for name, component in built.cohorts.items():
+        # Whichever plane varies, this cohort supplies it; the rest are held.
+        provider = component if varies == "dataset" else built.dataset
+        policy = component if varies == "policy" else built.policy
+        evaluator = component if varies == "evaluation" else built.evaluator
+        embodiment = component if varies == "embodiment" else built.embodiment
+        if embodiment is not None and evaluator is not None:
+            # The world is rebuilt around the body whether the body is the axis
+            # or is being held. Only rebuilding it when it varies was a real
+            # hole: a manifest naming one embodiment recorded that name in
+            # provenance and simulated whatever the evaluator already had, so
+            # the run described a machine it never ran on.
+            #
+            # An evaluator with a body welded in refuses here rather than
+            # running identical worlds under different labels.
+            try:
+                evaluator = evaluator.for_embodiment(embodiment)
+            except GantryError as error:
+                failures.append(f"embodiment:{name}: {error}")
+                continue
+        if provider is None:
+            failures.append(f"{name}: nothing supplies the dataset plane; name one, or vary on it")
+            continue
+        episodes = tuple(provider)
         if not manifest.evaluates:
-            sources.append(Source(name, episodes, connector))
+            sources.append(Source(name, episodes, provider))
             continue
 
         from .contracts.evaluator import Protocol
 
         protocol = Protocol(**_protocol_fields(manifest.protocol))
-        task = _task_for(built.evaluator, name, manifest)
+        # An evaluator whose world is the data under test gets this cohort's
+        # episodes. One bound instance per cohort, never a rebound shared one:
+        # the cohorts are compared against each other, so a single evaluator
+        # that rebound itself would score the second against the first's
+        # answer key.
+        evaluator = (
+            evaluator.bind(episodes) if getattr(evaluator, "needs_dataset", False) else evaluator
+        )
+        task = _task_for(evaluator, name, manifest)
         try:
-            record = built.evaluator.evaluate(built.policy, task, protocol)
+            record = evaluator.evaluate(policy, task, protocol)
         except GantryError as error:
             if must_halt(error):
                 raise
             failures.append(f"evaluation:{name}: {error}")
             continue
         runs.append(record)
-        sources.append(Source(name, record.episodes, built.evaluator, record.provenance))
+        sources.append(Source(name, record.episodes, evaluator, record.provenance))
         notes.extend(record.provenance.notes)
 
     return runs, sources, failures, notes
@@ -468,12 +586,28 @@ def discovered_registry() -> Registry:
 # --------------------------------------------------------------------------
 
 
+def _cohort_schema(connector: Any) -> tuple[ChannelSpec, ...]:
+    """The cohort's channels, for the price of one episode.
+
+    A connector that computes its episodes cannot declare a schema without
+    producing one of them, so a plan pays for exactly one and no more. The
+    alternative -- reading every episode to look at the first -- turns planning
+    a chain that decodes video into a job rather than a check.
+    """
+    ids = connector.episode_ids()
+    return tuple(connector.schema(ids[0])) if ids else ()
+
+
 def plan_manifest(manifest: Manifest, registry: Registry | None = None) -> Verdict:
     """Resolve without running anything.
 
     Builds the cohorts, because a connector's schema and capabilities are only
-    knowable once it has opened its source — and refusing a run for a reason
+    knowable once it has opened its source -- and refusing a run for a reason
     that could have been found in a second is the whole point of planning.
+
+    "Without running anything" is meant literally, and a plan that reads a whole
+    cohort has stopped being one. It costs one episode per cohort, not one per
+    feedback module per cohort.
     """
     registry = registry or discovered_registry()
     checks = [check_manifest(manifest, registry)]
@@ -485,6 +619,7 @@ def plan_manifest(manifest: Manifest, registry: Registry | None = None) -> Verdi
         built = build_all(manifest, registry)
     except GantryError as error:
         return Verdict.all(checks + [Verdict.no("plan.build_failed", str(error))])
+    checks.append(built.verdict)
 
     try:
         if built.embodiment is not None and built.policy is not None:
@@ -493,11 +628,11 @@ def plan_manifest(manifest: Manifest, registry: Registry | None = None) -> Verdi
                     built.policy, built.embodiment, adapters, retargeters
                 )
             )
+        schemas = {name: _cohort_schema(c) for name, c in built.cohorts.items()}
         for module in built.feedback:
             for name, connector in built.cohorts.items():
-                episodes = tuple(connector)
                 fit = fit_consumer(
-                    module.requirement(), episodes, connector, adapters, retargeters
+                    module.requirement(), schemas[name], connector, adapters, retargeters
                 )
                 if fit.wiring is None:
                     checks.append(

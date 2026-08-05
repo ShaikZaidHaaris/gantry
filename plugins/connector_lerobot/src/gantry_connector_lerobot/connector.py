@@ -10,7 +10,7 @@ Layout, as the format actually ships it::
       videos/chunk-000/<video key>/episode_000000.mp4
 
 The parquet holds the numeric channels. Features whose dtype is ``video`` are
-*not* in it — they are mp4 side-cars, decoded on demand by :mod:`.video` and
+*not* in it -- they are mp4 side-cars, decoded on demand by :mod:`.video` and
 only when a decoder is installed and the files are actually there.
 
 A camera is therefore in the schema when its frames can be read and out of it
@@ -27,7 +27,7 @@ carried through exactly: ``names`` becomes ``dim_labels``, ``fps`` becomes
 
 It does not declare units, reference frames, or what the numbers mean. This
 connector therefore declares none of those either. That is not a gap to be
-filled with a plausible guess — ``observation.state`` being eight wide with a
+filled with a plausible guess -- ``observation.state`` being eight wide with a
 gripper at the end is a strong hint and still a hint, and a connector that
 promotes hints to declarations is how a millimetre reads as a metre. Pass
 ``schema_overrides`` to say what you actually know; :data:`SUGGESTED_SEMANTICS`
@@ -53,16 +53,25 @@ from gantry.spine import (
     EpisodeLabels,
     EpisodeMeta,
     EpisodeRecord,
+    StageEvent,
 )
 
 from .video import MultiSource, VideoSource, available
 
 VERSION = "0.1.0.dev0"
 
-#: Default ``video=`` — read the cameras when they can be read, say so when they
+#: Default ``video=`` -- read the cameras when they can be read, say so when they
 #: cannot. The two other settings are ``True`` (insist, and refuse at
 #: construction if anything is missing) and ``False`` (parquet only).
 AUTO = "auto"
+
+#: Which flat column each ``modality.json`` section describes. The mapping is
+#: the format's own convention, not an inference: a dataset shipping the sidecar
+#: uses these names for these columns.
+MODALITY_CHANNELS: Mapping[str, str] = {
+    "state": "observation.state",
+    "action": "action",
+}
 
 #: Codebase versions this reader understands.
 SUPPORTED_VERSIONS = ("v2.0", "v2.1")
@@ -71,7 +80,7 @@ SUPPORTED_VERSIONS = ("v2.0", "v2.1")
 MEDIA_DTYPES = frozenset({"video", "image"})
 
 #: Columns LeRobot adds for its own bookkeeping. Real channels, but not the
-#: recording — kept out of the default schema so a screen does not treat a row
+#: recording -- kept out of the default schema so a screen does not treat a row
 #: counter as a behaviour.
 BOOKKEEPING = ("index", "episode_index", "frame_index", "task_index")
 
@@ -93,6 +102,8 @@ class _Episode:
     path: Path
     length: int
     tasks: tuple[str, ...]
+    #: Names it had before this format, when whoever wrote it recorded them.
+    derived_from: tuple[str, ...] = ()
 
 
 class _ParquetSource:
@@ -168,6 +179,7 @@ class LeRobotConnector(Connector):
         self._source = source or self._root.name
         self._overrides = dict(schema_overrides or {})
         self._include_bookkeeping = include_bookkeeping
+        self._modality = self._modality_labels()
         self._schema, self._media = self._build_schema()
         self._episodes = self._index_episodes()
         self._tasks = self._read_tasks()
@@ -196,9 +208,7 @@ class LeRobotConnector(Connector):
         episodes: dict[str, _Episode] = {}
         for entry in self._jsonl("episodes.jsonl"):
             index = int(entry["episode_index"])
-            relative = template.format(
-                episode_chunk=index // chunk_size, episode_index=index
-            )
+            relative = template.format(episode_chunk=index // chunk_size, episode_index=index)
             path = self._root / relative
             if not path.exists():
                 continue
@@ -207,6 +217,7 @@ class LeRobotConnector(Connector):
                 path=path,
                 length=int(entry.get("length", 0)),
                 tasks=tuple(entry.get("tasks", ()) or ()),
+                derived_from=tuple(entry.get("derived_from", ()) or ()),
             )
         if not episodes:
             raise ConfigError(
@@ -227,6 +238,40 @@ class LeRobotConnector(Connector):
             specs.append(self._spec_for(name, feature, dtype))
         return tuple(specs), tuple(media)
 
+    def _modality_labels(self) -> dict[str, tuple[str, ...]]:
+        """Per-element names from ``meta/modality.json``, where a dataset ships one.
+
+        ``info.json`` gives a ``names`` list that is often unusable -- the lift
+        conversion here writes ``gripper`` twice, and a label that does not
+        address exactly one dimension addresses nothing. ``modality.json`` gives
+        the same information as non-overlapping ``start``/``end`` spans, which
+        cannot be ambiguous.
+
+        Reading it is describing, not guessing: it is a file the dataset's own
+        author wrote to say what the columns are. It is used only when the spans
+        tile the declared width exactly, so a sidecar belonging to a different
+        version of the data is ignored rather than believed.
+        """
+        path = self._root / "meta" / "modality.json"
+        if not path.exists():
+            return {}
+        try:
+            payload = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            return {}
+
+        labels: dict[str, tuple[str, ...]] = {}
+        for modality, channel in MODALITY_CHANNELS.items():
+            spans = payload.get(modality)
+            feature = self._info.get("features", {}).get(channel)
+            if not isinstance(spans, Mapping) or not feature:
+                continue
+            width = next(iter(feature.get("shape") or ()), None)
+            names = _spans_to_labels(spans, width)
+            if names:
+                labels[channel] = names
+        return labels
+
     def _spec_for(self, name: str, feature: Mapping[str, Any], dtype: str) -> ChannelSpec:
         shape = tuple(int(value) for value in feature.get("shape", []) or ())
         # LeRobot writes a one-wide feature as a bare column, so it is a scalar
@@ -244,7 +289,12 @@ class LeRobotConnector(Connector):
             frame=override.pop("frame", None),
             rate_hz=override.pop("rate_hz", float(self._info.get("fps", 0)) or None),
             semantics=override.pop("semantics", None),
-            dim_labels=_labels(feature, () if scalar else shape),
+            # modality.json first: it is unambiguous by construction, where
+            # info.json's names are a list somebody typed.
+            dim_labels=override.pop(
+                "dim_labels",
+                self._modality.get(name) or _labels(feature, () if scalar else shape),
+            ),
             optional=override.pop("optional", False),
             metadata={**metadata, **override},
         )
@@ -319,7 +369,7 @@ class LeRobotConnector(Connector):
             frame=override.pop("frame", None),
             rate_hz=override.pop("rate_hz", float(info.get("video.fps", 0)) or None),
             semantics=override.pop("semantics", None),
-            # ``names`` here is ["height", "width", "rgb"] — the axes, not one
+            # ``names`` here is ["height", "width", "rgb"] -- the axes, not one
             # label per element, so it is not a dimension label and is not used
             # as one.
             optional=override.pop("optional", False),
@@ -337,11 +387,24 @@ class LeRobotConnector(Connector):
 
     # -- contract ----------------------------------------------------------
 
+    @classmethod
+    def write(cls, episodes, path, **options):
+        """Produce a dataset in this format, through this package's own writer.
+
+        The contract's inverse of reading. Delegates rather than duplicating:
+        the writer already refuses to drop anything silently, and that refusal
+        is the reason to go through it.
+        """
+        from .writer import write_episodes
+
+        return write_episodes(episodes, path, **options)
+
     def descriptor(self) -> Descriptor:
         return connector_descriptor(
             name="lerobot",
             version=VERSION,
             lazy=True,
+            writes=True,
             # v2.x records no per-episode outcome and no milestones. Saying so
             # is what lets the resolver refuse a funnel here rather than produce
             # an empty one.
@@ -370,13 +433,24 @@ class LeRobotConnector(Connector):
     def open(self, episode_id: str) -> EpisodeRecord:
         episode = self._require(episode_id)
         instruction = episode.tasks[0] if episode.tasks else None
+        kept = self._sidecar.get(self._index_of(episode_id), {})
         return EpisodeRecord(
             meta=EpisodeMeta(
                 id=episode_id,
                 source=self._source,
                 embodiment=self._info.get("robot_type"),
                 task=instruction,
-                extra={"path": str(episode.path), "tasks": list(episode.tasks)},
+                # Names this episode had before it was written here, when
+                # whoever wrote it recorded them. Absent for a dataset from
+                # any other producer, which is why it defaults to empty rather
+                # than to a guess.
+                derived_from=tuple(getattr(episode, "derived_from", ()) or ()),
+                extra={
+                    "path": str(episode.path),
+                    "tasks": list(episode.tasks),
+                    **dict(kept.get("extra", {})),
+                },
+                license=kept.get("license"),
             ),
             schema=self._schema,
             source=MultiSource(
@@ -387,8 +461,46 @@ class LeRobotConnector(Connector):
                 ),
                 self._sources(episode),
             ),
-            labels=EpisodeLabels(annotations={"tasks": list(episode.tasks)}),
+            labels=EpisodeLabels(
+                # An outcome and per-episode notes that v2.1 has nowhere to put,
+                # read back from the sidecar this package writes. Absent for a
+                # dataset from any other producer, which is the honest default.
+                success=kept.get("success"),
+                stage_events=tuple(
+                    StageEvent(name=str(e["name"]), step=int(e["step"]))
+                    for e in kept.get("stage_events", ())
+                ),
+                annotations={
+                    "tasks": list(episode.tasks),
+                    # Under the name the vocabulary uses, not only the plural
+                    # list LeRobot stores. A round trip that keeps the sentence
+                    # but renames it loses it for every module that looks for
+                    # "instruction", which is all of them.
+                    **({"instruction": instruction} if instruction else {}),
+                    **dict(kept.get("annotations", {})),
+                },
+            ),
         )
+
+    def _index_of(self, episode_id: str) -> int:
+        try:
+            return list(self.episode_ids()).index(episode_id)
+        except ValueError:  # pragma: no cover - guarded by _require
+            return -1
+
+    @property
+    def _sidecar(self) -> dict[int, dict]:
+        """What the writer kept beside the dataset, if this package wrote it."""
+        if self.__dict__.get("_sidecar_cache") is None:
+            rows: dict[int, dict] = {}
+            path = self._root / "meta" / "gantry.jsonl"
+            if path.exists():
+                for line in path.read_text().splitlines():
+                    if line.strip():
+                        row = json.loads(line)
+                        rows[int(row.get("episode_index", -1))] = row
+            self.__dict__["_sidecar_cache"] = rows
+        return self.__dict__["_sidecar_cache"]
 
     def _require(self, episode_id: str) -> _Episode:
         try:
@@ -420,6 +532,38 @@ class LeRobotConnector(Connector):
     @property
     def tasks(self) -> Mapping[int, str]:
         return self._tasks
+
+
+def _spans_to_labels(spans: Mapping[str, Any], width: int | None) -> tuple[str, ...] | None:
+    """``{"x": {"start": 0, "end": 1}, ...}`` to one label per element.
+
+    A span wider than one element is numbered, because a gripper occupying two
+    columns is two addressable dimensions and calling them both ``gripper``
+    is the very ambiguity this is here to remove.
+
+    Returns nothing unless the spans tile ``width`` exactly with no gap and no
+    overlap. A partial description is worse than none: it would silently
+    mislabel every dimension after the first hole.
+    """
+    try:
+        fields = sorted(
+            ((str(key), int(span["start"]), int(span["end"])) for key, span in spans.items()),
+            key=lambda field: field[1],
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not fields or fields[0][1] != 0:
+        return None
+    labels: list[str] = []
+    cursor = 0
+    for key, start, end in fields:
+        if start != cursor or end <= start:
+            return None
+        labels.extend([key] if end - start == 1 else [f"{key}.{i}" for i in range(end - start)])
+        cursor = end
+    if width is not None and cursor != int(width):
+        return None
+    return tuple(labels) if len(set(labels)) == len(labels) else None
 
 
 def _labels(feature: Mapping[str, Any], shape: tuple[int, ...]) -> tuple[str, ...] | None:
