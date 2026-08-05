@@ -110,3 +110,27 @@ def test_the_worker_read_returns_the_full_record(client):
     assert r.status_code == 200
     assert r.json()["id"] == sub
     assert "gates" in r.json()
+
+
+def test_finding_notes_round_trip_with_their_caps(client):
+    """fixes are stored beside points and capped at this door too."""
+    sub = a_submission(client, "198.51.100.60")
+    w = client.post(
+        f"/api/submissions/{sub}/coach",
+        headers={"X-Worker-Token": TOKEN},
+        json={
+            "points": ["p1"],
+            "fixes": {
+                "language.one_instruction": "Write one instruction per clip.",
+                "too.long": "x" * 500,
+                "blank.means.silence": "   ",
+            },
+        },
+    )
+    assert w.status_code == 200, w.text
+
+    body = as_ip(client, "198.51.100.60", path=f"/api/submissions/{sub}").json()
+    fixes = body["coach"]["fixes"]
+    assert fixes["language.one_instruction"] == "Write one instruction per clip."
+    assert len(fixes["too.long"]) == 160, "the door did not cap a wall of text"
+    assert "blank.means.silence" not in fixes, "a blank line was stored as advice"

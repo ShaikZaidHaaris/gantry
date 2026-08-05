@@ -1298,13 +1298,25 @@ def store_coach(sub_id: str, body: dict, session: Session = Depends(db), _=Depen
     sub = session.get(Submission, sub_id)
     if sub is None:
         raise HTTPException(404, "no such submission")
-    points = [str(p).strip() for p in (body.get("points") or []) if str(p).strip()][:4]
-    if not points:
-        raise HTTPException(422, "no points to store")
-    sub.coach_json = json.dumps({"points": points, "model": str(body.get("model") or "")})
+    points = [str(p).strip()[:160] for p in (body.get("points") or []) if str(p).strip()][:4]
+    # Per-finding one-liners, keyed by finding code. Same posture as points:
+    # caps are enforced at this door because the generator is one caller of it,
+    # and a wall of text stored here becomes a wall of text on the page.
+    raw = body.get("fixes") or {}
+    fixes = {}
+    if isinstance(raw, dict):
+        for code, say in list(raw.items())[:16]:
+            text = str(say).strip()
+            if text:
+                fixes[str(code)[:64]] = text[:160]
+    if not points and not fixes:
+        raise HTTPException(422, "nothing to store")
+    sub.coach_json = json.dumps(
+        {"points": points, "fixes": fixes, "model": str(body.get("model") or "")}
+    )
     emit(session, sub_id, "feedback.written", points=len(points))
     session.commit()
-    return {"stored": len(points)}
+    return {"stored": len(points), "fixes": len(fixes)}
 
 
 @app.post("/api/jobs/claim")

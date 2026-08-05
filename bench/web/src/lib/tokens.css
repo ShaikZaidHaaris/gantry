@@ -773,3 +773,22 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
 .coach-list { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
 .coach-list li { font-size: 13.5px; line-height: 1.55; max-width: 78ch; }
 .coach-note { margin-top: 12px; font-size: 12px; color: var(--text-3, #8a949a); }
+
+/* Stat tiles: what intake detected, as numbers a person scans rather than a
+   key-value list they read. Value semibold in the body sans, proportional
+   figures (tabular is for columns), label in sentence case above it. */
+.stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 10px;
+}
+.stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 12px 14px 10px;
+}
+.stat-label { display: block; font-size: 12px; color: var(--text-3, #8a949a); }
+.stat-value {
+  display: block; margin-top: 2px;
+  font-weight: 600; font-size: 22px; line-height: 1.2; color: var(--text);
+}
+.stat-unit { font-size: 12.5px; font-weight: 600; color: var(--text-3, #8a949a); margin-left: 4px; }

@@ -138,11 +138,18 @@ export function ErrorNote({ error }: { error: unknown }) {
  *  about itself. The code still exists for anyone who needs to cite it (hover),
  *  and severity is carried by the *grouping* on every screen that uses this,  *  "what to fix" versus "also noted", which says more than a colored dot did.
  */
-export function FindingRow({ finding }: { finding: Finding }) {
+export function FindingRow({ finding, note }: { finding: Finding; note?: string }) {
+  // `note` is the generated one-liner for this finding. When the caller passes
+  // the notes map at all, the canned prescription prose stays hidden even for
+  // findings the model had nothing to say about: the measurement stands alone
+  // rather than falling back to the paragraphs the owner asked to be rid of.
+  const advised = note !== undefined;
   return (
     <div className="finding" title={finding.code}>
       <div className="what">{sentence(finding.summary)}</div>
-      {finding.prescription && <p className="fix">{finding.prescription}</p>}
+      {advised
+        ? note && <p className="fix">{sentence(note)}</p>
+        : finding.prescription && <p className="fix">{finding.prescription}</p>}
     </div>
   );
 }

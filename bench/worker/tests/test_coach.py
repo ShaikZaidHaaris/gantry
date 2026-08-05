@@ -28,7 +28,7 @@ def record(with_g3: bool = True) -> dict:
             "key": "g1",
             "status": "passed",
             "verdict": {"summary": "we produced a report"},
-            "findings": [{"summary": "1 distinct instruction across 58 clips"}],
+            "findings": [{"code": "language.one_instruction", "summary": "1 distinct instruction across 58 clips"}],
         },
         {
             "key": "g2",
@@ -43,7 +43,7 @@ def record(with_g3: bool = True) -> dict:
                 "key": "g3",
                 "status": "passed",
                 "verdict": {"summary": "solved 2/50 against the baseline's 12/100"},
-                "findings": [{"summary": "100% of scenes are lost between 'moved' and 'lifted'"}],
+                "findings": [{"code": "ladder.bottleneck", "summary": "100% of scenes are lost between 'moved' and 'lifted'"}],
                 "detail": {
                     "ladder": [
                         {
@@ -91,7 +91,8 @@ def test_the_digest_carries_the_facts_advice_needs():
     facts = coach.digest(record())
     assert facts["intake"]["episodes"] == 58
     assert facts["intake"]["poses"] == "estimated", "hand-tracking provenance is the point"
-    assert "lost between" in facts["robot test"]["findings"][0]
+    assert "lost between" in facts["robot test"]["findings"][0]["summary"]
+    assert facts["robot test"]["findings"][0]["code"] == "ladder.bottleneck"
     ladder = facts["robot test"]["ladder"]
     assert ladder[0] == {"rung": "moved", "rates": {"your data": 0.4, "baseline": 0.6}}
     assert ladder[1]["rates"] == {"your data": 0.0}, "an unmeasured cell must not travel as 0"
@@ -100,8 +101,9 @@ def test_the_digest_carries_the_facts_advice_needs():
 # -- the ceiling -------------------------------------------------------------
 
 
-def fake_openai(points):
-    reply = {"choices": [{"message": {"content": json.dumps({"points": points})}}]}
+def fake_openai(points, fixes=None):
+    payload = {"points": points, "fixes": fixes or {}}
+    reply = {"choices": [{"message": {"content": json.dumps(payload)}}]}
 
     class Response(io.BytesIO):
         def __enter__(self):
@@ -117,12 +119,12 @@ def test_four_is_a_slice_not_a_request(monkeypatch):
     """The prompt asks for four; the code enforces it. A prompt is a request."""
     monkeypatch.setattr(coach.urllib.request, "urlopen", fake_openai(["a", "b", "c", "d", "e", "f"]))
     got = coach.ask({"x": 1}, key="k")
-    assert len(got) == coach.MAX_POINTS == 4
+    assert len(got["points"]) == coach.MAX_POINTS == 4
 
 
 def test_blank_points_are_dropped_before_the_ceiling(monkeypatch):
     monkeypatch.setattr(coach.urllib.request, "urlopen", fake_openai(["  ", "add wrist camera", ""]))
-    assert coach.ask({"x": 1}, key="k") == ["add wrist camera"]
+    assert coach.ask({"x": 1}, key="k")["points"] == ["add wrist camera"]
 
 
 # -- failure is a sentence, never an exception -------------------------------
@@ -182,11 +184,58 @@ def test_the_happy_path_stores_through_the_transport(monkeypatch):
         return {"stored": len(payload["points"])}
 
     monkeypatch.setattr(
-        coach.urllib.request, "urlopen", fake_openai(["film the lift slower", "add 30 demos of the handoff"])
+        coach.urllib.request, "urlopen",
+        fake_openai(
+            ["film the lift slower", "add 30 demos of the handoff"],
+            {"language.one_instruction": "Write one instruction per clip."},
+        ),
     )
     got = coach.maybe_coach("http://api", "sub_x", transport)
-    assert got == "coach: stored 2 point(s)"
-    assert stored["/api/submissions/sub_x/coach"]["points"] == [
-        "film the lift slower",
-        "add 30 demos of the handoff",
-    ]
+    assert got == "coach: stored 2 point(s), 1 finding note(s)"
+    payload = stored["/api/submissions/sub_x/coach"]
+    assert payload["points"] == ["film the lift slower", "add 30 demos of the handoff"]
+    assert payload["fixes"] == {"language.one_instruction": "Write one instruction per clip."}
+
+
+# -- the guardrails on the per-finding lines ---------------------------------
+
+
+def test_a_code_we_never_sent_is_refused(monkeypatch):
+    """The allow-list is the whole defence against free association.
+
+    A reply keyed to an invented code would put a generated sentence on the
+    page beside a finding it was never grounded in.
+    """
+    facts = coach.digest(record())
+    monkeypatch.setattr(
+        coach.urllib.request, "urlopen",
+        fake_openai(["p"], {
+            "language.one_instruction": "Write one instruction per clip.",
+            "invented.by_the_model": "Buy a better robot.",
+        }),
+    )
+    got = coach.ask(facts, key="k")
+    assert "language.one_instruction" in got["fixes"]
+    assert "invented.by_the_model" not in got["fixes"], (
+        "a code the digest never sent survived; the model can now write beside "
+        "any finding it invents"
+    )
+
+
+def test_a_blank_line_means_nothing_to_say_and_is_dropped(monkeypatch):
+    facts = coach.digest(record())
+    monkeypatch.setattr(
+        coach.urllib.request, "urlopen",
+        fake_openai(["p"], {"language.one_instruction": "   "}),
+    )
+    assert coach.ask(facts, key="k")["fixes"] == {}
+
+
+def test_length_is_a_slice_here_too(monkeypatch):
+    facts = coach.digest(record())
+    monkeypatch.setattr(
+        coach.urllib.request, "urlopen",
+        fake_openai(["p"], {"language.one_instruction": "x" * 500}),
+    )
+    got = coach.ask(facts, key="k")
+    assert len(got["fixes"]["language.one_instruction"]) == coach.MAX_SAY

@@ -162,8 +162,9 @@ export interface Submission {
   /** Where to reach the uploader if a check breaks. Empty when not given. */
   email: string;
   /** Generated advice on improving the dataset, {} until the worker writes it.
-   *  Interpretation of the measurements above, not a measurement itself. */
-  coach?: { points?: string[]; model?: string };
+   *  Interpretation of the measurements, not a measurement itself. `fixes` is
+   *  one short line per finding code, shown in place of the canned prose. */
+  coach?: { points?: string[]; fixes?: Record<string, string>; model?: string };
   created_at: string;
   benchmark: { key: string; name: string; simulator: string } | null;
   gates: Gate[];

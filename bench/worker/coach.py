@@ -43,19 +43,27 @@ MODEL = os.environ.get("BENCH_FEEDBACK_MODEL", "gpt-5-nano")
 MAX_POINTS = 4
 
 SYSTEM = (
-    "You review robot-learning dataset evaluations and tell the uploader how to "
-    "improve their dataset. You are given measurements: intake facts, data-report "
-    "findings, a signal-check verdict, and a robot-test verdict with a per-stage "
-    "ladder comparing their data against a shuffled control and a baseline.\n"
-    "Rules:\n"
-    "- At most 4 points. Fewer is better if the data supports fewer.\n"
-    "- Every point must cite a number or finding from the input. No generic advice.\n"
-    "- Each point says what to DO: what footage to add, what to refilm, what to "
-    "fix in the export. Name the failing stage when the ladder shows one.\n"
-    "- If hand tracking was estimated or dropped, say how to film so it tracks.\n"
-    "- Plain language, one sentence per point, no hedging, no preamble.\n"
-    'Reply as JSON: {"points": ["...", "..."]}'
+    "You turn robot-dataset evaluation measurements into advice for the uploader. "
+    "Input: intake facts, findings (each with a code), check verdicts, and a "
+    "robot-test ladder comparing their data against a shuffled control and a "
+    "baseline.\n"
+    "Hard rules, all of them:\n"
+    "- points: at most 4. Each is ONE imperative sentence, at most 18 words.\n"
+    "- Every sentence must reuse a number or a named stage from the input. Never "
+    "invent a number, a cause, or a fact that is not in the input.\n"
+    "- Say what to DO: add footage, refilm, fix the export. Name the failing "
+    "stage when the ladder shows one. If hand tracking was estimated or dropped, "
+    "say how to film so it tracks.\n"
+    "- No hedging, no praise, no preamble, no 'consider', no 'ensure'.\n"
+    "- fixes: one entry per finding code. ONE imperative sentence, at most 14 "
+    "words, grounded only in that finding. Use \"\" when the finding is "
+    "informational and needs no action.\n"
+    'Output JSON only: {"points": ["..."], "fixes": {"<code>": "<sentence>"}}'
 )
+
+#: The longest sentence the UI will show, enforced here and again at the API.
+#: A cap is a rule; the prompt's word limit is a request.
+MAX_SAY = 160
 
 
 def digest(record: dict) -> dict:
@@ -83,8 +91,13 @@ def digest(record: dict) -> dict:
         entry: dict = {
             "status": gate.get("status"),
             "verdict": (gate.get("verdict") or {}).get("summary", ""),
+            # Code and summary both: the summary is what the advice is grounded
+            # in, the code is the handle the reply keys its per-finding line to,
+            # and the allow-list below refuses any code we did not send.
             "findings": [
-                f.get("summary", "") for f in (gate.get("findings") or [])[:8] if f.get("summary")
+                {"code": f.get("code", ""), "summary": f.get("summary", "")}
+                for f in (gate.get("findings") or [])[:8]
+                if f.get("summary")
             ],
         }
         if key == "g3":
@@ -104,8 +117,20 @@ def digest(record: dict) -> dict:
     return out
 
 
-def ask(facts: dict, *, key: str, model: str = "") -> list[str]:
-    """One call, one JSON reply, at most four points back.
+def known_codes(facts: dict) -> set[str]:
+    """The finding codes that actually travelled, and therefore the only keys a
+    reply may use. Anything else in the reply is the model free-associating."""
+    codes: set[str] = set()
+    for section in facts.values():
+        if isinstance(section, dict):
+            for finding in section.get("findings", []):
+                if isinstance(finding, dict) and finding.get("code"):
+                    codes.add(finding["code"])
+    return codes
+
+
+def ask(facts: dict, *, key: str, model: str = "") -> dict:
+    """One call, one JSON reply: at most four points, one short line per finding.
 
     Two gpt-5-family behaviours shaped this, both learned from the first live
     call rather than the docs. Reasoning tokens are spent from the same
@@ -157,8 +182,26 @@ def ask(facts: dict, *, key: str, model: str = "") -> list[str]:
             "gpt-5-family model that usually means reasoning consumed the whole "
             "completion budget"
         )
-    points = json.loads(text).get("points", [])
-    return [str(p).strip() for p in points if str(p).strip()][:MAX_POINTS]
+    reply_body = json.loads(text)
+    points = [
+        str(p).strip()[:MAX_SAY]
+        for p in reply_body.get("points", [])
+        if str(p).strip()
+    ][:MAX_POINTS]
+
+    # The guardrails on the per-finding lines are structural, not stylistic:
+    # only codes we sent survive, blanks mean "nothing to say" and are dropped,
+    # and length is capped because the prompt's word limit is a request while a
+    # slice is a rule.
+    allowed = known_codes(facts)
+    raw = reply_body.get("fixes", {})
+    fixes = {}
+    if isinstance(raw, dict):
+        for code, say in raw.items():
+            text_say = str(say).strip()
+            if code in allowed and text_say:
+                fixes[code] = text_say[:MAX_SAY]
+    return {"points": points, "fixes": fixes}
 
 
 def maybe_coach(api: str, sub_id: str, call) -> str:
@@ -181,7 +224,7 @@ def maybe_coach(api: str, sub_id: str, call) -> str:
         return "coach: skipped, no finished checks to read"
 
     try:
-        points = ask(facts, key=key)
+        advice = ask(facts, key=key)
     except urllib.error.HTTPError as error:
         detail = ""
         try:
@@ -192,11 +235,15 @@ def maybe_coach(api: str, sub_id: str, call) -> str:
     except Exception as error:  # noqa: BLE001
         return f"coach: openai call failed ({type(error).__name__}: {error})"
 
-    if not points:
-        return "coach: model returned no usable points, stored nothing"
+    if not advice["points"] and not advice["fixes"]:
+        return "coach: model returned nothing usable, stored nothing"
 
     try:
-        call(api, f"/api/submissions/{sub_id}/coach", {"points": points, "model": MODEL})
+        call(
+            api,
+            f"/api/submissions/{sub_id}/coach",
+            {"points": advice["points"], "fixes": advice["fixes"], "model": MODEL},
+        )
     except Exception as error:  # noqa: BLE001
         return f"coach: could not store the advice ({type(error).__name__})"
-    return f"coach: stored {len(points)} point(s)"
+    return f"coach: stored {len(advice['points'])} point(s), {len(advice['fixes'])} finding note(s)"

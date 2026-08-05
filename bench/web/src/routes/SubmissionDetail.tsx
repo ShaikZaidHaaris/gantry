@@ -4,7 +4,6 @@ import { Link, useParams } from "react-router-dom";
 import { useRetryGate, useStartGate, useSubmission, useSubmissionEvents } from "../api/client";
 import { BudgetPanel } from "../components/BudgetPanel";
 import { AnswerBanner } from "../components/Answer";
-import { Channels } from "../components/Channels";
 import { Publish } from "../components/Publish";
 import { DataReport } from "../components/DataReport";
 import { Verdict } from "../components/Verdict";
@@ -38,6 +37,16 @@ const GATE_NAMES: Record<string, string> = {
 
 function gateName(key: string): string {
   return GATE_NAMES[key] ?? key;
+}
+
+/** 1,284 as 1,284 and 17,371 as 17.4K: the tile contract's auto-compact.
+ *  Proportional figures on purpose; tabular-nums is for columns, and a lone
+ *  display-size number set tabular reads loose. */
+function compact(n: number | undefined): string {
+  if (n === undefined || n === null) return "-";
+  if (n < 10000) return n.toLocaleString("en-US");
+  if (n < 1e6) return `${(n / 1e3).toFixed(1).replace(/\.0$/, "")}K`;
+  return `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M`;
 }
 
 export function SubmissionDetail() {
@@ -160,10 +169,6 @@ export function SubmissionDetail() {
                 <li key={i}>{point}</li>
               ))}
             </ul>
-            <div className="coach-note">
-              Generated advice. The measurements below are the ground truth; check any
-              point against them before acting on it.
-            </div>
           </div>
         </>
       )}
@@ -179,37 +184,41 @@ export function SubmissionDetail() {
 
       {detected?.episodes ? (
         <>
-        <h2>
-          What we found in the upload
-          <span className="h2-sub">what the file contains, before any judgement</span>
-        </h2>
-        <div className="card pad" style={{ marginBottom: 18 }}>
-          <div className="kv">
-            <span className="k">Episodes</span>
-            <span className="v">{detected.episodes}</span>
-            <span className="k">Frames</span>
-            <span className="v">{detected.frames}</span>
-            <span className="k">Frame rate</span>
-            <span className="v">{detected.fps} fps</span>
-            <span className="k">Videos</span>
-            <span className="v">{detected.videos}</span>
-            <span className="k">Channels</span>
-            <span className="v">
-              <Channels channels={detected.channels ?? []} />
-            </span>
-            {detected.tasks && detected.tasks.length > 0 && (
-              <>
-                <span className="k">Instructions</span>
-                <span className="v">
-                  {detected.tasks.length === 1
-                    ? `1: “${readable(detected.tasks[0])}”`
-                    : `${detected.tasks.length} distinct`}
-                </span>
-              </>
-            )}
-            <span className="k">Provenance sidecar</span>
-            <span className="v">{detected.has_sidecar ? "present" : "absent"}</span>
+        <h2>What we found in the upload</h2>
+        {/* Stat tiles, per the house dataviz rules: label in sentence case,
+            value semibold in the same sans as everything else, proportional
+            figures, compacted past four digits. No chart, because these are
+            identities and magnitudes with nothing to compare against. */}
+        <div className="stats" style={{ marginBottom: 18 }}>
+          <div className="stat">
+            <span className="stat-label">Episodes</span>
+            <span className="stat-value">{compact(detected.episodes)}</span>
           </div>
+          <div className="stat">
+            <span className="stat-label">Frames</span>
+            <span className="stat-value">{compact(detected.frames)}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">Frame rate</span>
+            <span className="stat-value">
+              {detected.fps}
+              <span className="stat-unit">fps</span>
+            </span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">Videos</span>
+            <span className="stat-value">{compact(detected.videos)}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">Channels</span>
+            <span className="stat-value">{(detected.channels ?? []).length}</span>
+          </div>
+          {detected.tasks && detected.tasks.length > 0 && (
+            <div className="stat">
+              <span className="stat-label">Distinct instructions</span>
+              <span className="stat-value">{detected.tasks.length}</span>
+            </div>
+          )}
         </div>
         </>
       ) : null}
@@ -224,7 +233,7 @@ export function SubmissionDetail() {
               what your footage is like, before anything is trained on it
             </span>
           </h2>
-          <DataReport gate={report} />
+          <DataReport gate={report} notes={data.coach?.fixes ?? {}} />
         </>
       )}
 
