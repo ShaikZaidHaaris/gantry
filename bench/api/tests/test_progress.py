@@ -229,3 +229,31 @@ def test_the_running_position_arrives_as_its_own_frame(client, job):
     # No id on a progress frame: nobody wants a replay of a progress bar, and
     # advancing the resume cursor on one would skip durable events.
     assert "id: " not in text
+
+
+def test_a_passing_signal_check_does_not_start_the_robot_test(tmp_path, monkeypatch):
+    """The robot test is a decision, so it waits for one.
+
+    Auto-advance used to stop at the first gate with a price. That was the same
+    thing as "the first gate that is a decision" only while the gates were
+    priced; once every price went to zero it stopped at nothing, and on a host
+    with BENCH_RUNNER set a passing signal check began hours of GPU with no
+    human in the loop, on a public URL, billed to nobody.
+
+    `sized` is the durable test: it marks the gate whose trial count is a
+    choice, which is exactly the gate that must not start itself.
+    """
+    from app.main import GATES
+
+    order = [g["key"] for g in GATES]
+    by_key = {g["key"]: g for g in GATES}
+
+    # g0 through g2 are fixed work and may run on their own.
+    for key in ("g0", "g1", "g2"):
+        assert not by_key[key]["sized"], f"{key} would now block auto-advance"
+
+    # g3 is the one with a knob on it.
+    assert by_key["g3"]["sized"], "the robot test must be marked as a decision"
+
+    # And it is last, so stopping there stops the run rather than skipping work.
+    assert order[-1] == "g3"

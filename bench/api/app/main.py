@@ -1468,14 +1468,24 @@ def finish_job(job_id: str, body: dict, session: Session = Depends(db), _=Depend
 
     # A free gate runs on its own. The contributor gets a real report on their
     # filming before being asked to decide anything or spend anything, which is
-    # the whole reason the cheap gates come first. A gate that costs money is
-    # never started without the user buying it.
+    # the whole reason the cheap gates come first.
+    #
+    # It stops at the first gate that is a *decision*, and `sized` is what marks
+    # one: the robot test runs as many scenes as you ask for, and how many you
+    # ask for decides what the run can conclude. `cost_cents` used to be the
+    # test, which was the same thing while the gates were priced and became
+    # nothing at all the moment every price went to zero. On a host with
+    # BENCH_RUNNER set that left a passing signal check starting hours of GPU
+    # with no human anywhere in the loop, on a public URL, billed to nobody.
+    #
+    # Price is a policy that has changed once and will change again. Whether a
+    # gate has a knob on it is a fact about the gate.
     if status == "passed":
         order = [g["key"] for g in GATES]
         following = order[order.index(row.gate_key) + 1 :]
         for key in following:
             spec = next(g for g in GATES if g["key"] == key)
-            if spec["cost_cents"] > 0:
+            if spec["cost_cents"] > 0 or spec["sized"]:
                 break
             session.add(
                 Job(id=new_id("job"), submission_id=row.submission_id, gate_key=key,
