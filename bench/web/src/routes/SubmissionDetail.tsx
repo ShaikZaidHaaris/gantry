@@ -165,9 +165,16 @@ export function SubmissionDetail() {
           </h2>
           <div className="card pad">
             <ul className="coach-list">
-              {data.coach!.points!.slice(0, 4).map((point, i) => (
-                <li key={i}>{point}</li>
-              ))}
+              {data.coach!.points!.slice(0, 4).map((point, i) =>
+                typeof point === "string" ? (
+                  <li key={i}>{point}</li>
+                ) : (
+                  <li key={i}>
+                    <b>{point.title}</b>
+                    {point.detail && <p>{point.detail}</p>}
+                  </li>
+                ),
+              )}
             </ul>
           </div>
         </>

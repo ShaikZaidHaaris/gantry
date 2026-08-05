@@ -1298,7 +1298,17 @@ def store_coach(sub_id: str, body: dict, session: Session = Depends(db), _=Depen
     sub = session.get(Submission, sub_id)
     if sub is None:
         raise HTTPException(404, "no such submission")
-    points = [str(p).strip()[:160] for p in (body.get("points") or []) if str(p).strip()][:4]
+    points = []
+    for p in body.get("points") or []:
+        if isinstance(p, dict):
+            title = str(p.get("title", "")).strip()[:120]
+            detail = str(p.get("detail", "")).strip()[:600]
+        else:
+            title, detail = str(p).strip()[:120], ""
+        if title:
+            points.append({"title": title, "detail": detail})
+        if len(points) == 4:
+            break
     # Per-finding one-liners, keyed by finding code. Same posture as points:
     # caps are enforced at this door because the generator is one caller of it,
     # and a wall of text stored here becomes a wall of text on the page.

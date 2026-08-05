@@ -80,7 +80,10 @@ def test_the_worker_writes_and_the_owner_reads_it_back(client):
     assert w.status_code == 200, w.text
 
     body = as_ip(client, "93.184.216.34", path=f"/api/submissions/{sub}").json()
-    assert body["coach"]["points"] == ["add 30 demos of the lift", "keep both hands in frame"]
+    assert body["coach"]["points"] == [
+        {"title": "add 30 demos of the lift", "detail": ""},
+        {"title": "keep both hands in frame", "detail": ""},
+    ]
     assert body["coach"]["model"] == "gpt-5-nano"
 
 

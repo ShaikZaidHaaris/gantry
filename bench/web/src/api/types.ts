@@ -166,7 +166,7 @@ export interface Submission {
    *  one entry per finding code: `say` restates the finding and stands in for
    *  the gate's summary line, `do` is the action under it. */
   coach?: {
-    points?: string[];
+    points?: (string | { title?: string; detail?: string })[];
     fixes?: Record<string, { say?: string; do?: string }>;
     model?: string;
   };

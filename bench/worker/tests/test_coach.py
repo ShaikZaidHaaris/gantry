@@ -120,11 +120,14 @@ def test_four_is_a_slice_not_a_request(monkeypatch):
     monkeypatch.setattr(coach.urllib.request, "urlopen", fake_openai(["a", "b", "c", "d", "e", "f"]))
     got = coach.ask({"x": 1}, key="k")
     assert len(got["points"]) == coach.MAX_POINTS == 4
+    assert got["points"][0] == {"title": "a", "detail": ""}, (
+        "a flat sentence from an older reply is a title with no depth, kept"
+    )
 
 
 def test_blank_points_are_dropped_before_the_ceiling(monkeypatch):
     monkeypatch.setattr(coach.urllib.request, "urlopen", fake_openai(["  ", "add wrist camera", ""]))
-    assert coach.ask({"x": 1}, key="k")["points"] == ["add wrist camera"]
+    assert coach.ask({"x": 1}, key="k")["points"] == [{"title": "add wrist camera", "detail": ""}]
 
 
 # -- failure is a sentence, never an exception -------------------------------
@@ -196,7 +199,10 @@ def test_the_happy_path_stores_through_the_transport(monkeypatch):
     got = coach.maybe_coach("http://api", "sub_x", transport)
     assert got == "coach: stored 2 point(s), 1 finding note(s)"
     payload = stored["/api/submissions/sub_x/coach"]
-    assert payload["points"] == ["film the lift slower", "add 30 demos of the handoff"]
+    assert payload["points"] == [
+        {"title": "film the lift slower", "detail": ""},
+        {"title": "add 30 demos of the handoff", "detail": ""},
+    ]
     assert payload["fixes"] == {"language.one_instruction": {
         "say": "One instruction is reused across all 58 clips.",
         "do": "Write a distinct instruction for each clip.",
@@ -290,3 +296,16 @@ def test_the_gates_prescription_travels_as_the_hint():
     facts = coach.digest(rec)
     hint = facts["data report"]["findings"][0]["hint"]
     assert "rather than reusing one sentence" in hint
+
+
+def test_a_detailed_point_survives_with_its_caps(monkeypatch):
+    """The points carry the depth now, and depth gets paragraph caps, not
+    sentence caps: 120 for the headline, 600 for the reasoning under it."""
+    facts = coach.digest(record())
+    monkeypatch.setattr(
+        coach.urllib.request, "urlopen",
+        fake_openai([{"title": "t" * 500, "detail": "d" * 2000}]),
+    )
+    got = coach.ask(facts, key="k")["points"][0]
+    assert len(got["title"]) == coach.MAX_TITLE
+    assert len(got["detail"]) == coach.MAX_DETAIL

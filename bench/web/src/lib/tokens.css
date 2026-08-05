@@ -792,3 +792,11 @@ h2 .h2-link { float: right; font: 500 12px var(--sans); letter-spacing: 0; }
   font-weight: 600; font-size: 22px; line-height: 1.2; color: var(--text);
 }
 .stat-unit { font-size: 12.5px; font-weight: 600; color: var(--text-3, #8a949a); margin-left: 4px; }
+
+/* Detailed advice points: an action as the headline, the measurement and the
+   quantity under it. */
+.coach-list b { display: block; font-weight: 600; color: var(--text); }
+.coach-list li p {
+  margin: 3px 0 0; font-size: 13px; line-height: 1.55;
+  color: var(--text-2, #4b5960); max-width: 78ch;
+}

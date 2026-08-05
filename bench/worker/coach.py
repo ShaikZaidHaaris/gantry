@@ -48,8 +48,14 @@ SYSTEM = (
     "a summary), check verdicts, and a robot-test ladder comparing their data "
     "against a shuffled control and a baseline.\n"
     "Hard rules, all of them:\n"
-    "- points: at most 4. Each is ONE imperative sentence, at most 18 words, "
-    "reusing a number or a named stage from the input.\n"
+    '- points: at most 4 objects {"title": ..., "detail": ...}. These are the '
+    "main takeaway, so they carry the depth.\n"
+    "- title: ONE imperative sentence, at most 12 words, naming the change.\n"
+    "- detail: 2 to 4 sentences, 30 to 80 words. State the measurement it "
+    "comes from with its number, why it limits the score (tie it to the "
+    "ladder stage or verdict it affects), and exactly what to change: how "
+    "much footage, which stage, what to film, what to export. Concrete "
+    "quantities from the input only.\n"
     '- fixes: one entry per finding code: {"say": ..., "do": ...}.\n'
     "- say: restate the finding in at most 14 words. Keep its exact meaning, "
     "direction and numbers. Never soften it and never flip it.\n"
@@ -65,12 +71,19 @@ SYSTEM = (
     "- Never invent a number, a cause, or a fact that is not in the input. No "
     "hedging, no praise words, no 'consider', no 'ensure'.\n"
     "Output JSON only: "
-    '{"points": ["..."], "fixes": {"<code>": {"say": "...", "do": "..."}}}'
+    '{"points": [{"title": "...", "detail": "..."}], '
+    '"fixes": {"<code>": {"say": "...", "do": "..."}}}'
 )
 
 #: The longest sentence the UI will show, enforced here and again at the API.
 #: A cap is a rule; the prompt's word limit is a request.
 MAX_SAY = 160
+
+#: The points carry the depth, so their caps are paragraph-sized: a title that
+#: stays a headline and a detail long enough for measurement, consequence and
+#: quantity, short enough that four of them still fit on a screen.
+MAX_TITLE = 120
+MAX_DETAIL = 600
 
 
 def digest(record: dict) -> dict:
@@ -174,7 +187,9 @@ def ask(facts: dict, *, key: str, model: str = "") -> dict:
         "response_format": {"type": "json_object"},
         "reasoning_effort": "low",
         # `max_tokens` is the old name and these models refuse it.
-        "max_completion_tokens": 4000,
+        # Four detailed paragraphs plus per-finding pairs plus low-effort
+        # reasoning all draw from this one budget.
+        "max_completion_tokens": 6000,
     }
 
     def post(payload: dict) -> dict:
@@ -205,11 +220,20 @@ def ask(facts: dict, *, key: str, model: str = "") -> dict:
             "completion budget"
         )
     reply_body = json.loads(text)
-    points = [
-        str(p).strip()[:MAX_SAY]
-        for p in reply_body.get("points", [])
-        if str(p).strip()
-    ][:MAX_POINTS]
+    points = []
+    for p in reply_body.get("points", []):
+        if isinstance(p, dict):
+            title = str(p.get("title", "")).strip()[:MAX_TITLE]
+            detail = str(p.get("detail", "")).strip()[:MAX_DETAIL]
+        else:
+            # A flat sentence from an older-shaped reply is a title with no
+            # depth, kept rather than dropped for the usual reason: strict
+            # parsing here fails as silence.
+            title, detail = str(p).strip()[:MAX_TITLE], ""
+        if title:
+            points.append({"title": title, "detail": detail})
+        if len(points) == MAX_POINTS:
+            break
 
     # The guardrails on the per-finding entries are structural, not stylistic:
     # only codes we sent survive (the whole defence against the model writing
