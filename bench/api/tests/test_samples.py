@@ -100,3 +100,27 @@ def test_listing_reports_whether_each_file_is_really_there(tmp_path, monkeypatch
     assert listing["two_handed"]["bytes"] > 0
     assert listing["one_handed"]["available"] is False
     assert listing["one_handed"]["bytes"] == 0
+
+
+def test_a_seeded_sample_carries_its_coaching(tmp_path, monkeypatch):
+    """The worked examples must show the features the product has.
+
+    They are seeded from a fixture, so every feature added after that fixture
+    was written is invisible on the first page a visitor sees unless something
+    carries it. Coaching was exactly that: the samples rendered every check and
+    verdict correctly and had no advice section at all, while every real
+    submission did.
+    """
+    import json as jsonlib
+
+    from app import samples as samplesmod
+
+    fixture = jsonlib.loads(samplesmod.FIXTURE.read_text())
+    for spec in fixture["samples"]:
+        coach = spec.get("coach") or {}
+        assert coach.get("points"), f"{spec['id']} has no coaching in the fixture"
+        assert coach.get("model"), f"{spec['id']} does not say which model wrote it"
+        # Grounded, not decorative: the advice names findings the gates actually
+        # produced. A point citing a code nothing reported would be the model
+        # inventing a measurement, which is the one thing this must not do.
+        assert isinstance(coach.get("fixes"), dict)
