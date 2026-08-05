@@ -8,7 +8,11 @@ version = "0.1.0.dev0"
 description = "Read RoboTwin 2.0 demonstration files as Gantry episodes"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
-dependencies = ["gantry-core", "gantry-evaluator-robotwin", "h5py>=3.9", "numpy>=1.24"]
+# pillow is load-bearing, not cosmetic: RoboTwin stores camera frames as
+# encoded PNG/JPEG bytes, so decoding them IS this connector's job. It was
+# imported lazily and never declared, which held only in environments where
+# something else happened to drag pillow in -- CI's merged install did not.
+dependencies = ["gantry-core", "gantry-evaluator-robotwin", "h5py>=3.9", "numpy>=1.24", "pillow>=10"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4"]
