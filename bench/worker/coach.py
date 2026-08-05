@@ -151,6 +151,21 @@ def digest(record: dict) -> dict:
     return out
 
 
+def _tidy(text: str) -> str:
+    """House style, applied to everything the model wrote.
+
+    Em and en dashes become commas: banned across the product's copy by the
+    owner, and a model will eventually emit one however the prompt reads.
+    """
+    return (
+        text.replace(" — ", ", ")
+        .replace("—", ", ")
+        .replace(" – ", ", ")
+        .replace("–", "-")
+        .strip()
+    )
+
+
 def known_codes(facts: dict) -> set[str]:
     """The finding codes that actually travelled, and therefore the only keys a
     reply may use. Anything else in the reply is the model free-associating."""
@@ -226,13 +241,13 @@ def ask(facts: dict, *, key: str, model: str = "") -> dict:
     points = []
     for p in reply_body.get("points", []):
         if isinstance(p, dict):
-            title = str(p.get("title", "")).strip()[:MAX_TITLE]
-            detail = str(p.get("detail", "")).strip()[:MAX_DETAIL]
+            title = _tidy(str(p.get("title", "")))[:MAX_TITLE]
+            detail = _tidy(str(p.get("detail", "")))[:MAX_DETAIL]
         else:
             # A flat sentence from an older-shaped reply is a title with no
             # depth, kept rather than dropped for the usual reason: strict
             # parsing here fails as silence.
-            title, detail = str(p).strip()[:MAX_TITLE], ""
+            title, detail = _tidy(str(p))[:MAX_TITLE], ""
         if title:
             points.append({"title": title, "detail": detail})
         if len(points) == MAX_POINTS:
@@ -254,10 +269,10 @@ def ask(facts: dict, *, key: str, model: str = "") -> dict:
             if code not in allowed:
                 continue
             if isinstance(entry, dict):
-                say = str(entry.get("say", "")).strip()[:MAX_SAY]
-                do = str(entry.get("do", "")).strip()[:MAX_SAY]
+                say = _tidy(str(entry.get("say", "")))[:MAX_SAY]
+                do = _tidy(str(entry.get("do", "")))[:MAX_SAY]
             else:
-                say, do = "", str(entry).strip()[:MAX_SAY]
+                say, do = "", _tidy(str(entry))[:MAX_SAY]
             if say or do:
                 fixes[code] = {"say": say, "do": do}
     return {"points": points, "fixes": fixes}

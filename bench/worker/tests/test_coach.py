@@ -309,3 +309,16 @@ def test_a_detailed_point_survives_with_its_caps(monkeypatch):
     got = coach.ask(facts, key="k")["points"][0]
     assert len(got["title"]) == coach.MAX_TITLE
     assert len(got["detail"]) == coach.MAX_DETAIL
+
+
+def test_the_models_dashes_become_house_style(monkeypatch):
+    """Em dashes are banned across the product's copy, and a model will emit
+    one eventually however the prompt reads. Style is enforced like length."""
+    facts = coach.digest(record())
+    monkeypatch.setattr(
+        coach.urllib.request, "urlopen",
+        fake_openai([{"title": "Add clips — thirty at least", "detail": "One – two."}]),
+    )
+    got = coach.ask(facts, key="k")["points"][0]
+    assert "—" not in got["title"] and "–" not in got["detail"]
+    assert got["title"] == "Add clips, thirty at least"
