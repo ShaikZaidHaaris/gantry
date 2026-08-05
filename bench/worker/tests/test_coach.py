@@ -44,20 +44,24 @@ def record(with_g3: bool = True) -> dict:
                 "status": "passed",
                 "verdict": {"summary": "solved 2/50 against the baseline's 12/100"},
                 "findings": [{"code": "ladder.bottleneck", "summary": "100% of scenes are lost between 'moved' and 'lifted'"}],
+                # Shaped like the gate's real detail_json, copied from a live
+                # record rather than from the digest code. The first fixture
+                # was written from the code, used the wrong key, and proved a
+                # bug correct.
                 "detail": {
                     "ladder": [
                         {
                             "rung": "moved",
-                            "cells": {
-                                "your data": {"measured": True, "rate": 0.4},
-                                "baseline": {"measured": True, "rate": 0.6},
+                            "arms": {
+                                "your data": {"measured": True, "wins": 20, "n": 50, "rate": 0.4},
+                                "baseline": {"measured": True, "wins": 60, "n": 100, "rate": 0.6},
                             },
                         },
                         {
                             "rung": "lifted all 3",
-                            "cells": {
-                                "your data": {"measured": True, "rate": 0.0},
-                                "baseline": {"measured": False},
+                            "arms": {
+                                "your data": {"measured": True, "wins": 0, "n": 50, "rate": 0.0},
+                                "baseline": {"measured": False, "n": 0},
                             },
                         },
                     ]
@@ -94,8 +98,16 @@ def test_the_digest_carries_the_facts_advice_needs():
     assert "lost between" in facts["robot test"]["findings"][0]["summary"]
     assert facts["robot test"]["findings"][0]["code"] == "ladder.bottleneck"
     ladder = facts["robot test"]["ladder"]
-    assert ladder[0] == {"rung": "moved", "rates": {"your data": 0.4, "baseline": 0.6}}
-    assert ladder[1]["rates"] == {"your data": 0.0}, "an unmeasured cell must not travel as 0"
+    assert ladder[0] == {"rung": "moved", "counts": {"your data": "20/50", "baseline": "60/100"}}, (
+        "the rung's measured counts did not travel; with an empty ladder the "
+        "model anchors on the data-report findings and two different "
+        "evaluations get the same advice"
+    )
+    assert ladder[1]["counts"] == {"your data": "0/50"}, "an unmeasured cell must not travel"
+    order = list(facts)
+    assert order.index("robot test") < order.index("data report"), (
+        "the evaluation must lead the digest; a model reads in order"
+    )
 
 
 # -- the ceiling -------------------------------------------------------------

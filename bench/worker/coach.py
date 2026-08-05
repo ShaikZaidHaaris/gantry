@@ -50,6 +50,9 @@ SYSTEM = (
     "Hard rules, all of them:\n"
     '- points: EXACTLY 3 objects {"title": ..., "detail": ...}. These are the '
     "main takeaway, so they carry the depth.\n"
+    "- When the robot test ran, it is the primary source: at least 2 of the 3 "
+    "points must be grounded in its ladder counts or verdict, naming the stage "
+    "and the wins/n numbers against the shuffled control and baseline.\n"
     "- title: ONE imperative sentence, at most 12 words, naming the change.\n"
     "- detail: 2 to 4 sentences, 30 to 80 words, written directly to the "
     "uploader. State the measurement with its number, why it limits the score "
@@ -107,7 +110,9 @@ def digest(record: dict) -> dict:
         if detected.get(k) is not None
     }
 
-    for key, keep in (("g1", "data report"), ("g2", "signal check"), ("g3", "robot test")):
+    # The robot test first: it is the evaluation, the sections after it are
+    # context, and a model reads in order.
+    for key, keep in (("g3", "robot test"), ("g2", "signal check"), ("g1", "data report")):
         gate = gates.get(key)
         if not gate or gate.get("status") in (None, "queued", "running"):
             continue
@@ -135,13 +140,21 @@ def digest(record: dict) -> dict:
             ],
         }
         if key == "g3":
+            # `arms`, not `cells`: the gate keys each rung's measurements under
+            # `arms`, and this read the wrong name for long enough that the
+            # model never saw a single rate. Starved of evaluation numbers it
+            # anchored on the data-report findings, which are identical for
+            # identical uploads, so two runs with a sixfold difference in
+            # solved scenes got the same advice. The fixture that should have
+            # caught it was written from this code instead of from a real
+            # record, which is the whole lesson.
             detail = gate.get("detail") or {}
             entry["ladder"] = [
                 {
                     "rung": row.get("rung") or row.get("name"),
-                    "rates": {
-                        arm: (cell or {}).get("rate")
-                        for arm, cell in (row.get("cells") or {}).items()
+                    "counts": {
+                        arm: f"{cell.get('wins', '?')}/{cell.get('n', '?')}"
+                        for arm, cell in (row.get("arms") or row.get("cells") or {}).items()
                         if (cell or {}).get("measured")
                     },
                 }
