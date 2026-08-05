@@ -511,6 +511,16 @@ MANIFEST = "arms.json"
 #: becomes marketing. The gate says what it needs; a runner says how. The
 #: contract is a JSON job in and run records out, which is the same shape the
 #: rest of this repo's backends already use.
+#: The benchmark's own demonstrations, which every arm is finetuned on after
+#: training on the contributor's clips. Empty means single phase, which is what
+#: a benchmark with no demonstrations of its own still needs.
+DEMONSTRATIONS = os.environ.get("BENCH_DEMONSTRATIONS", "")
+
+#: Both budgets are step counts rather than epochs, so a larger upload buys
+#: diversity rather than compute. See bench/runner/DESIGN.md.
+PRETRAIN_STEPS = int(os.environ.get("BENCH_TRAIN_STEPS", 3000))
+FINETUNE_STEPS = int(os.environ.get("BENCH_FINETUNE_STEPS", 1500))
+
 RUNNER = os.environ.get("BENCH_RUNNER", "")
 
 #: How long to wait for a runner before giving up on it. A full two-arm run is
@@ -619,6 +629,18 @@ def run(
         ok, why = produce(
             {
                 "dataset": str(root.parents[1]) if root else "",
+                # The benchmark's own demonstrations, and the two step budgets.
+                # Named here rather than in the runner because which
+                # demonstrations define a benchmark is a property of the
+                # benchmark, and the runner is only supposed to choose the
+                # trainer and the simulator.
+                #
+                # Without this, both arms are trained on the upload alone. For
+                # footage that cannot do the task by itself that is two zeros
+                # and a paired test with nothing to separate: hours of GPU to
+                # learn nothing. See bench/runner/DESIGN.md.
+                "finetune": {"dataset": DEMONSTRATIONS, "steps": FINETUNE_STEPS},
+                "pretrain": {"steps": PRETRAIN_STEPS},
                 "trials": trials,
                 "task": str((params or {}).get("task") or ""),
                 "arms": [TREATMENT, CONTROL],

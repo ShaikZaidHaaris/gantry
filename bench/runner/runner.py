@@ -56,9 +56,17 @@ PORT = 8000
 #: thing never exercised before it mattered.
 DEFAULT_STEPS = int(os.environ.get("BENCH_TRAIN_STEPS", 3000))
 
+#: Steps of the benchmark's own demonstrations, when the job does not say.
+DEFAULT_FINETUNE_STEPS = int(os.environ.get("BENCH_FINETUNE_STEPS", 1500))
+
 #: Free bytes below which we refuse to start a training run rather than
-#: discover it mid-write. A checkpoint is about 8.5 GB.
-NEED_BYTES = 11 * 1024**3
+#: discover it mid-write.
+#:
+#: Two checkpoints at 8.5 GB, not one: a two-phase arm has to keep phase one's
+#: on disk while phase two reads it to initialise from, so the peak is both at
+#: once. The old 11 GB was sized for a single phase and would have passed this
+#: check and then filled the disk halfway through the second.
+NEED_BYTES = 20 * 1024**3
 
 
 def emit(progress: Path, phase: str, current=None, total=None, note: str = "") -> None:
@@ -279,7 +287,7 @@ TEMPLATE = """
         name="pi05_{arm}",
         model=pi0_config.Pi0Config(pi05=True, action_horizon=10, discrete_state_input=False),
         data=LeRobotPoseDataConfig(
-            repo_id="gantry/{arm}",
+            repo_id="gantry/{repo}",
             # Pose, not Aloha. LeRobotAlohaDataConfig assumes an action is
             # fourteen wide, because an Aloha is two arms of six joints and a
             # gripper. RoboTwin's end-effector space is sixteen: position, a
@@ -307,7 +315,7 @@ TEMPLATE = """
             ),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader(
-            "gs://openpi-assets/checkpoints/pi05_base/params"
+            "{weights}"
         ),
         num_train_steps={steps},
         batch_size=16,
@@ -332,8 +340,28 @@ def _existing_block(text: str, arm: str) -> tuple[int, int] | None:
     return start, end + len("\n    ),\n")
 
 
-def register(arm: str, steps: int, prompt: str, progress: Path) -> None:
+#: Where an arm starts from when nothing earlier trained it. openpi's own
+#: released weights.
+BASE_WEIGHTS = "gs://openpi-assets/checkpoints/pi05_base/params"
+
+
+def register(
+    arm: str,
+    steps: int,
+    prompt: str,
+    progress: Path,
+    *,
+    repo: str = "",
+    weights: str = BASE_WEIGHTS,
+) -> None:
     """Put this arm in openpi's own config list, matching the current template.
+
+    ``repo`` is the dataset to train on, defaulting to a repo named after the
+    arm. ``weights`` is what it starts from, defaulting to the released base.
+    Both are parameters because a two-phase run needs to vary them
+    independently: the first phase trains on the contributor's clips from the
+    base, and the second trains on the benchmark's own demonstrations starting
+    from whatever the first produced.
 
     Written here rather than by ``add_configs.py``, which takes no arguments and
     is hardcoded to the three arms of the hand-run ablation. A submission needs
@@ -349,7 +377,9 @@ def register(arm: str, steps: int, prompt: str, progress: Path) -> None:
     """
     emit(progress, "registering the arm", note=arm)
     text = CONFIG_PY.read_text()
-    block = TEMPLATE.format(arm=arm, prompt=prompt, steps=steps).strip("\n")
+    block = TEMPLATE.format(
+        arm=arm, repo=repo or arm, prompt=prompt, steps=steps, weights=weights
+    ).strip("\n")
 
     span = _existing_block(text, arm)
     if span is not None:
@@ -443,8 +473,61 @@ def _why(log: Path, keep: int = 4) -> str:
     return " / ".join(part.strip() for part in lines[-keep:])
 
 
+def train_arm(
+    repo: str, prompt: str, pretrain_steps: int, finetune: dict, progress: Path
+) -> Path:
+    """One arm, in two phases. Returns the checkpoint to serve.
+
+    Phase one trains on the contributor's clips, from openpi's released
+    weights. Phase two trains on the benchmark's own demonstrations, starting
+    from whatever phase one produced.
+
+    The second phase is what makes the run mean anything for footage that
+    cannot do the task on its own. A policy trained only on a person's hands in
+    a kitchen scores zero in the simulator, its shuffled control scores zero,
+    and the paired test has nothing to separate. See DESIGN.md: the finetune is
+    identical for both arms, so whatever it teaches, and whatever it makes the
+    model forget, applies equally. What differs between the arms is only what
+    they brought to it.
+
+    Phase one's checkpoint is deleted as soon as phase two has read it. Two of
+    them are 17 GB and only one is ever needed again.
+
+    With no finetune configured this is the old single-phase behaviour, so a
+    benchmark that has no demonstrations of its own still runs.
+    """
+    if not finetune.get("repo"):
+        register(repo, pretrain_steps, prompt, progress)
+        norm_stats(repo, progress)
+        return train(repo, pretrain_steps, progress)
+
+    pre = f"{repo}_pre"
+    emit(progress, "phase 1 of 2: learning from your clips", note=repo)
+    register(pre, pretrain_steps, prompt, progress, repo=repo)
+    norm_stats(pre, progress)
+    pretrained = train(pre, pretrain_steps, progress)
+
+    emit(progress, "phase 2 of 2: the benchmark's own demonstrations", note=finetune["repo"])
+    register(
+        repo,
+        finetune["steps"],
+        prompt,
+        progress,
+        repo=finetune["repo"],
+        # Where phase one left off. This is the whole of the difference between
+        # the two arms by the time evaluation runs.
+        weights=str(pretrained / "params"),
+    )
+    norm_stats(repo, progress)
+    checkpoint = train(repo, finetune["steps"], progress)
+
+    emit(progress, "clearing the pretraining checkpoint", note=pre)
+    shutil.rmtree(pretrained.parents[1], ignore_errors=True)
+    return checkpoint
+
+
 def train(arm: str, steps: int, progress: Path) -> Path:
-    """Train one arm. Returns the checkpoint directory."""
+    """Train one arm for one phase. Returns the checkpoint directory."""
     out = CHECKPOINTS / f"pi05_{arm}" / "bench" / str(steps - 1)
     if out.exists():
         emit(progress, "training", note=f"{arm} already trained")
@@ -562,7 +645,31 @@ def main() -> int:
     out = Path(job["out"])
     progress = Path(job["progress"])
     scenes = int(job.get("trials") or 50)
-    steps = int(job.get("steps") or DEFAULT_STEPS)
+    # Two budgets, both step counts rather than epochs. With epochs, 1,000 clips
+    # would simply buy ten times the gradient steps of 100 and the run would
+    # measure compute instead of data. Fixed steps make more clips mean more
+    # diversity, which is the thing worth paying for. See DESIGN.md.
+    pretrain_steps = int((job.get("pretrain") or {}).get("steps") or job.get("steps") or DEFAULT_STEPS)
+
+    # The benchmark's own demonstrations, and how long to train on them. Named
+    # by the gate, because which demonstrations define a benchmark is a property
+    # of the benchmark and not a choice this script gets to make. Absent means
+    # single-phase, which is what a benchmark with no demonstrations of its own
+    # still needs.
+    spec = job.get("finetune") or {}
+    finetune = {}
+    if spec.get("dataset"):
+        source = Path(spec["dataset"])
+        if not source.is_dir():
+            raise RuntimeError(
+                f"the finetune dataset is not on this worker: {source}. It is the "
+                "benchmark's own demonstrations, and without them an upload that "
+                "cannot do the task on its own trains two arms that both score zero"
+            )
+        finetune = {
+            "repo": source.name,
+            "steps": int(spec.get("steps") or DEFAULT_FINETUNE_STEPS),
+        }
     task = job.get("task") or "pick_dual_bottles"
     prompt = job.get("prompt") or "pick up both bottles"
     stamp = out.parent.name.replace("-", "_")[:24] or "sub"
@@ -579,9 +686,7 @@ def main() -> int:
 
     written: dict[str, str] = {}
     for arm_name, repo in ((treatment, real_repo), (control, control_repo)):
-        register(repo, steps, prompt, progress)
-        norm_stats(repo, progress)
-        checkpoint = train(repo, steps, progress)
+        checkpoint = train_arm(repo, prompt, pretrain_steps, finetune, progress)
         server = serve(repo, checkpoint, progress)
         try:
             record = evaluate(repo, task, scenes, progress)
