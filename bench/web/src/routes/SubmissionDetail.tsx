@@ -144,6 +144,30 @@ export function SubmissionDetail() {
           read before the result they explain. */}
       <AnswerBanner submission={data} />
 
+      {/* The takeaway, directly under the answer: what to do about it. It is
+          the one thing on this page a model wrote rather than a gate measured,
+          so it is labelled as generated and the sections below stay the ground
+          truth it must be checked against. */}
+      {(data.coach?.points?.length ?? 0) > 0 && (
+        <>
+          <h2>
+            How to improve this dataset
+            <span className="h2-sub">read from the results below, by a language model</span>
+          </h2>
+          <div className="card pad">
+            <ul className="coach-list">
+              {data.coach!.points!.slice(0, 4).map((point, i) => (
+                <li key={i}>{point}</li>
+              ))}
+            </ul>
+            <div className="coach-note">
+              Generated advice. The measurements below are the ground truth; check any
+              point against them before acting on it.
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Progress leads while there is progress to watch, and gets out of the
           way once there is not.
           While a check is running, the timeline is the page: it is the only
@@ -221,29 +245,6 @@ export function SubmissionDetail() {
           </h2>
           <Verdict gate={robot} />
           {mine && <Publish submission={data} />}
-        </>
-      )}
-
-      {/* Advice under the evidence it interprets, never above it. Labelled as
-          generated because it is the one thing on this page a model wrote
-          rather than a gate measured, and a reader must be able to tell. */}
-      {(data.coach?.points?.length ?? 0) > 0 && (
-        <>
-          <h2>
-            How to improve this dataset
-            <span className="h2-sub">read from the results above, by a language model</span>
-          </h2>
-          <div className="card pad">
-            <ul className="coach-list">
-              {data.coach!.points!.slice(0, 4).map((point, i) => (
-                <li key={i}>{point}</li>
-              ))}
-            </ul>
-            <div className="coach-note">
-              Generated advice. The measurements above are the ground truth; check any
-              point against them before acting on it.
-            </div>
-          </div>
         </>
       )}
 
