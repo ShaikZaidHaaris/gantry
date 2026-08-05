@@ -257,3 +257,22 @@ def test_a_passing_signal_check_does_not_start_the_robot_test(tmp_path, monkeypa
 
     # And it is last, so stopping there stops the run rather than skipping work.
     assert order[-1] == "g3"
+
+
+def test_an_abstention_does_not_block_the_gate_after_it():
+    """"Can't tell" is not "no", and the start route had been reading it as one.
+
+    signal.py is explicit that abstaining is about how much footage there was
+    rather than about the footage, so a contributor whose signal check could not
+    conclude is exactly the person who might want to buy the run that can.
+    `refused` still blocks, because a judgement on the data must not be
+    re-rolled, and `failed` still blocks, because our machinery should be
+    retried rather than spent around.
+    """
+    import inspect
+
+    from app import main as mainmod
+
+    source = inspect.getsource(mainmod.start_gate)
+    assert '("passed", "abstained")' in source, "an abstention must not block the next gate"
+    assert '"refused"' not in source.split("ready =")[1].split(")")[0], "a refusal must still block"

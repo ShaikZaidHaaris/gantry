@@ -1151,8 +1151,19 @@ def start_gate(sub_id: str, key: str, body: dict | None = None, who=Depends(view
     if gate.status != "queued":
         raise HTTPException(409, f"the {spec['name'].lower()} has already run ({gate.status})")
 
+    # An abstention is not a refusal, and this is the one place the difference
+    # had been lost. "Not separated" is a statement about how much footage there
+    # was, not about the footage itself, so a contributor whose signal check
+    # could not conclude may still choose to buy the run that can. Blocking them
+    # treats "we could not tell" as "no", which is precisely the misreading
+    # signal.py's own docstring says loses a customer who was right.
+    #
+    # `refused` and `failed` still block, and for different reasons: the first
+    # is a judgement on the data that must not be re-rolled, the second is our
+    # machinery, which should be retried rather than spent around.
     before = order[: order.index(key)]
-    unfinished = [k for k in before if gates.get(k) and gates[k].status not in ("passed",)]
+    ready = ("passed", "abstained")
+    unfinished = [k for k in before if gates.get(k) and gates[k].status not in ready]
     if unfinished:
         names = ", ".join(next(g["name"] for g in GATES if g["key"] == k).lower() for k in unfinished)
         raise HTTPException(409, f"the {names} has not passed yet")
