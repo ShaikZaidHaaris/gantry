@@ -115,7 +115,7 @@ if [ -d "$ROOT/bench/web/node_modules" ]; then
       \$want = '$MODULES_WIN'
       Get-Process -Name esbuild -ErrorAction SilentlyContinue |
         Where-Object { \$_.Path -and \$_.Path.StartsWith(\$want, 'OrdinalIgnoreCase') } |
-        Select-Object -First 1 -ExpandProperty Path" 2>&1 | tr -d '\r' | tr -s '\n' '\n')"
+        Select-Object -First 1 -ExpandProperty Path" 2>&1 | tr -d '\r' | tr -s '\n' '\n')" || true
     case "$LOCK_OUT" in
       "")
         : ;;                                  # nothing holding it
