@@ -164,8 +164,8 @@ export function NewSubmission() {
           />
           <span className="hint">
             Paste the dataset page's link, or just the id like <code>you/your-dataset</code>.
-            We pull it on our side, so there is no upload and no {bytes(limit)} cap. Public
-            LeRobot v2 datasets only.
+            We pull it on our side, so nothing uploads from here. Public LeRobot v2 datasets
+            up to {bytes(limit)}; anything bigger is refused before any bytes move.
           </span>
         </label>
 

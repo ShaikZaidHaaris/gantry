@@ -33,11 +33,12 @@ from pathlib import Path
 #: Same shape the API enforces: ``owner/name`` in the Hub's own alphabet.
 REPO = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,95})/[A-Za-z0-9._-]{1,96}$")
 
-#: Largest dataset we will pull, in bytes. Bigger than the browser-upload cap
-#: on purpose -- the server's bandwidth and disk are ours to budget, a
-#: visitor's are not -- but still bounded, because one paste must not be able
-#: to fill the disk every other submission shares.
-MAX_BYTES = int(os.environ.get("BENCH_HF_MAX_BYTES", 4 * 1024**3))
+#: Largest dataset we will pull, in bytes. The same 1 GB the browser upload
+#: enforces, by the owner's call: one ceiling for the product, however the
+#: bytes arrive, and one number for the copy to quote. The refusal names the
+#: dataset's actual size, so a too-big paste costs seconds, not a download.
+#: Raise it for a burst of goodwill with BENCH_HF_MAX_BYTES, no deploy needed.
+MAX_BYTES = int(os.environ.get("BENCH_HF_MAX_BYTES", 1024**3))
 
 #: Disk that must remain free after the download AND the zip built from it.
 #: Both exist at once for a moment, so the requirement is roughly twice the
