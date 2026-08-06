@@ -44,6 +44,10 @@ export function submissionStatus(sub: Submission): { status: GateStatus; label: 
   if (sub.status === "running" && gate?.status === "running")
     return { status: "running", label: `${gate.name}…` };
   if (sub.status === "running" && !gate) return { status: "running", label: "Running" };
+  // A fetch has no gate to point at, so it names itself. Running-coloured
+  // because our machinery is working; nothing about the data has been judged.
+  if (sub.status === "fetching")
+    return { status: "running", label: "Fetching from Hugging Face…" };
   if (sub.status === "refused") return { status: "refused", label: "Refused" };
   if (sub.status === "abstained") return { status: "abstained", label: "Can't tell" };
   if (sub.status === "failed") return { status: "failed", label: "Our error" };

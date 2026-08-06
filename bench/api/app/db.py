@@ -47,7 +47,21 @@ STORAGE.mkdir(exist_ok=True)
 WORKER_TOKEN = os.environ.get("BENCH_WORKER_TOKEN", "")
 
 DB_URL = os.environ.get("BENCH_DB", f"sqlite:///{DATA_DIR}/bench.db")
-engine = create_engine(DB_URL, connect_args={"check_same_thread": False} if DB_URL.startswith("sqlite") else {})
+#: Pool sized for readers, not just writers. The default 5+10 was exhausted on
+#: the live site by one visitor: every open report page holds an event stream,
+#: a stream's route dependency held a connection for the stream's lifetime, and
+#: the fifteenth concurrent request found the pool empty and answered 500. The
+#: dependency leak is fixed at the routes (they release before streaming), and
+#: this is the belt: enough headroom that a burst of readers queues briefly
+#: instead of erroring, and a short timeout so a genuine leak surfaces as a
+#: fast failure in the logs rather than a 30-second hang in a visitor's tab.
+engine = create_engine(
+    DB_URL,
+    connect_args={"check_same_thread": False} if DB_URL.startswith("sqlite") else {},
+    pool_size=25,
+    max_overflow=25,
+    pool_timeout=10,
+)
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
 if DB_URL.startswith("sqlite"):
@@ -57,6 +71,10 @@ if DB_URL.startswith("sqlite"):
         cur = conn.cursor()
         cur.execute("PRAGMA journal_mode=WAL")
         cur.execute("PRAGMA foreign_keys=ON")
+        # More concurrent sessions means more writer collisions; WAL allows
+        # one writer at a time, and without a busy timeout the loser errors
+        # instead of waiting the few milliseconds the winner needs.
+        cur.execute("PRAGMA busy_timeout=15000")
         cur.close()
 
 
@@ -236,7 +254,8 @@ class Job(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     submission_id: Mapped[str] = mapped_column(String, index=True)
     #: The upload this job is for, so a worker finishing late cannot write its
-    #: verdict onto a newer one.
+    #: verdict onto a newer one. Zero on a fetch job: the version it will
+    #: produce does not exist yet, and is allocated at registration.
     version: Mapped[int] = mapped_column(Integer, default=1)
     gate_key: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default="queued", index=True)
@@ -244,6 +263,9 @@ class Job(Base):
     heartbeat_at: Mapped[str] = mapped_column(String, default="")
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str] = mapped_column(Text, default="")
+    #: Input the job carries with it, JSON. Empty for gates, which read
+    #: everything off the submission; a Hugging Face fetch carries its repo id.
+    params_json: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[str] = mapped_column(String, default=now)
 
 
@@ -254,6 +276,35 @@ class Event(Base):
     ts: Mapped[str] = mapped_column(String, default=now)
     kind: Mapped[str] = mapped_column(String)
     payload_json: Mapped[str] = mapped_column(Text, default="{}")
+
+
+class Visit(Base):
+    """One API request from a person, kept.
+
+    The journal answered "who came yesterday" exactly once and then rotated
+    away; this table is the durable copy. It records requests, not people:
+    ``visitor`` is the org id when the request carried a cookie we issued and
+    empty when it did not, and the address is stored as-is because these are
+    our own private access logs, the same thing every web server on the
+    internet writes to disk.
+
+    Worker traffic is excluded at the middleware, not here -- the claim loop
+    polls twice a second and would bury a month of real visits in a day of
+    nothing.
+    """
+
+    __tablename__ = "visits"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[str] = mapped_column(String, default=now, index=True)
+    ip: Mapped[str] = mapped_column(String, default="")
+    #: The org this request resolved to, or "" for a cookie-less first touch.
+    visitor: Mapped[str] = mapped_column(String, default="", index=True)
+    method: Mapped[str] = mapped_column(String, default="GET")
+    path: Mapped[str] = mapped_column(String, default="")
+    status: Mapped[int] = mapped_column(Integer, default=0)
+    ms: Mapped[int] = mapped_column(Integer, default=0)
+    referer: Mapped[str] = mapped_column(String, default="")
+    ua: Mapped[str] = mapped_column(String, default="")
 
 
 def emit(session: Session, submission_id: str, kind: str, **payload) -> None:
@@ -286,7 +337,11 @@ LATER = {
         "trials": ("INTEGER", "0"),
         "version": ("INTEGER", "1"),
     },
-    "jobs": {"version": ("INTEGER", "1")},
+    # `params_json` carries what a job needs beyond its gate key -- today, the
+    # Hugging Face repo a fetch job should pull. Gates never needed one because
+    # everything they consume hangs off the submission; a fetch runs before the
+    # dataset exists, so its input has to travel on the job itself.
+    "jobs": {"version": ("INTEGER", "1"), "params_json": ("TEXT", "'{}'")},
     "benchmarks": {"cost_json": ("TEXT", "'{}'")},
     # Which visitor an org belongs to. NULL on every org that existed before
     # this, which is right: they belong to nobody in particular and stay

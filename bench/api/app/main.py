@@ -11,6 +11,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
+import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +51,7 @@ from .db import (
     Org,
     SessionLocal,
     Submission,
+    Visit,
     emit,
     init_db,
     new_id,
@@ -56,6 +60,59 @@ from .db import (
 )
 
 app = FastAPI(title="Gantry Bench API", version="1")
+
+
+#: Paths the visit log ignores. The worker's claim loop polls twice a second
+#: and its heartbeats arrive every ten; a month of real visitors would drown in
+#: a day of machinery. Static assets stay out too -- the page view is the fact
+#: worth keeping, not the forty files it pulled in.
+_UNLOGGED = ("/api/jobs", "/assets/", "/favicon", "/healthz")
+
+
+@app.middleware("http")
+async def _log_visit(request: Request, call_next):
+    """Every human-shaped request, written down before it is forgotten.
+
+    The journald copy of this information rotated away while we were asking
+    "who came yesterday"; this is the durable answer. Logging must never cost
+    a visitor anything, so the write happens after the response is built and
+    every failure inside is swallowed -- a full disk should break uploads, not
+    page views, and a page view is not worth a 500.
+    """
+    started = time.monotonic()
+    response = None
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        try:
+            path = request.url.path
+            if not any(path.startswith(skip) for skip in _UNLOGGED) and (
+                path.startswith("/api/") or "." not in path.rsplit("/", 1)[-1]
+            ):
+                cookie = request.cookies.get(cookie_name())
+                visitor = ""
+                with SessionLocal() as session:
+                    if verified(cookie):
+                        org = session.scalar(
+                            select(Org).where(Org.token_hash == token_key(cookie))
+                        )
+                        visitor = org.id if org else ""
+                    session.add(
+                        Visit(
+                            ip=client_ip(request),
+                            visitor=visitor,
+                            method=request.method,
+                            path=(path + (("?" + request.url.query) if request.url.query else ""))[:300],
+                            status=response.status_code if response is not None else 500,
+                            ms=int((time.monotonic() - started) * 1000),
+                            referer=request.headers.get("referer", "")[:300],
+                            ua=request.headers.get("user-agent", "")[:200],
+                        )
+                    )
+                    session.commit()
+        except Exception:  # noqa: BLE001 - the log must never take the page down
+            pass
 
 #: The gauntlet, in order, with what each costs and how it is described to a
 #: user. Held here rather than in the UI so the API, the worker and the page
@@ -841,27 +898,190 @@ async def upload_dataset(
     target = folder / "dataset.zip"
     stored = _store_within(file.file, target, MAX_UPLOAD_BYTES)
 
+    _activate_version(session, sub, target, stored, version, "dataset.uploaded")
+    session.commit()
+    return as_submission(session, sub, deep=True)
+
+
+def _activate_version(
+    session: Session,
+    sub: Submission,
+    target: Path,
+    stored: int,
+    version: int,
+    kind: str,
+    **extra,
+) -> None:
+    """A stored archive becomes the submission's newest version, gates queued.
+
+    One function because there are now two ways bytes arrive -- a browser
+    upload and a fetch from Hugging Face -- and the moment they became two
+    copies of this block they could disagree about what an upload *is*.
+
+    A new version gets its own gates. The previous version keeps its verdicts,
+    which is the whole point of a resubmission: "did what I changed help" is
+    unanswerable if running v2 overwrites the v1 it would be compared against.
+    """
     row = DatasetVersion(
-        id=new_id("dsv"), submission_id=sub_id, version=version, path=str(target), bytes=stored
+        id=new_id("dsv"), submission_id=sub.id, version=version, path=str(target), bytes=stored
     )
     session.add(row)
-
-    # A new upload gets its own gates. The previous version keeps its verdicts,
-    # which is the whole point of a resubmission: "did what I changed help" is
-    # unanswerable if running v2 overwrites the v1 it would be compared against.
     for spec in GATES:
         session.add(
-            Gate(id=new_id("gate"), submission_id=sub_id, key=spec["key"], status="queued", version=version)
+            Gate(id=new_id("gate"), submission_id=sub.id, key=spec["key"], status="queued", version=version)
         )
     sub.status = "queued"
     sub.current_gate = "g0"
     session.add(
-        Job(id=new_id("job"), submission_id=sub_id, gate_key="g0", status="queued", version=version)
+        Job(id=new_id("job"), submission_id=sub.id, gate_key="g0", status="queued", version=version)
     )
-    emit(session, sub_id, "dataset.uploaded", version=version, bytes=row.bytes)
-    emit(session, sub_id, "gate.queued", gate="g0", version=version)
+    emit(session, sub.id, kind, version=version, bytes=stored, **extra)
+    emit(session, sub.id, "gate.queued", gate="g0", version=version)
+
+
+#: What a Hugging Face dataset id looks like: ``owner/name``, each side the
+#: characters the Hub itself allows. An allow-list, not a parser: anything this
+#: does not match is refused, so the fetch can never be pointed at an arbitrary
+#: URL -- the worker only ever speaks to the Hub, about a repo named here.
+_HF_REPO = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,95})/[A-Za-z0-9._-]{1,96}$")
+
+
+def _hf_repo(raw: Any) -> str:
+    """A Hub dataset id, extracted from whatever shape a visitor pasted.
+
+    People paste the whole URL, the URL with /tree/main on the end, or the bare
+    id; all three mean the same dataset and all three are accepted. What is
+    never accepted is anything that does not reduce to ``owner/name``.
+    """
+    text = str(raw or "").strip()
+    text = re.sub(r"^https?://(www\.)?huggingface\.co/", "", text)
+    text = re.sub(r"^hf\.co/", "", text)
+    text = re.sub(r"^datasets/", "", text)
+    text = text.split("?")[0].split("#")[0].rstrip("/")
+    # Anything after the repo id (tree/main, blob/..., resolve/...) is the Hub's
+    # own navigation, not part of the name.
+    parts = text.split("/")
+    if len(parts) > 2:
+        text = "/".join(parts[:2])
+    if not _HF_REPO.match(text):
+        raise HTTPException(
+            422,
+            f"{str(raw)[:120]!r} does not look like a Hugging Face dataset. Paste the "
+            "dataset page's link, like huggingface.co/datasets/lerobot/pusht, or just "
+            "the id, like lerobot/pusht",
+        )
+    return text
+
+
+@app.post("/api/submissions/{sub_id}/dataset/hf")
+async def fetch_from_hub(sub_id: str, body: dict, who=Depends(viewer), session: Session = Depends(db)):
+    """Queue a fetch of a Hub dataset instead of receiving an upload.
+
+    The reason this exists is the launch-day funnel: hundreds of visitors read
+    the worked example and not one had a LeRobot archive sitting on the machine
+    they were browsing from -- because their datasets live on the Hub. So the
+    product meets the data where it is: paste the link, the worker pulls it,
+    and everything downstream is the same pipeline an upload feeds.
+
+    The download happens on the worker, not here: it owns the disk the dataset
+    lands on, it already heartbeats through long work, and an API request that
+    streamed gigabytes from the Hub would hold a connection hostage for
+    however long that takes.
+    """
+    sub = session.get(Submission, sub_id)
+    if sub is None or sub.org_id != who["org_id"]:
+        raise HTTPException(404, "no such submission")
+    repo = _hf_repo(body.get("repo"))
+
+    if session.scalar(
+        select(Job).where(
+            Job.submission_id == sub_id,
+            Job.gate_key == "hf",
+            Job.status.in_(("queued", "running")),
+        )
+    ):
+        raise HTTPException(409, "a fetch for this submission is already underway")
+
+    session.add(
+        Job(
+            id=new_id("job"),
+            submission_id=sub_id,
+            gate_key="hf",
+            status="queued",
+            version=0,
+            params_json=json.dumps({"repo": repo}),
+        )
+    )
+    sub.status = "fetching"
+    emit(session, sub_id, "fetch.queued", repo=repo)
     session.commit()
     return as_submission(session, sub, deep=True)
+
+
+@app.post("/api/jobs/{job_id}/fetched")
+def job_fetched(job_id: str, body: dict, session: Session = Depends(db), _=Depends(worker)):
+    """A fetch landed: the archive the worker built becomes a real version.
+
+    Worker-authed, like every door a worker uses. The path is trusted the same
+    way finish_job's verdict is trusted -- the worker already holds the token
+    that could write anything -- but it is still moved into the submission's
+    own folder, so storage keeps one layout however the bytes arrived.
+    """
+    row = session.get(Job, job_id)
+    if row is None or row.gate_key != "hf":
+        raise HTTPException(404, "no such fetch")
+    sub = session.get(Submission, row.submission_id)
+    if sub is None:
+        raise HTTPException(404, "no such submission")
+    source = Path(str(body.get("path") or ""))
+    if not source.is_file():
+        raise HTTPException(422, f"no archive at {str(source)[:200]!r}")
+
+    previous = session.scalars(
+        select(DatasetVersion)
+        .where(DatasetVersion.submission_id == sub.id)
+        .order_by(DatasetVersion.version.desc())
+    ).first()
+    version = (previous.version + 1) if previous else 1
+    folder = STORAGE / sub.id / f"v{version}"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / "dataset.zip"
+    if source.resolve() != target.resolve():
+        shutil.move(str(source), str(target))
+    stored = target.stat().st_size
+
+    row.status = "done"
+    row.version = version
+    _activate_version(
+        session, sub, target, stored, version, "dataset.fetched",
+        repo=str(body.get("repo") or "")[:200],
+    )
+    session.commit()
+    return {"ok": True, "version": version}
+
+
+@app.post("/api/jobs/{job_id}/fetch-failed")
+def job_fetch_failed(job_id: str, body: dict, session: Session = Depends(db), _=Depends(worker)):
+    """A fetch that cannot produce a dataset, explained to the person waiting.
+
+    The reason lands in the event log because the visitor's page is watching
+    it; the submission returns to draft so the upload card comes back and they
+    can correct the link or upload instead. A fetch failure is never presented
+    through the gate vocabulary -- there is no gate yet, and "refused" is a
+    judgement reserved for data we actually read.
+    """
+    row = session.get(Job, job_id)
+    if row is None or row.gate_key != "hf":
+        raise HTTPException(404, "no such fetch")
+    sub = session.get(Submission, row.submission_id)
+    reason = str(body.get("reason") or "the fetch could not complete")[:400]
+    row.status = "failed"
+    row.error = reason
+    if sub is not None and sub.status == "fetching":
+        sub.status = "draft"
+    emit(session, row.submission_id, "fetch.failed", reason=reason)
+    session.commit()
+    return {"ok": True}
 
 
 @app.post("/api/submissions/{sub_id}/meaning")
@@ -1068,6 +1288,12 @@ async def stream_events(
     owned = session.get(Submission, sub_id)
     if not readable(owned, who):
         raise HTTPException(404, "no such submission")
+    # Released NOW, not when the stream ends. The dependency session stays
+    # open for the whole response, and for a stream that is up to fifteen
+    # minutes -- so every open report page held one pooled connection doing
+    # nothing, and the fifteenth concurrent visitor found the pool empty and
+    # was answered 500. The loop below opens its own short session per tick.
+    session.close()
 
     async def gen():
         last = int(request.headers.get("last-event-id") or after or 0)
@@ -1377,20 +1603,32 @@ def claim_job(body: dict, session: Session = Depends(db), _=Depends(worker)):
         session.rollback()
         return {"job": None}
     session.refresh(row)
+    # A fetch job has no gate row -- the version it will produce does not exist
+    # yet -- so everything gate-shaped below is conditional on there being one.
     gate = session.scalar(
         select(Gate).where(
             Gate.submission_id == row.submission_id, Gate.key == row.gate_key, Gate.version == row.version
         )
     )
-    gate.status = "running"
-    gate.started_at = now()
+    if gate is not None:
+        gate.status = "running"
+        gate.started_at = now()
+        emit(session, row.submission_id, "gate.started", gate=row.gate_key)
+    else:
+        emit(session, row.submission_id, "fetch.started", job=row.id)
     sub = session.get(Submission, row.submission_id)
-    sub.status = "running"
-    sub.current_gate = row.gate_key
+    sub.status = "running" if gate is not None else sub.status
+    sub.current_gate = row.gate_key if gate is not None else sub.current_gate
     version = session.scalars(
         select(DatasetVersion).where(DatasetVersion.submission_id == row.submission_id).order_by(DatasetVersion.version.desc())
     ).first()
-    emit(session, row.submission_id, "gate.started", gate=row.gate_key)
+    # What the buyer chose, or what the fetch was asked to pull. Carried on
+    # the job so the run is the size it was sold as -- "no difference found"
+    # means nothing without the trial count beside it -- and so a fetch knows
+    # its repo without a second request.
+    params = json.loads(row.params_json or "{}")
+    if gate is not None and gate.trials:
+        params["trials"] = gate.trials
     session.commit()
     return {
         "job": {
@@ -1403,11 +1641,7 @@ def claim_job(body: dict, session: Session = Depends(db), _=Depends(worker)):
             "archive": version.path if version else None,
             "archive_url": f"/api/jobs/{row.id}/archive" if version else None,
             "archive_bytes": version.bytes if version else 0,
-            # What the buyer chose. Carried to the gate so the run is the size
-            # it was sold as, and so the verdict can say which number produced
-            # it -- "no difference found" means nothing without the trial count
-            # beside it.
-            "params": {"trials": gate.trials} if gate.trials else {},
+            "params": params,
             "version": version.version if version else 0,
             "workdir": str(STORAGE / row.submission_id / f"v{version.version}") if version else None,
         }
@@ -1438,7 +1672,13 @@ def job_archive(job_id: str, session: Session = Depends(db), _=Depends(worker)):
     ).first()
     if version is None or not Path(version.path).exists():
         raise HTTPException(404, "no dataset stored for that job")
-    return FileResponse(version.path, filename=Path(version.path).name)
+    # Released before the send, which can take minutes for a multi-gigabyte
+    # archive on a slow link. The connection would otherwise sit idle in a
+    # transaction for the whole transfer, which is the same pool leak the
+    # event stream had, on the route that holds it longest.
+    path, name = version.path, Path(version.path).name
+    session.close()
+    return FileResponse(path, filename=name)
 
 
 @app.post("/api/jobs/{job_id}/finish")
@@ -1455,6 +1695,19 @@ def finish_job(job_id: str, body: dict, session: Session = Depends(db), _=Depend
             Gate.submission_id == row.submission_id, Gate.key == row.gate_key, Gate.version == row.version
         )
     )
+    if gate is None:
+        # A job with no gate is a fetch that came through the generic error
+        # path. Record the failure on the job and the log, and put the
+        # submission back where the visitor can act on it.
+        row.status = "failed"
+        row.error = body.get("error", "")[:400]
+        sub = session.get(Submission, row.submission_id)
+        if sub is not None and sub.status == "fetching":
+            sub.status = "draft"
+        emit(session, row.submission_id, "fetch.failed",
+             reason=(body.get("verdict") or {}).get("summary", "the fetch could not complete"))
+        session.commit()
+        return {"ok": True}
     gate.status = status
     gate.finished_at = now()
     gate.verdict_json = json.dumps(body.get("verdict") or {})

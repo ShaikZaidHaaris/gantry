@@ -178,6 +178,11 @@ for p in plugins/*/; do
   [ -f "$p/pyproject.toml" ] && .venv/bin/pip install -q -e "$p" || true
 done
 .venv/bin/pip install -q fastapi "uvicorn[standard]" sqlalchemy python-multipart
+# The Hub client, for submissions that arrive as a pasted dataset link rather
+# than an upload. Explicit rather than assumed from lerobot's dependency
+# tree: if it is missing, every pasted link fails with "our side broke",
+# which is true and avoidable.
+.venv/bin/pip install -q huggingface_hub
 # The hand tracker, for uploads that are raw egocentric video rather than a
 # robot export. Optional to the framework and required by the product: without
 # it every clip fails identically, and while intake now reports that correctly

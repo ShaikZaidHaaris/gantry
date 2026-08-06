@@ -49,6 +49,13 @@ function compact(n: number | undefined): string {
   return `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M`;
 }
 
+/** The newest event of one kind, for the states the event log narrates --
+ *  a fetch in flight, a fetch that failed -- where the gates have nothing to
+ *  say because the gates do not exist yet. */
+function lastEvent(sub: { events?: { kind: string; [k: string]: unknown }[] }, kind: string) {
+  return [...(sub.events ?? [])].reverse().find((e) => e.kind === kind);
+}
+
 export function SubmissionDetail() {
   const { id } = useParams();
   const { data, isPending, error } = useSubmission(id);
@@ -145,6 +152,27 @@ export function SubmissionDetail() {
             kept here so you can see what comes out before uploading anything. It belongs
             to nobody and cannot be changed. Your own uploads are private to you.
           </span>
+        </div>
+      )}
+
+      {/* A fetch in flight is the whole page: there are no gates yet, so
+          nothing else here has anything to say. The event stream flips this
+          card into the normal pipeline view the moment the archive lands. */}
+      {data.status === "fetching" && (
+        <div className="note">
+          <b>
+            Pulling {String(lastEvent(data, "fetch.queued")?.repo ?? "your dataset")} from
+            Hugging Face.
+          </b>{" "}
+          The download runs on our side and this page updates itself; the first check
+          starts the moment the archive lands. Big datasets take a few minutes.
+        </div>
+      )}
+      {data.status === "draft" && lastEvent(data, "fetch.failed") && (
+        <div className="note danger">
+          <b>The fetch did not land.</b>{" "}
+          {String(lastEvent(data, "fetch.failed")?.reason ?? "")} You can paste a
+          corrected link from the new-submission page, or upload the archive directly.
         </div>
       )}
 

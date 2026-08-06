@@ -15,8 +15,22 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useBenchmarks, useCreateSubmission, useMe, uploadDataset } from "../api/client";
+import { fetchFromHub, useBenchmarks, useCreateSubmission, useMe, uploadDataset } from "../api/client";
 import { ErrorNote, bytes } from "../components/ui";
+
+/** Enough shape-checking to catch a pasted profile link or a stray sentence
+ *  before a round trip; the server stays the authority on what a repo id is. */
+function looksLikeRepo(raw: string): boolean {
+  const text = raw
+    .trim()
+    .replace(/^https?:\/\/(www\.)?huggingface\.co\//, "")
+    .replace(/^hf\.co\//, "")
+    .replace(/^datasets\//, "")
+    .split(/[?#]/)[0]
+    .replace(/\/$/, "");
+  const parts = text.split("/");
+  return parts.length >= 2 && parts[0].length > 0 && parts[1].length > 0 && !/\s/.test(text);
+}
 
 /** The one benchmark. Fixed while there is only one, because a select with a single
  *  option is a decision the product does not have. The value still travels
@@ -31,6 +45,7 @@ export function NewSubmission() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [repo, setRepo] = useState("");
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -44,17 +59,28 @@ export function NewSubmission() {
   const limit = useMe().data?.max_upload_bytes ?? 1024 ** 3;
   const tooBig = file !== null && file.size > limit;
 
+  // Two ways in, one at a time. A pasted link wins over a chosen file because
+  // pasting is the later, more deliberate act -- and sending both would be
+  // asking the server to guess which one the visitor meant.
+  const viaHub = repo.trim().length > 0;
+  const repoOk = viaHub && looksLikeRepo(repo);
+  const ready = viaHub ? repoOk : file !== null && !tooBig;
+
   async function send() {
-    if (!file || tooBig) return;
+    if (!ready) return;
     setBusy(true);
     setError(null);
     try {
       const sub = await create.mutateAsync({
-        name: name.trim() || "untitled",
+        name: name.trim() || (viaHub ? repo.trim().split("/").slice(-1)[0] : "untitled"),
         benchmark: BENCHMARK,
         email: email.trim(),
       });
-      await uploadDataset(sub.id, file, setProgress);
+      if (viaHub) {
+        await fetchFromHub(sub.id, repo.trim());
+      } else {
+        await uploadDataset(sub.id, file!, setProgress);
+      }
       // Intake is queued the instant the bytes land; the submission page is
       // where it is watched, so go there rather than inventing a third state.
       navigate(`/submissions/${sub.id}`);
@@ -123,6 +149,34 @@ export function NewSubmission() {
           </div>
         </div>
 
+        {/* The path most people can actually take. Nobody browses with a
+            LeRobot archive on the machine in front of them; everybody's
+            dataset is already on the Hub, one paste away. So the link comes
+            first and the upload is the fallback, not the other way round. */}
+        <label className="field">
+          <span className="lab">Already on Hugging Face?</span>
+          <input
+            type="text"
+            value={repo}
+            placeholder="huggingface.co/datasets/you/your-dataset"
+            onChange={(e) => setRepo(e.target.value)}
+            disabled={busy}
+          />
+          <span className="hint">
+            Paste the dataset page's link, or just the id like <code>you/your-dataset</code>.
+            We pull it on our side, so there is no upload and no {bytes(limit)} cap. Public
+            LeRobot v2 datasets only.
+          </span>
+        </label>
+
+        {viaHub && !repoOk && (
+          <div className="note" style={{ marginTop: 6 }}>
+            That does not look like a dataset link yet. It should end in{" "}
+            <code>owner/name</code>, like <code>huggingface.co/datasets/lerobot/pusht</code>.
+          </div>
+        )}
+
+        {!viaHub && (
         <label
           className={`drop ${over ? "over" : ""}`}
           onDragOver={(e) => {
@@ -137,7 +191,7 @@ export function NewSubmission() {
             if (dropped) setFile(dropped);
           }}
         >
-          <b>{file ? file.name : "Drop your dataset (.zip)"}</b>
+          <b>{file ? file.name : "Or drop your dataset (.zip)"}</b>
           {file
             ? `${bytes(file.size)}${tooBig ? `, over the ${bytes(limit)} limit` : ""}`
             : `A LeRobot v2 export, or your own video with a clips.json · up to ${bytes(limit)}`}
@@ -149,6 +203,7 @@ export function NewSubmission() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
         </label>
+        )}
 
         {/* Said here rather than only inside "How this works". Somebody who
             came to upload footage of a person has already decided to try, and
@@ -166,7 +221,7 @@ export function NewSubmission() {
           use yours instead of estimating. The result records which it was.
         </p>
 
-        {busy && (
+        {busy && !viaHub && (
           <div style={{ marginTop: 16 }}>
             <div className="bar">
               <i style={{ width: `${Math.round(progress * 100)}%` }} />
@@ -178,8 +233,14 @@ export function NewSubmission() {
         )}
 
         <div style={{ marginTop: 18 }}>
-          <button className="btn primary" onClick={send} disabled={!file || busy || tooBig}>
-            {busy ? "Uploading…" : "Upload and run intake"}
+          <button className="btn primary" onClick={send} disabled={!ready || busy}>
+            {busy
+              ? viaHub
+                ? "Queueing the fetch…"
+                : "Uploading…"
+              : viaHub
+                ? "Fetch it and run intake"
+                : "Upload and run intake"}
           </button>
         </div>
 

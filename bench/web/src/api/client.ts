@@ -173,6 +173,16 @@ export function uploadDataset(
   });
 }
 
+/** Ask the server to pull a dataset from Hugging Face instead of uploading.
+ *  The download happens on the worker, so this returns as soon as the fetch is
+ *  queued; the submission page watches it land through the event stream. */
+export function fetchFromHub(id: string, repo: string): Promise<Submission> {
+  return json<Submission>(`/api/submissions/${id}/dataset/hf`, {
+    method: "POST",
+    body: JSON.stringify({ repo }),
+  });
+}
+
 /** Buy a gate. The only way a paid one ever runs.
  *
  *  Free gates queue themselves when the one before them passes; paid ones do

@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import socket
 import threading
 import time
@@ -46,6 +47,7 @@ import urllib.request
 import json as jsonlib
 
 import coach
+import hf
 from fetch import Download, ensure_dataset
 from gates import intake, report, robot, signal
 
@@ -203,6 +205,21 @@ def once(api: str, worker: str, gates: list[str], workroot: Path | None = None) 
         return False
 
     print(f"[{worker}] {got['gate_key']} for {got['submission_id']}", flush=True)
+
+    # A fetch is not a gate: it produces the dataset the gates will read, has
+    # no verdict vocabulary, and reports through its own two endpoints. hf.run
+    # catches everything and phrases it for the person waiting, so the generic
+    # failed-gate path below never applies to it.
+    if got["gate_key"] == "hf":
+        hf_work = os.environ.get("BENCH_HF_WORK", "").strip()
+        root = workroot if workroot is not None else (Path(hf_work) if hf_work else Path("/tmp"))
+        scratch = root / "hf" / got["id"]
+        with Progress(api, got["id"]) as progress:
+            outcome = hf.run(api, call, got, scratch, progress.report)
+        shutil.rmtree(scratch, ignore_errors=True)
+        print(f"[{worker}]   -> {outcome}", flush=True)
+        return True
+
     handler = HANDLERS.get(got["gate_key"])
     if handler is None:
         call(api, f"/api/jobs/{got['id']}/finish", {"status": "failed", "error": "no handler"})
@@ -291,7 +308,12 @@ def main() -> None:
     TOKEN = args.token or TOKEN
 
     worker = args.name or f"{socket.gethostname()}/{args.gates}"
+    # Every worker also fetches. A fetch needs bandwidth and disk, which every
+    # worker has; making it a flag would mean the one deployment without the
+    # flag silently strands every pasted link in "fetching" forever.
     gates = args.gates.split(",")
+    if "hf" not in gates:
+        gates = gates + ["hf"]
     print(f"[{worker}] polling {args.api} for {gates}", flush=True)
     while True:
         try:
