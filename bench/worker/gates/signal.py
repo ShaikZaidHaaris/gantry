@@ -144,8 +144,20 @@ def run(
         }
 
     report("opening the clips")
-    connector = LeRobotConnector(str(root.parents[1]))
-    episodes = tuple(connector.open(i) for i in connector.episode_ids())
+    # Same posture as the data report: a connector refusal is a judgement on
+    # the data with a sentence attached, never our machinery breaking.
+    from gantry.errors import ConfigError
+
+    try:
+        connector = LeRobotConnector(str(root.parents[1]))
+        episodes = tuple(connector.open(i) for i in connector.episode_ids())
+    except ConfigError as error:
+        return {
+            "status": "refused",
+            "summary": str(error),
+            "findings": [{"code": "signal.unreadable", "severity": "strong",
+                          "summary": str(error), "prescription": None}],
+        }
 
     # Enough held-out clips for a clean sweep to be significant, plus enough
     # left over to fit on. Refusing to *run* below this is the honest move: the

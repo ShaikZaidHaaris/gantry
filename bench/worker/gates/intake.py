@@ -82,6 +82,30 @@ def unpack(archive: Path, into: Path, report: Report = _quiet) -> tuple[Path | N
 
     info = next(into.rglob("meta/info.json"), None)
     if info is not None:
+        # The version, checked HERE, where the answer costs seconds. Without
+        # this the mismatch surfaces two gates later as a connector exception,
+        # which the runner reports as our machinery breaking -- "failed" on a
+        # dataset whose only problem is that the Hub moved to v3 and this
+        # reader speaks v2. That is a judgement on the data, and a fixable
+        # one, so it must arrive as a refusal with the fix attached, not a
+        # shrug with our name on it. Found live: the first Hub fetch anyone
+        # ran was lerobot/pusht, which the Hub has already converted to v3.
+        try:
+            declared = str(json.loads(info.read_text()).get("codebase_version", ""))
+        except (OSError, ValueError):
+            declared = ""
+        if declared and not declared.startswith(("v2.0", "v2.1")):
+            return None, [
+                _finding(
+                    "intake.lerobot_version",
+                    "strong",
+                    f"this is a LeRobot {declared} export, and the checks read v2.0 or v2.1",
+                    "Export the episodes with the v2.1 writer (lerobot 0.3.x) and upload "
+                    "or push that. The newer layout stores episodes differently; until "
+                    "the reader learns it, a v2 export of the same data gives the same "
+                    "answers.",
+                )
+            ]
         return info.parents[1], []
 
     # No export. Before refusing, look for the other thing a contributor

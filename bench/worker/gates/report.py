@@ -182,7 +182,22 @@ def run(
         }
 
     report("opening the clips")
-    cohort = _cohort(root.parents[1], COHORT)
+    # A ConfigError here is the connector judging the DATA -- a version it
+    # does not read, a schema it refuses -- and its message is already a
+    # sentence written for a person. Let it through as a refusal; the bare
+    # exception used to fall to the runner's catch-all and be reported as our
+    # machinery breaking, on a dataset whose problem had a fix.
+    from gantry.errors import ConfigError
+
+    try:
+        cohort = _cohort(root.parents[1], COHORT)
+    except ConfigError as error:
+        return {
+            "status": "refused",
+            "summary": str(error),
+            "findings": [{"code": "report.unreadable", "severity": "strong",
+                          "summary": str(error), "prescription": None}],
+        }
     findings: list[dict] = []
     measures: dict[str, dict] = {}
     abstained: list[dict] = []
