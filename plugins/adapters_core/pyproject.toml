@@ -11,7 +11,11 @@ license = { text = "Apache-2.0" }
 dependencies = ["gantry-core", "numpy>=1.24"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.4"]
+# adapters_rotation is a TEST dependency, not a runtime one: the suite proves
+# euler action chunks close into quaternion targets, and the converter that
+# closes them is registered by that plugin. In a shared venv the import was
+# satisfied by accident; installed alone, ten tests failed on the gap.
+dev = ["pytest>=7.4", "gantry-adapters-rotation"]
 
 [project.entry-points."gantry.adapters"]
 unit_convert = "gantry_adapters_core:UNIT_CONVERT"

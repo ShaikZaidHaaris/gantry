@@ -18,10 +18,12 @@ sibling is still absent from the install set, so it still fails.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import venv
 from pathlib import Path
 
@@ -29,6 +31,12 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGINS = ROOT / "plugins"
+
+#: venv layout differs by platform; hardcoding "bin" made this tool refuse to
+#: run on the Windows laptop the harness is developed on, which meant the CI
+#: failure it exists to reproduce could not be reproduced where the fix is
+#: written.
+VENV_BIN = "Scripts" if os.name == "nt" else "bin"
 
 
 def distributions() -> dict[str, Path]:
@@ -72,10 +80,10 @@ def closure(plugin: Path, siblings: dict[str, Path]) -> list[Path]:
 
 
 def check(plugin: Path, siblings: dict[str, Path]) -> tuple[bool, str]:
-    target = Path("/tmp") / f"gantry-iso-{plugin.name}"
+    target = Path(tempfile.gettempdir()) / f"gantry-iso-{plugin.name}"
     shutil.rmtree(target, ignore_errors=True)
     venv.create(target, with_pip=True)
-    pip = target / "bin" / "pip"
+    pip = target / VENV_BIN / "pip"
 
     install = ["-e", str(ROOT)]
     for path in closure(plugin, siblings):
@@ -93,7 +101,7 @@ def check(plugin: Path, siblings: dict[str, Path]) -> tuple[bool, str]:
     tests = subprocess.run(
         # No -q here: the project config already passes one, and a second
         # suppresses the very line that says how many tests ran.
-        [str(target / "bin" / "python"), "-m", "pytest", str(plugin / "tests")],
+        [str(target / VENV_BIN / "python"), "-m", "pytest", str(plugin / "tests")],
         capture_output=True,
         text=True,
         cwd=ROOT,

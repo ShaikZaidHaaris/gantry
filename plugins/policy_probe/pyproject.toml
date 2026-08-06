@@ -11,7 +11,9 @@ license = { text = "Apache-2.0" }
 dependencies = ["gantry-core", "numpy>=1.24"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.4"]
+# curate_control is a TEST dependency: the probe proves real data beats
+# its own shuffled control, and shuffled() lives there.
+dev = ["pytest>=7.4", "gantry-curate-control"]
 
 [project.entry-points."gantry.policy"]
 probe = "gantry_policy_probe:ProbeLearner"

@@ -13,7 +13,11 @@ dependencies = ["gantry-core", "numpy>=1.24"]
 
 [project.optional-dependencies]
 client = ["openpi-client"]
-dev = ["pytest>=7.4"]
+# adapters_core is a TEST dependency: the suite proves a policy that
+# declares its encoding can be adapted, and adapt_policy lives there.
+# Undeclared, the test passed only where a sibling install happened to
+# satisfy the import; installed alone it failed.
+dev = ["pytest>=7.4", "gantry-adapters-core", "gantry-adapters-rotation"]
 
 [project.entry-points."gantry.policies"]
 pi0 = "gantry_policy_pi0:Pi0Policy"
