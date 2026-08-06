@@ -48,6 +48,8 @@ def ensure_dataset(
     workdir: Path,
     download: Download,
     report: Report = _quiet,
+    *,
+    gate: str = "",
 ) -> Path:
     """The archive on *this* machine, with ``workdir/unpacked`` filled in.
 
@@ -84,6 +86,17 @@ def ensure_dataset(
                 note=f"{(job.get('archive_bytes') or 0) / 1e6:.0f} MB",
             )
             archive = download(url, target)
+
+    # Intake unpacks for itself, and the difference is not duplication: intake
+    # is the gate that JUDGES the archive, so a refusal from unpack is its
+    # verdict to give -- "this is a v3 export" with the fix attached. Unpacking
+    # here first turned that refusal into a RuntimeError, the runner's catch-all
+    # called it our machinery breaking, and the visitor got a retry button for
+    # a dataset whose problem had a sentence. The raise below stays correct for
+    # every LATER gate, where intake has already accepted the archive and a
+    # refusal here really is a truncated transfer or a full disk.
+    if gate == "g0":
+        return archive
 
     unpacked = workdir / "unpacked"
     if unpacked.exists() and any(unpacked.iterdir()):

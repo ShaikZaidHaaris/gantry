@@ -239,7 +239,8 @@ def once(api: str, worker: str, gates: list[str], workroot: Path | None = None) 
     with Progress(api, got["id"]) as progress:
         try:
             archive = (
-                ensure_dataset(got, workdir, downloader(api), progress.report)
+                ensure_dataset(got, workdir, downloader(api), progress.report,
+                               gate=got["gate_key"])
                 if got["gate_key"] in NEEDS_DATASET
                 else Path(got.get("archive") or workdir / "dataset.zip")
             )
