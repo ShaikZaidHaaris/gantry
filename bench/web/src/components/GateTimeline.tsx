@@ -12,9 +12,10 @@
  *  indeterminate bar when it is not.
  */
 
+import { useState } from "react";
 import type { Gate, Progress } from "../api/types";
-import { outcomeFor, tallies } from "../lib/plain";
-import { Elapsed, Fold, StatusPill, duration, sentence } from "./ui";
+import { behind, outcomeFor, tallies } from "../lib/plain";
+import { Elapsed, FindingRow, Fold, StatusPill, duration, sentence } from "./ui";
 
 const MARK: Record<string, string> = {
   passed: "✓",
@@ -58,6 +59,54 @@ function Running({ gate, live }: { gate: Gate; live: Progress | null }) {
         <i style={known ? { width: `${fraction * 100}%` } : undefined} />
       </div>
     </div>
+  );
+}
+
+/** The chips under a gate, each one opening what it counted.
+ *
+ *  They were static spans, which is a count with the thing it counted hidden
+ *  somewhere else on the page. "2 to fix before this can pass" is only useful
+ *  if the next question, which two, is one click away. Clicking a chip opens
+ *  its own list here and closes any other, since these are three views of the
+ *  same gate rather than three things to read at once.
+ */
+function Tallies({ gate }: { gate: Gate }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const marks = tallies(gate);
+  const shown = open ? behind(gate, open as "fix" | "noted" | "abstained") : null;
+  return (
+    <>
+      <div className="tally">
+        {marks.map((m) => (
+          <button
+            key={m.text}
+            type="button"
+            aria-expanded={open === m.shows}
+            onClick={() => setOpen(open === m.shows ? null : m.shows)}
+            className={`chip clickable ${open === m.shows ? "open" : ""} ${
+              m.kind === "strong" ? "strong" : m.kind === "warn" ? "warn" : ""
+            }`}
+          >
+            {m.text}
+            <span aria-hidden="true" className="caret">
+              {open === m.shows ? "−" : "+"}
+            </span>
+          </button>
+        ))}
+      </div>
+      {shown && (
+        <div className="tally-open">
+          {shown.findings.map((f) => (
+            <FindingRow key={f.code} finding={f} />
+          ))}
+          {shown.abstained.map((a) => (
+            <div className="finding" key={a.module} title={(a.codes || []).join(" ")}>
+              <div className="what">{sentence(a.reason)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -161,18 +210,7 @@ export function GateTimeline({
                 </button>
               )}
 
-              {marks.length > 0 && (
-                <div className="tally">
-                  {marks.map((m) => (
-                    <span
-                      key={m.text}
-                      className={`chip ${m.kind === "strong" ? "strong" : m.kind === "warn" ? "warn" : ""}`}
-                    >
-                      {m.text}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {marks.length > 0 && <Tallies gate={gate} />}
             </div>
             <div className="meta">
               <StatusPill status={gate.status} />

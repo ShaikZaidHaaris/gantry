@@ -133,23 +133,45 @@ export function outcomeFor(gate: Gate): Outcome {
  *  whether either mattered. The severity split is what matters: things you must
  *  fix, things worth knowing, and checks that never ran at all -- and that last
  *  group is the one people mistake for a pass. */
-export function tallies(gate: Gate): { text: string; kind: "strong" | "note" | "warn" }[] {
+export type Tally = {
+  text: string;
+  kind: "strong" | "note" | "warn";
+  /** Which list this chip is counting, so the chip can open it. A count the
+   *  reader cannot expand is a claim they have to go looking for. */
+  shows: "fix" | "noted" | "abstained";
+};
+
+export function tallies(gate: Gate): Tally[] {
   const blocking = gate.findings.filter(
     (f) => f.severity === "strong" || f.severity === "moderate",
   ).length;
   const noted = gate.findings.length - blocking;
   const unjudged = gate.abstained?.length ?? 0;
-  const out: { text: string; kind: "strong" | "note" | "warn" }[] = [];
+  const out: Tally[] = [];
   if (blocking)
-    out.push({ text: `${blocking} to fix before this can pass`, kind: "strong" });
+    out.push({ text: `${blocking} to fix before this can pass`, kind: "strong", shows: "fix" });
   if (noted)
-    out.push({ text: `${noted} thing${noted === 1 ? "" : "s"} worth knowing`, kind: "note" });
+    out.push({
+      text: `${noted} thing${noted === 1 ? "" : "s"} worth knowing`,
+      kind: "note",
+      shows: "noted",
+    });
   if (unjudged)
     out.push({
       text: `${unjudged} check${unjudged === 1 ? "" : "s"} had nothing to go on`,
       kind: "warn",
+      shows: "abstained",
     });
   return out;
+}
+
+/** The findings or abstentions a chip stands for. */
+export function behind(gate: Gate, shows: Tally["shows"]) {
+  const blocking = (f: { severity: string }) =>
+    f.severity === "strong" || f.severity === "moderate";
+  if (shows === "fix") return { findings: gate.findings.filter(blocking), abstained: [] };
+  if (shows === "noted") return { findings: gate.findings.filter((f) => !blocking(f)), abstained: [] };
+  return { findings: [], abstained: gate.abstained ?? [] };
 }
 
 /** Statistical terms, explained once, where they are used.

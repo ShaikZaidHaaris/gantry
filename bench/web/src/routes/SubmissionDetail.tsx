@@ -28,6 +28,18 @@ function happened(kind: string): string {
   return HAPPENED[kind] ?? readable(kind);
 }
 
+/** Whether to offer the robot-test configurator at all.
+ *
+ *  It prices a run in scenes, hours and dollars and then offers to start one,
+ *  which is an operator's decision rather than a contributor's. A visitor who
+ *  has just been told their data is worth training on does not need a $39
+ *  compute estimate in front of the answer, and cannot act on it anyway.
+ *
+ *  Kept behind a flag rather than deleted, because ops still runs from it. Set
+ *  VITE_SHOW_RUN_PANEL=1 at build time to get it back.
+ */
+const SHOW_RUN_PANEL = import.meta.env.VITE_SHOW_RUN_PANEL === "1";
+
 const GATE_NAMES: Record<string, string> = {
   g0: "Intake",
   g1: "Data report",
@@ -289,7 +301,7 @@ export function SubmissionDetail() {
         </>
       )}
 
-      {mine && sized && report?.status === "passed" && (
+      {SHOW_RUN_PANEL && mine && sized && report?.status === "passed" && (
         <>
           <h2>
             What to run next

@@ -165,7 +165,57 @@ export function FindingRow({
             <p className="fix">{sentence(note.detail || note.do || "")}</p>
           )
         : finding.prescription && <p className="fix">{finding.prescription}</p>}
+      <Evidence of={finding.evidence} />
     </div>
+  );
+}
+
+/** A machine key as a label. `worth_fixing` becomes "worth fixing". */
+function label(key: string): string {
+  return key.replace(/[_.]/g, " ").trim();
+}
+
+/** One evidence value, printed as the kind of thing it is.
+ *
+ *  Floats are rounded rather than shown to fifteen places, which is precision
+ *  the measurement does not have and nobody reads. Everything else prints as
+ *  written, because the point of evidence is that it is the number the check
+ *  actually used, not a restatement of it.
+ */
+function evidenceValue(raw: unknown): string {
+  if (Array.isArray(raw)) return raw.map(evidenceValue).join(", ");
+  if (typeof raw === "boolean") return raw ? "yes" : "no";
+  if (typeof raw === "number") {
+    return Number.isInteger(raw) ? String(raw) : String(Math.round(raw * 1000) / 1000);
+  }
+  if (raw === null || raw === undefined) return "";
+  if (typeof raw === "object") return JSON.stringify(raw);
+  return String(raw);
+}
+
+/** The numbers this finding was actually decided on.
+ *
+ *  Without them a finding reads as something the site says to everybody. "1
+ *  distinct instruction across 58 clips" is a fact about one submission, and
+ *  putting the measurement next to the threshold it missed is what makes that
+ *  checkable rather than merely assertable. The modules already store this on
+ *  the finding, so showing it costs nothing and needs no gate to be re-run.
+ */
+export function Evidence({ of }: { of?: Record<string, unknown> }) {
+  if (!of) return null;
+  const shown = Object.entries(of).filter(
+    ([, v]) => v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && !v.length),
+  );
+  if (!shown.length) return null;
+  return (
+    <dl className="evidence">
+      {shown.map(([key, raw]) => (
+        <div key={key}>
+          <dt>{label(key)}</dt>
+          <dd className="mono">{evidenceValue(raw)}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
