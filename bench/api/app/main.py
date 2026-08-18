@@ -40,6 +40,8 @@ from .identity import (
 from .samples import ids as sample_ids
 from .samples import seed as seed_samples
 
+from . import evidence
+
 from .db import (
     STORAGE,
     WORKER_TOKEN,
@@ -814,6 +816,26 @@ def get_submission(sub_id: str, who=Depends(viewer), session: Session = Depends(
     if not readable(sub, who):
         raise HTTPException(404, "no such submission")
     return as_submission(session, sub, deep=True, owner=sub.org_id == who["org_id"])
+
+
+@app.get("/api/submissions/{sub_id}/evidence")
+def evidence_bundle(sub_id: str, who=Depends(viewer), session: Session = Depends(db)):
+    """The submission's evidence bundle: every gate's working as CSV tables.
+
+    Readable exactly where the report page is readable, and built from the
+    same dict the page renders, so the bundle can never say more than the
+    screen does. ``owner=False`` unconditionally: an export is made to leave,
+    and the uploader's contact address is not part of the evidence.
+    """
+    sub = session.get(Submission, sub_id)
+    if not readable(sub, who):
+        raise HTTPException(404, "no such submission")
+    payload = evidence.bundle(as_submission(session, sub, deep=True, owner=False))
+    return Response(
+        payload,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="gantry_evidence_{sub_id}.zip"'},
+    )
 
 
 #: Largest archive we accept, in bytes.
