@@ -320,6 +320,31 @@ export function SubmissionDetail() {
           it produced rather than in front of them. */}
       {!stillRunning && progress}
 
+      {/* The working behind every number above, as tables anybody can query.
+          A verdict you cannot interrogate is a claim, and the whole pitch of
+          this product is that the evidence is the point -- so the evidence is
+          downloadable wherever the report is readable, demos included. */}
+      {data.gates.some((g) => g.status !== "queued" && g.status !== "running") && (
+        <>
+          <h2>
+            Evidence
+            <span className="h2-sub">every number on this page, as tables</span>
+          </h2>
+          <div className="card pad" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <a className="btn" href={`/api/submissions/${data.id}/evidence`} download>
+              Download the evidence bundle
+            </a>
+            <span style={{ fontSize: 12.5, color: "var(--text-2)" }}>
+              A zip of CSV tables plus a manifest: per-clip signal checks, the ladder,
+              findings, measures, the event log. Nothing in it is computed on the way
+              out, so any query you run is over what the gates recorded. Reads natively
+              in <a href="https://github.com/Extelligence-ai/bagel">Bagel</a>, DuckDB,
+              or a spreadsheet.
+            </span>
+          </div>
+        </>
+      )}
+
       {/* Below the result, not above it. Re-uploading is something you do
           *because* of an answer, so the control for it follows the answer
           rather than sitting between the reader and it. */}
